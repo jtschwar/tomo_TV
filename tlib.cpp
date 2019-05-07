@@ -61,8 +61,8 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles)
         //Points passed by rays at current angles.
         VectorXd xrayRoated = cos(ang) * offsets;
         VectorXd yrayRoated = sin(ang) * offsets;
-        xrayRoated = (xrayRoated.array() < 1e-8).select(0, xrayRoated);
-        yrayRoated = (yrayRoated.array() < 1e-8).select(0, yrayRoated);
+        xrayRoated = (xrayRoated.array().abs() < 1e-8).select(0, xrayRoated);
+        yrayRoated = (yrayRoated.array().abs() < 1e-8).select(0, yrayRoated);
         
         float a = -sin(ang);
         a = rmepsilon(a);
