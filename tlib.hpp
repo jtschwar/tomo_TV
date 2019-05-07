@@ -11,4 +11,10 @@
 
 #include <stdio.h>
 
+void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::SparseMatrixBase<float>& A, int beta);
+
+float rmepsilon(float input);
+
+void parallelRay(int& Nray, Eigen::VectorXf& angles);
+
 #endif /* tlib_hpp */

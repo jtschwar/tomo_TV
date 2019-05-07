@@ -8,17 +8,19 @@
 
 #include <iostream>
 #include <Eigen/Dense>
+#include "tlib.cpp"
 
-using namespace Eigen;
+//using namespace Eigen;
 using namespace std;
 
 int Niter = 100;
 int ng = 20;
 int beta = 1.0;
-int beta_red = 095;
-int gamma_red;
+float beta_red = 0.95;
+int gamma_red = -5;
 
 int main(int argc, const char * argv[]) {
     
+    beta_red = rmepsilon(gamma_red);
     return 0;
 }

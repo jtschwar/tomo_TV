@@ -17,7 +17,7 @@
 using namespace Eigen;
 using namespace std;
 
-void tomography(MatrixXf& recon, MatrixXf& tiltSeries, SparseMatrix<float>& A, int beta)
+void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::SparseMatrix<float>& A, int beta)
 {
     Map<RowVectorXf> b(tiltSeries.data(), tiltSeries.size());
     Map<RowVectorXf> f(recon.data(), recon.size());
@@ -42,7 +42,7 @@ float rmepsilon(float input)
     return input;
 }
 
-void parallelRay(int& Nray, VectorXf& angles)
+void parallelRay(int& Nray, Eigen::VectorXf& angles)
 {
     //Nside = Nray
     int Nproj = angles.cols(); //Number of projections.
@@ -72,12 +72,12 @@ void parallelRay(int& Nray, VectorXf& angles)
         //Loop rays in current projection.
         for(int j = 0; j < Nray; j++ )
         { //Ray: y = tx * x + intercept.
-            VectorXd t_xgrid, y_xgrid;
-            t_xgrid = (xgrid - xrayRoated(j)) / a;
-            VectorXd y_xgrid = b * t_xgrid + yrayRoated(j);
+            VectorXd t_xgrid, y_xgrid, t_ygrid, x_ygrid;
+            //t_xgrid = (xgrid - xrayRoated(j)) / a;
+            //VectorXd y_xgrid = b * t_xgrid + yrayRoated(j);
             
-            VectorXd t_ygrid = (ygrid - yrayRoated(j)) / b;
-            VectorXd x_ygrid = a * t_ygrid + xrayRoated(j);
+            //VectorXd t_ygrid = (ygrid - yrayRoated(j)) / b;
+            //VectorXd x_ygrid = a * t_ygrid + xrayRoated(j);
             
             //Collect all points
             VectorXd t_grid, xx, yy;
