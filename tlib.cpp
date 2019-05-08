@@ -8,9 +8,8 @@
 
 #include "tlib.hpp"
 #include <Eigen/SparseCore>
-#include <Eigen/Dense>
+#include <Eigen/Core>
 #include <iostream>
-#include <cmath>
 
 #define PI 3.14159265
 
@@ -35,18 +34,24 @@ void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::Spar
     recon = f;
 }
 
-float rmepsilon(float input)
+float rmepsilonScalar(float input)
 {
     if (abs(input) < 1e-10)
         input = 0;
     return input;
 }
 
-void parallelRay(int& Nray, Eigen::VectorXf& angles)
+float rmepsilonVecotr(Eigen::VectorXf)
 {
-    //Nside = Nray
+    return 0;
+}
+
+void parallelRay(int Nray, Eigen::VectorXf angles)
+{
+    //Nside = Nray = y dimension of tilt series.
+    
     int Nproj = angles.cols(); //Number of projections.
-    int idxend = 0;
+    //int idxend = 0;
     
     //Initialize vectors that contain matrix elements and corresponding row/column numbers.
     //Ray coordinates at 0 degrees.
@@ -65,29 +70,36 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles)
         yrayRoated = (yrayRoated.array().abs() < 1e-8).select(0, yrayRoated);
         
         float a = -sin(ang);
-        a = rmepsilon(a);
+        a = rmepsilonScalar(a);
         float b = cos(ang);
-        b = rmepsilon(b);
+        b = rmepsilonScalar(b);
         
         //Loop rays in current projection.
         for(int j = 0; j < Nray; j++ )
-        { //Ray: y = tx * x + intercept.
+        {
+            //Ray: y = tx * x + intercept.
             VectorXd t_xgrid, y_xgrid, t_ygrid, x_ygrid;
-            //t_xgrid = (xgrid - xrayRoated(j)) / a;
-            //VectorXd y_xgrid = b * t_xgrid + yrayRoated(j);
-            
-            //VectorXd t_ygrid = (ygrid - yrayRoated(j)) / b;
-            //VectorXd x_ygrid = a * t_ygrid + xrayRoated(j);
+            t_xgrid = (xgrid.array() - xrayRoated(j)) / a;
+            y_xgrid = b * t_xgrid.array() + yrayRoated(j);
+            t_ygrid = (ygrid.array() - yrayRoated(j)) / b;
+            x_ygrid = a * t_ygrid.array() + xrayRoated(j);
             
             //Collect all points
-            VectorXd t_grid, xx, yy;
+            long tne = t_xgrid.size() + t_ygrid.size(); // tne = total number of elements
+            VectorXd t_grid(tne), xx_temp(tne), yy_temp(tne);
             t_grid << t_xgrid, t_ygrid;
-            xx << xgrid, x_ygrid;
-            yy << y_xgrid, ygrid;
+            xx_temp << xgrid, x_ygrid;
+            yy_temp << y_xgrid, ygrid;
             
             //Sort the coordinates according to intersection time.
-            
-            
+            VectorXd I = VectorXd::LinSpaced(t_grid.size(), 0, t_grid.size()-1);
+            std::sort(I.data(), I.data() + I.size(), [&t_grid] (size_t i1, size_t i2) {return t_grid[i1] < t_grid[i2];} );
+            VectorXd xx(I.size()), yy(I.size());
+            for(int k=0; k<t_grid.size(); k++){
+                xx(k) = xx_temp(I(k));
+                yy(k) = yy_temp(I(k));
+            }
+
             // Get rid of points that are outside the image grid.
         
         }

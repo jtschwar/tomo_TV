@@ -7,10 +7,11 @@
 //
 
 #include <iostream>
-#include <Eigen/Dense>
+#include <Eigen/Core>
+#include <numeric>
 #include "tlib.cpp"
 
-//using namespace Eigen;
+using namespace Eigen;
 using namespace std;
 
 int Niter = 100;
@@ -21,6 +22,11 @@ int gamma_red = -5;
 
 int main(int argc, const char * argv[]) {
     
-    beta_red = rmepsilon(gamma_red);
+    int Nray = 20;
+    VectorXd offsets = VectorXd::LinSpaced( Nray, -(Nray-1)/2, (Nray-1)/2 );
+    VectorXd xrayRoated = (offsets.array() - 1);
+    cout << offsets.transpose() << "\n";
+    cout << xrayRoated.transpose();
+    
     return 0;
 }
