@@ -10,11 +10,15 @@
 #define tlib_hpp
 
 #include <stdio.h>
+#include <Eigen/Core>
+#include <Eigen/SparseCore>
 
-void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::SparseMatrixBase<float>& A, int beta);
+void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float>& A, int beta);
 
-float rmepsilon(float input);
+float rmepsilonScalar(float input);
 
-void parallelRay(int& Nray, Eigen::VectorXf& angles);
+void rmepsilonVector(Eigen::VectorXf& input);
+
+void parallelRay(int& Nray, Eigen::VectorXf angles);
 
 #endif /* tlib_hpp */

@@ -16,18 +16,18 @@
 using namespace Eigen;
 using namespace std;
 
-void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::SparseMatrix<float>& A, int beta)
+void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float>& A, int beta)
 {
     Map<RowVectorXf> b(tiltSeries.data(), tiltSeries.size());
     Map<RowVectorXf> f(recon.data(), recon.size());
     
-    int Nrow = A.rows();
-    int Nray = recon.rows();
+    long Nrow = A.rows();
+    long Nray = recon.rows();
     float a;
     
     for(int j=0; j < Nrow; j++)
     {
-        a = (b(j) - A.row(j).dot(f)) / (A.row(j).dot(A.row(j)));
+        a = (b(j) - A.row(j).dot(f)) / innerProduct(j);
         f = f + A.row(j) * a * beta;
     }
     f.resize(Nray, Nray);
@@ -41,9 +41,9 @@ float rmepsilonScalar(float input)
     return input;
 }
 
-float rmepsilonVecotr(Eigen::VectorXf)
+void rmepsilonVector(Eigen::VectorXf& input)
 {
-    return 0;
+    input = (input.array().abs() < 1e-8).select(0, input);
 }
 
 void parallelRay(int Nray, Eigen::VectorXf angles)
