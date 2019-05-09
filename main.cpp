@@ -8,7 +8,7 @@
 
 #include <iostream>
 #include <Eigen/Core>
-#include <numeric>
+#include <Eigen/SparseCore>
 #include "tlib.cpp"
 
 using namespace Eigen;
@@ -22,13 +22,21 @@ int gamma_red = -5;
 
 int main(int argc, const char * argv[]) {
     
-    VectorXd offsets(10);
-    offsets(0) = 1;
-    offsets(1) = 2;
-    cout << offsets.transpose() << "\n\n";
-    //offsets.resize(5), offsets.setZero();
-    //cout << offsets.transpose() << "\n";
-   // cout << xrayRoated.transpose();
+    Vector2d row, col, val;
+    row(0) = 0;
+    row(1) = 1;
+    col(0) = 0;
+    col(1) = 0;
+    val(0) = 10;
+    val(1) = 20;
+    SparseMatrix<double, RowMajor> sm(3,3);
+    
+    for(int i = 0; i < 2; i++)
+    {
+        sm.insert(row(i), col(i)) = val(i);
+    }
+    
+    cout << sm << '\n';
     
     return 0;
 }

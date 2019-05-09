@@ -34,7 +34,7 @@ void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::Vect
     recon = f;
 }
 
-void parallelRay(int Nray, Eigen::VectorXf angles, Eigen::SparseMatrix<float>& A)
+void parallelRay(int Nray, Eigen::VectorXf angles, Eigen::SparseMatrix<float, RowMajor>& A)
 {
     //Nside = Nray = y dimension of tilt series.
     int Nside = Nray;
@@ -178,7 +178,13 @@ void parallelRay(int Nray, Eigen::VectorXf angles, Eigen::SparseMatrix<float>& A
         }
         
     }
+    
     //Truncate excess zeros.
+    A.reserve(idxend);
+    for(int i=0; i <idxend; i++)
+    {
+        A.insert(rows(i), cols(i)) = vals(i);
+    }
     
 }
 
