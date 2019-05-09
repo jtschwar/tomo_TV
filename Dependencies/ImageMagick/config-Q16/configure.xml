@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuremap [
+  <!ELEMENT configuremap (configure)+>
+  <!ATTLIST configuremap xmlns CDATA #FIXED ''>
+  <!ELEMENT configure EMPTY>
+  <!ATTLIST configure xmlns CDATA #FIXED '' name NMTOKEN #REQUIRED
+    value CDATA #REQUIRED>
+]>
+<!--
+  ImageMagick build configuration.
+-->
+<configuremap>
+  <configure name="CC" value="/usr/bin/clang"/>
+  <configure name="CFLAGS" value="-I/opt/local/include/libxml2   -I/opt/local/include/libraw -I/opt/local/include/libpng16 -D_THREAD_SAFE -I/opt/local/include/OpenEXR  -I/opt/local/include/openjpeg-2.3  -I/opt/local/include/freetype2 -I/opt/local/include/libpng16 -I/opt/local/include/ossp -I/opt/local/include/freetype2 -I/opt/local/include/libpng16      -pipe -Os -isysroot/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk -arch x86_64 -Wall -mtune=core2 -fexceptions -D_FORTIFY_SOURCE=0 -pthread -DMAGICKCORE_HDRI_ENABLE=0 -DMAGICKCORE_QUANTUM_DEPTH=16"/>
+  <configure name="CODER_PATH" value="/opt/local/lib/ImageMagick-6.9.9/modules-Q16/coders"/>
+  <configure name="CONFIGURE_PATH" value="/opt/local/etc/ImageMagick-6/"/>
+  <configure name="CONFIGURE" value="./configure  '--prefix=/opt/local' '--enable-shared' '--enable-static' '--disable-silent-rules' '--with-frozenpaths' '--with-openexr' '--disable-hdri' '--with-dps' '--with-bzlib' '--with-djvu' '--with-fontconfig' '--with-gslib' '--with-jbig' '--with-jpeg' '--with-lcms' '--with-openjp2' '--with-png' '--with-tiff' '--with-webp' '--with-zlib' '--with-modules' '--with-xml' '--without-perl' '--without-fpx' '--without-wmf' '--without-gvc' '--without-rsvg' '--without-lqr' '--without-pango' '--with-x' '--with-gs-font-dir=/opt/local/share/fonts/urw-fonts' '--enable-opencl' 'CC=/usr/bin/clang' 'CFLAGS=-pipe -Os -isysroot/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk -arch x86_64' 'LDFLAGS=-L/opt/local/lib -Wl,-headerpad_max_install_names -Wl,-syslibroot,/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk -arch x86_64' 'CPPFLAGS=-I/opt/local/include -isysroot/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk' 'CXX=/usr/bin/clang++' 'CXXFLAGS=-pipe -Os -stdlib=libc++ -isysroot/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk -arch x86_64'"/>
+  <configure name="COPYRIGHT" value="Copyright (C) 1999-2018 ImageMagick Studio LLC"/>
+  <configure name="CPPFLAGS" value="-I/opt/local/include/ImageMagick-6"/>
+  <configure name="CXXFLAGS" value="-pipe -Os -stdlib=libc++ -isysroot/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk -arch x86_64 -pthread"/>
+  <configure name="CXX" value="/usr/bin/clang++"/>
+  <configure name="DEFS" value="-DHAVE_CONFIG_H"/>
+  <configure name="DELEGATES" value="bzlib djvu mpeg fftw fontconfig freetype gslib jbig jng jpeg lcms lzma openexr openjp2 png ps raw tiff webp x xml zlib"/>
+  <configure name="DISTCHECK_CONFIG_FLAGS" value="'CC=/usr/bin/clang' 'CFLAGS=-pipe -Os -isysroot/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk -arch x86_64' 'CPPFLAGS=-I/opt/local/include -isysroot/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk' 'CXX=/usr/bin/clang++' 'LDFLAGS=-L/opt/local/lib -Wl,-headerpad_max_install_names -Wl,-syslibroot,/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk -arch x86_64'  --disable-deprecated  --with-quantum-depth=16  --with-jemalloc=no  --with-umem=no  --with-autotrace=no  --with-fpx=no  --with-fontpath=  --with-gs-font-dir=/opt/local/share/fonts/urw-fonts  --with-gvc=no  --with-lqr=no  --with-pango=no  --with-rsvg=no  --with-wmf=no  --with-perl=no "/>
+  <configure name="DOCUMENTATION_PATH" value="/opt/local/share/doc/ImageMagick-6"/>
+  <configure name="EXEC-PREFIX" value="/opt/local"/>
+  <configure name="EXECUTABLE_PATH" value="/opt/local/bin"/>
+  <configure name="FEATURES" value="DPC Cipher Modules"/>
+  <configure name="FILTER_PATH" value="/opt/local/lib/ImageMagick-6.9.9/modules-Q16/filters"/>
+  <configure name="GIT_REVISION" value="13137" />
+  <configure name="HOST" value="x86_64-apple-darwin18.5.0"/>
+  <configure name="INCLUDE_PATH" value="/opt/local/include/ImageMagick-6"/>
+  <configure name="LDFLAGS" value="-L/opt/local/lib -L/opt/local/lib -Wl,-headerpad_max_install_names -Wl,-syslibroot,/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk -arch x86_64 "/>
+  <configure name="LIBRARY_PATH" value="/opt/local/lib/ImageMagick-6.9.9"/>
+  <configure name="LIBS" value=" -L/opt/local/lib -llcms2 -L/opt/local/lib -lfreetype   -L/opt/local/lib -lfftw3  -L/opt/local/lib -lxml2 -L/opt/local/lib -lfontconfig -lfreetype -lXext   -lSM -lICE -lX11  -lXt -L/opt/local/lib -llzma -lbz2 -L/opt/local/lib -lz -lltdl  -lm     "/>
+  <configure name="LIB_VERSION_NUMBER" value="6,9,9,40"/>
+  <configure name="LIB_VERSION" value="0x699"/>
+  <configure name="NAME" value="ImageMagick"/>
+  <configure name="PCFLAGS" value="-DMAGICKCORE_HDRI_ENABLE=0 -DMAGICKCORE_QUANTUM_DEPTH=16"/>
+  <configure name="PREFIX" value="/opt/local"/>
+  <configure name="QuantumDepth" value="16"/>
+  <configure name="RELEASE_DATE" value="2019-05-09"/>
+  <configure name="SHAREARCH_PATH" value="/opt/local/lib/ImageMagick-6.9.9/config-Q16"/>
+  <configure name="SHARE_PATH" value="/opt/local/share/ImageMagick-6"/>
+  <configure name="TARGET_CPU" value="x86_64"/>
+  <configure name="TARGET_OS" value="darwin18.5.0"/>
+  <configure name="TARGET_VENDOR" value="apple"/>
+  <configure name="VERSION" value="6.9.9"/>
+  <configure name="WEBSITE" value="http://www.imagemagick.org"/>
+</configuremap>
