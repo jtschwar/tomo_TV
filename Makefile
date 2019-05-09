@@ -1,5 +1,3 @@
-# Makefile for EECS 280 Project 5
-
 debug_or_optimize = -O1
 
 CXX = g++
