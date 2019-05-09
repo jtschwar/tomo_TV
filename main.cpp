@@ -7,25 +7,27 @@
 //
 
 #include <iostream>
+#include <fstream>
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
 #include "tlib.cpp"
 
-using namespace Eigen;
+//using namespace Eigen;
 using namespace std;
 
+//Reconstruction parameters.
 int Niter = 25;
-//int ng = 20;
 int beta = 1.0;
 float beta_red = 0.95;
-//int gamma_red = -5;
 
 int main(int argc, const char * argv[]) {
     
+    string fileName = "phantom.tif";
+    ifstream inputData;
     
-    SparseMatrix<float, RowMajor> A;
-    
-    
+    //cout << img;
+    //img = imread("phantom.tif");
+    //SparseMatrix<float, RowMajor> A;
     
     return 0;
 }

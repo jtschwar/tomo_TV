@@ -212,3 +212,8 @@ void removeBadElements(Eigen::VectorXf& xx, Eigen::VectorXf& yy, Eigen::VectorXf
     xx = xx_temp;
     yy = yy_temp;
 }
+
+//void readImage(MatrixXf& outputMatrix, const string& fileName)
+//{
+//
+//}
