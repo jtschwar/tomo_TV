@@ -22,11 +22,13 @@ int gamma_red = -5;
 
 int main(int argc, const char * argv[]) {
     
-    int Nray = 20;
-    VectorXd offsets = VectorXd::LinSpaced( Nray, -(Nray-1)/2, (Nray-1)/2 );
-    VectorXd xrayRoated = (offsets.array() - 1);
-    cout << offsets.transpose() << "\n";
-    cout << xrayRoated.transpose();
+    VectorXd offsets(10);
+    offsets(0) = 1;
+    offsets(1) = 2;
+    cout << offsets.transpose() << "\n\n";
+    //offsets.resize(5), offsets.setZero();
+    //cout << offsets.transpose() << "\n";
+   // cout << xrayRoated.transpose();
     
     return 0;
 }

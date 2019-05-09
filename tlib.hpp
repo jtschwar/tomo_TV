@@ -15,10 +15,10 @@
 
 void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float>& A, int beta);
 
-float rmepsilonScalar(float input);
-
-void rmepsilonVector(Eigen::VectorXf& input);
+float rmepsilon(float input);
 
 void parallelRay(int& Nray, Eigen::VectorXf angles);
+
+void removeBadElements(Eigen::VectorXf& xx, Eigen::VectorXf& yy, Eigen::VectorXf I);
 
 #endif /* tlib_hpp */
