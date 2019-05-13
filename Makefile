@@ -1,4 +1,4 @@
-debug_or_optimize = -O1
+debug_or_optimize = -O2
 
 CXX = g++
 CXXFLAGS = -Wall -Werror -Wno-div-by-zero -pedantic --std=c++11 $(debug_or_optimize)  -I ./Dependencies/Eigen/ 
