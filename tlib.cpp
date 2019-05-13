@@ -10,8 +10,10 @@
 #include <Eigen/SparseCore>
 #include <Eigen/Core>
 #include <iostream>
+#include <fstream>
 
 #define PI 3.14159265359
+#define MAXBUFSIZE  ((int) 1e6)
 
 using namespace Eigen;
 using namespace std;
@@ -34,7 +36,7 @@ void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::Vect
     recon = f;
 }
 
-void parallelRay(int Nray, Eigen::VectorXf angles, Eigen::SparseMatrix<float, RowMajor>& A)
+void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, Eigen::RowMajor>& A)
 {
     //Nside = Nray = y dimension of tilt series.
     int Nside = Nray;
@@ -44,17 +46,16 @@ void parallelRay(int Nray, Eigen::VectorXf angles, Eigen::SparseMatrix<float, Ro
     int rayWidth = 1;
     
     //Number of projections.
-    int Nproj = angles.cols();
+    int Nproj = angles.rows();
     int idxend = 0;
-    
     //Initialize vectors that contain matrix elements and corresponding row/column numbers.
     //Ray coordinates at 0 degrees.
-    VectorXf offsets = VectorXf::LinSpaced( Nray, -(Nray-1)/2, (Nray-1)/2 )*rayWidth;
-    VectorXf xgrid = VectorXf::LinSpaced( Nray + 1, - Nray*0.5 , Nray*0.5 )*pixelWidth;
-    VectorXf ygrid = VectorXf::LinSpaced( Nray + 1, - Nray*0.5 , Nray*0.5 )*pixelWidth;
+    VectorXf offsets = VectorXf::LinSpaced( Nray + 1, -(Nray - 1) * 0.5, (Nray + 1) * 0.5 ) * rayWidth;
+    VectorXf xgrid = VectorXf::LinSpaced( Nray + 1, -Nray * 0.5 , Nray * 0.5) * pixelWidth;
+    VectorXf ygrid = VectorXf::LinSpaced( Nray + 1, - Nray * 0.5 , Nray * 0.5 ) * pixelWidth;
     
     //Initialize vectors that contain matrix elements and corresponding row/column numbers
-    int max_elements = 2 * Nside * Nproj * Nray;
+    long int max_elements = 2 * Nside * Nproj * Nray;
     VectorXf rows(max_elements), cols(max_elements), vals(max_elements);
     
     //Loop over projection angles.
@@ -97,15 +98,19 @@ void parallelRay(int Nray, Eigen::VectorXf angles, Eigen::SparseMatrix<float, Ro
                 xx(k) = xx_temp(I(k));
                 yy(k) = yy_temp(I(k));
             }
-
+            
             // Get rid of points that are outside the image grid.
             I.resize(xx.size()), I.setZero();
-            float vol_boundary = Nside/2.0 *pixelWidth;
+            float vol_boundary = Nside/2.0 * pixelWidth;
             for(int k=0; k<xx.size(); k++)
             {
                 if(xx(k) >= -vol_boundary && xx(k) <= vol_boundary)
-                    if(yy(k) >= -vol_boundary && yy(k) <= vol_boundary)
+                {    if(yy(k) >= -vol_boundary && yy(k) <= vol_boundary)
+                     {
                         I(k) = 1.0;
+                     }
+                    
+                }
             }
             removeBadElements(xx, yy, I);
             
@@ -117,44 +122,52 @@ void parallelRay(int Nray, Eigen::VectorXf angles, Eigen::SparseMatrix<float, Ro
                 for(int k=0; k<xx.size()-1; k++)
                 {
                     if(abs(xx(k+1) - xx(k)) <= 1e-8)
-                        if(abs(yy(k+1) - yy(k)) <= 1e-8)
-                            I(k) = 0;
+                    {    if(abs(yy(k+1) - yy(k)) <= 1e-8)
+                         {
+                             I(k) = 0;
+                         }
+                    }
                 }
                 removeBadElements(xx, yy, I);
             
                 //Calculate the length within the cell.
-                VectorXf length(xx.size());
-                for(int k=0; k<xx.size()-1; k++)
+                tne = xx.size() - 1;
+                VectorXf length(tne);
+                for(int k=0; k<tne; k++)
                 {
                     length(k) = sqrt( pow((xx(k+1) - xx(k)),2) + pow((yy(k+1) - yy(k)),2) );
                 }
                 int numvals = length.size();
-            
+
                 //Remove the rays that are on the boundary of the box in the
                 //top or to the right of the image grid
                 bool check1, check2, check;
                 check1 = check2 = false;
                 check = true;
-                if (b == 0 && abs(yrayRoated(j) - Nside/2 * pixelWidth) < 1e-15)
+                if (b == 0 && abs(yrayRoated(j) - Nside/2 * pixelWidth) < 1e-15) {
                     check1 = true;
-                if (a == 0 && abs(xrayRoated(j) - Nside/2 * pixelWidth) < 1e-15)
+                }
+                if (a == 0 && abs(xrayRoated(j) - Nside/2 * pixelWidth) < 1e-15) {
                     check2 = true;
-                if (check1 || check2)
+                }
+                if (check1 || check2) {
                     check = false;
+                }
             
                 //Calculate corresponding indices in measurement matrix
-                if(numvals > 0 && check == 1)
-            
+                if(numvals > 0 && check == true)
+                {
                     //First, calculate the mid points coord. between two
                     //adjacent grid points
                     tne = xx.size() - 1;
                     VectorXf midpointsX(tne);
                     VectorXf midpointsY(tne);
-                    for(int k=0; k<xx.size(); k++)
+                    for(int k=0; k<tne; k++)
                     {
                         midpointsX(k) = 0.5 * (xx(k) + xx(k+1));
                         midpointsY(k) = 0.5 * (yy(k) + yy(k+1));
                     }
+            
                     midpointsX = (midpointsX.array().abs() < 1e-10).select(0, midpointsX);
                     midpointsY = (midpointsY.array().abs() < 1e-10).select(0, midpointsY);
             
@@ -165,26 +178,26 @@ void parallelRay(int Nray, Eigen::VectorXf angles, Eigen::SparseMatrix<float, Ro
                     //Create the indices to store the values to the measurement matrix
                     int idxstart = idxend;
                     idxend = idxstart + numvals;
-                    int idxsize = idxend - idxstart;
-                    VectorXf idx = VectorXf::LinSpaced(idxsize, idxstart, idxend-1);
-           
+                    int idx = 0;
+
                     //Store row numbers, column numbers and values
                     for(int k=idxstart; k<idxend; k++)
                     {
                         rows(k) = i * Nray + j;
-                        cols(k) = pixelIndex(k);
-                        vals(k) = length(k);
+                        cols(k) = pixelIndex(idx);
+                        vals(k) = length(idx);
+                        idx = idx + 1;
                     }
+                }
         }
         
     }
-    
     //Truncate excess zeros.
-    A.reserve(idxend);
     for(int i=0; i <idxend; i++)
     {
         A.insert(rows(i), cols(i)) = vals(i);
     }
+    A.makeCompressed();
     
 }
 
@@ -197,23 +210,19 @@ float rmepsilon(float input)
 
 void removeBadElements(Eigen::VectorXf& xx, Eigen::VectorXf& yy, Eigen::VectorXf I)
 {
-    //Remove elements at indices where I is equal to 0.
-    
-    VectorXf xx_temp(I.nonZeros()), yy_temp(I.nonZeros());
+    //Remove elements at indices where I == 0.
+    VectorXf xx_temp(xx.size()), yy_temp(xx.size());
     int ind = 0;
     for(int k=0; k<xx.size();k++)
     {
         if(I(k) != 0)
+        {
             xx_temp(ind) = xx(k);
-        yy_temp(ind) = yy(k);
-        ind++;
+            yy_temp(ind) = yy(k);
+            ind++;
+        }
     }
-    xx.resize(xx_temp.size()), yy.resize(yy_temp.size());
-    xx = xx_temp;
-    yy = yy_temp;
+    xx.resize(ind), yy.resize(ind);
+    xx = xx_temp.head(ind);
+    yy = yy_temp.head(ind);
 }
-
-//void readImage(MatrixXf& outputMatrix, const string& fileName)
-//{
-//
-//}
