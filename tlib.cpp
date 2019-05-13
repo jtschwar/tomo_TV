@@ -36,6 +36,19 @@ void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::Vect
     recon = f;
 }
 
+void tomography2D(Eigen::VectorXf& f, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, Eigen::RowMajor>& A, int beta)
+{
+    
+    long Nrow = A.rows();
+    float a;
+    
+    for(int j=0; j < Nrow; j++)
+    {
+        a = (b(j) - A.row(j).dot(f)) / innerProduct(j);
+        f = f + A.row(j).transpose() * a * beta;
+    }
+}
+
 void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, Eigen::RowMajor>& A)
 {
     //Nside = Nray = y dimension of tilt series.
