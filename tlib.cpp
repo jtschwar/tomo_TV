@@ -197,7 +197,7 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, 
     {
         A.insert(rows(i), cols(i)) = vals(i);
     }
-    A.makeCompressed();
+    //A.makeCompressed();
     
 }
 

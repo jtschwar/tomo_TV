@@ -7,7 +7,6 @@
 //
 
 #include <iostream>
-#include <fstream>
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
 #include "tlib.cpp"
@@ -19,15 +18,24 @@ using namespace std;
 int Niter = 25;
 int beta = 1.0;
 float beta_red = 0.95;
+int Nslice = 256;
+int Nray = 256;
+int Nproj = 30;
+int Nrow = Nray * Nproj;
+int Ncol = Nray * Nray;
+
 
 int main(int argc, const char * argv[]) {
     
-    string fileName = "phantom.tif";
-    ifstream inputData;
+    VectorXf tiltAngles = VectorXf::LinSpaced(Nproj, 0, 180);
+    SparseMatrix<float, Eigen::RowMajor> A(Nrow, Ncol);
+    parallelRay(Nray, tiltAngles, A);
     
-    //cout << img;
-    //img = imread("phantom.tif");
-    //SparseMatrix<float, RowMajor> A;
+    VectorXf rowInnerProduct(Nrow);
+    for(int j=0; j < Nrow; j++)
+    {
+        rowInnerProduct(j) = A.row(j).dot(A.row(j));
+    }
     
     return 0;
 }
