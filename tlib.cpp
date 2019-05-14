@@ -20,8 +20,8 @@ using namespace std;
 
 void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float>& A, int beta)
 {
-    Map<RowVectorXf> b(tiltSeries.data(), tiltSeries.size());
-    Map<RowVectorXf> f(recon.data(), recon.size());
+    Map<VectorXf> b(tiltSeries.data(), tiltSeries.size());
+    Map<VectorXf> f(recon.data(), recon.size());
     
     long Nrow = A.rows();
     long Nray = recon.rows();
@@ -34,6 +34,20 @@ void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::Vect
     }
     f.resize(Nray, Nray);
     recon = f;
+}
+
+void tomography2D(Eigen::VectorXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, RowMajor>& A, int beta)
+{
+    
+    long Nrow = A.rows();
+    long Nray = recon.rows();
+    float a;
+    
+    for(int j=0; j < Nrow; j++)
+    {
+        a = (b(j) - A.row(j).dot(recon)) / innerProduct(j);
+        recon = recon + A.row(j).transpose() * a * beta;
+    }
 }
 
 void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, Eigen::RowMajor>& A)
