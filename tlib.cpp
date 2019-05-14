@@ -36,29 +36,17 @@ void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::Vect
     recon = f;
 }
 
-<<<<<<< HEAD
 void tomography2D(Eigen::VectorXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, RowMajor>& A, int beta)
 {
     
     long Nrow = A.rows();
     long Nray = recon.rows();
-=======
-void tomography2D(Eigen::VectorXf& f, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, Eigen::RowMajor>& A, int beta)
-{
-    
-    long Nrow = A.rows();
->>>>>>> master
     float a;
     
     for(int j=0; j < Nrow; j++)
     {
-<<<<<<< HEAD
         a = (b(j) - A.row(j).dot(recon)) / innerProduct(j);
         recon += A.row(j).transpose() * a * beta;
-=======
-        a = (b(j) - A.row(j).dot(f)) / innerProduct(j);
-        f = f + A.row(j).transpose() * a * beta;
->>>>>>> master
     }
 }
 
