@@ -19,8 +19,8 @@ int Niter = 25;
 int beta = 1.0;
 float beta_red = 0.95;
 int Nslice = 256;
-int Nray = 256;
-int Nproj = 30;
+int Nray = 512;
+int Nproj = 100;
 int Nrow = Nray * Nproj;
 int Ncol = Nray * Nray;
 
