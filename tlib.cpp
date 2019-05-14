@@ -13,7 +13,6 @@
 #include <fstream>
 
 #define PI 3.14159265359
-#define MAXBUFSIZE  ((int) 1e6)
 
 using namespace Eigen;
 using namespace std;
@@ -38,7 +37,7 @@ void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::Vect
 
 void tomography2D(Eigen::VectorXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, RowMajor>& A, int beta)
 {
-    
+    //2D ART Tomography
     long Nrow = A.rows();
     long Nray = recon.rows();
     float a;
@@ -52,19 +51,43 @@ void tomography2D(Eigen::VectorXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& i
 
 Eigen::MatrixXf tv2Dderivative(Eigen::MatrixXf& recon)
 {
-    //MatrixXf r(recon.rows() + 2, recon.cols() + 2);
-    //MatrixXf v1n = 4 * circshift2D(recon, r, 0, 0) - 2 * circshift2D(recon, r, 1, 0) - 2 * circshift2D(recon, r, 0, 1);
-    //MatrixXf v1d = 1e-8 + (r-circshift2D(recon, r, 1, 0)).array().pow(2) + (r-circshift2D(recon, r, 0, 1).array().pow(2);
-
-    MatrixXf v;
-    return v;
+    int padX = recon.rows() + 2;
+    int padY = recon.rows() + 2;
+    
+    MatrixXf v1n, v1d, v2n, v2d, v3n, v3d, v;
+    MatrixXf r(padX, padY), rXp(padX, padY), rYp(padX, padY);
+    circshift(recon, r, 0, 0), circshift(recon, rXp, 1, 0), circshift(recon, rYp, 0, 1);
+    v1n = 4 * r - 2 * rXp - 2 * rYp;
+    v1d = 1e-8 + (r - rXp).array().square() + (r - rYp).array().square();
+    rXp.resize(0,0), rYp.resize(0,0);
+    
+    MatrixXf rXn(padX, padY), rXnYp(padX, padY);
+    circshift(recon, rXn, -1, 0), circshift(recon, rXnYp, -1, 1);
+    v2n = 2 * (r - rXn).array().square();
+    v2d = 1e-8 + (rXn - r).array().square() + (rXn - rXnYp).array().square();
+    rXn.resize(0,0), rYp.resize(0,0);
+    
+    MatrixXf rYn(padX, padY), rXpYn(padX, padY);
+    circshift(recon, rYn, 0, -1), circshift(recon, rXpYn, 1, -1);
+    v3n = 2 * (r - rYn).array().square();
+    v3d = 1e-8 + (rYn - r).array().square() + (rYn - rXpYn).array().square();
+    rYn.resize(0,0), rXpYn.resize(0,0);
+    
+    v = v1n.array() / v1d.array() + v2n.array() / v2d.array() + v3n.array() / v3d.array();
+    MatrixXf v2(recon.rows(), recon.cols());
+    v2 = v.block(1,1,recon.rows(), recon.cols());
+    v2 = v2/v2.norm();
+    
+    return v2;
 }
 
-void circshift2D(Eigen::MatrixXf& input, Eigen::MatrixXf& output, int i, int j)
+//Write tvDerivate here. 
+
+void circshift(Eigen::MatrixXf& input, Eigen::MatrixXf& output, int i, int j)
 {
     // i == shift in the y - direction.
     // j == shift in the x - direction.
-    output.block(1+i, 1+j, input.rows(), output.rows()) = input;
+    output.block(1+i, 1+j, input.rows(), input.rows()) = input;
 }
 
 void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, Eigen::RowMajor>& A)
@@ -79,6 +102,7 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, 
     //Number of projections.
     int Nproj = angles.rows();
     int idxend = 0;
+    
     //Initialize vectors that contain matrix elements and corresponding row/column numbers.
     //Ray coordinates at 0 degrees.
     VectorXf offsets = VectorXf::LinSpaced( Nray + 1, -(Nray - 1) * 0.5, (Nray + 1) * 0.5 ) * rayWidth;
@@ -228,7 +252,7 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, 
     {
         A.insert(rows(i), cols(i)) = vals(i);
     }
-    //A.makeCompressed();
+    A.makeCompressed();
     
 }
 

@@ -19,7 +19,7 @@ void tomography2D(Eigen::VectorXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& i
 
 Eigen::MatrixXf tv2Dderivative(Eigen::MatrixXf& recon);
 
-void circshift2D(Eigen::MatrixXf& input, Eigen::MatrixXf& output, int i, int j);
+void circshift(Eigen::MatrixXf& input, Eigen::MatrixXf& output, int i, int j);
 
 float rmepsilon(float input);
 
