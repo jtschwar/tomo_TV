@@ -4,5 +4,6 @@ C++ toolbox for Total Varation tomographic reconstruction created by Jonathan Sc
 
 # How to install tomo_TV
 
-    Compile: make main
-    Run: ./main
+    Create your make file: cmake . 
+    Compile: make 
+    Run: ./tomo_tv

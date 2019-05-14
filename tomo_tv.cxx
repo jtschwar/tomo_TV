@@ -20,57 +20,64 @@ using namespace std;
 using namespace cv;
 
 //Reconstruction parameters.
-int Niter = 5;
+int Niter = 25;
 int beta = 1.0;
 float beta_red = 0.95;
+int Nproj = 30;
 String filename = "phantom.tif";
 
 int main(int argc, const char * argv[]) {
     
-    Mat img = imread(filename);
+    // Load Dataset. 
+    Mat img = imread(filename, cv::ImreadModes::IMREAD_GRAYSCALE);
     int Nslice = img.rows;
     int Nray = img.cols;
-    int Nproj = 30;
+    Eigen::MatrixXf tiltSeries;
+    cv::cv2eigen(img, tiltSeries);
     
+    //Display Original Image.
+//    namedWindow( "Original Image", WINDOW_AUTOSIZE );
+//    imshow( "Original Image", img );
+//    waitKey(0);
+
     //Generate Measurement Matrix.
-    Map<MatrixXf> img_matrix(img.ptr<float>(), Nslice, Nray);
-    cout << img_matrix.rows() ;
-    
     VectorXf tiltAngles = VectorXf::LinSpaced(Nproj, 0, 180);
     int Nrow = Nray*Nproj;
     int Ncol = Nray*Nray;
     SparseMatrix<float, Eigen::RowMajor> A(Nrow,Ncol);
     parallelRay(Nray, tiltAngles, A);
-    
+
     //Calculate Inner Product.
     VectorXf rowInnerProduct(Nrow);
     for(int j=0; j < Nrow; j++)
     {
         rowInnerProduct(j) = A.row(j).dot(A.row(j));
     }
-    
+
     //Vectorize/Initialize the reconstruction and experimental data.
-    Map<VectorXf> tiltSeries(img_matrix.data(), img_matrix.size());
+    tiltSeries.resize(tiltSeries.size(), 1);
     VectorXf b = A * tiltSeries;
-    VectorXf recon(tiltSeries.size());
-    recon.setZero();
-    
-    //Main Loop. 
+    VectorXf vec_recon(Ncol,1);
+    vec_recon.setZero();
+
+    //Main Loop.
     for(int i=0; i < Niter; i++)
     {
         cout << "Iteration: " << i + 1 << " / " << Niter << "\n";
-        tomography2D(recon, b, rowInnerProduct, A, beta);
+        tomography2D(vec_recon, b, rowInnerProduct, A, beta);
+        vec_recon = (vec_recon.array() < 0).select(0, vec_recon);
     }
-    
-    //Display and Save final reconstruction.
-    Map<MatrixXf> finalRecon(recon.data(), Nslice, Nray);
-    Mat final_img(Nray, Nray, CV_32FC1, finalRecon.data());
-    
-    //cout << final_img;
 
-    //namedWindow( "Reconstruction", WINDOW_AUTOSIZE );
-    //imshow( "Reconstruction", final_img );
-    //waitKey(0);
+    //Display and Save final reconstruction.
+    MatrixXf recon;
+    Map<MatrixXf> temp_recon(vec_recon.data(), Nray, Nray);
+    recon = temp_recon;
+    Mat final_img;
+    cv::eigen2cv(recon, final_img);
+
+    namedWindow( "Reconstruction", WINDOW_AUTOSIZE );
+    imshow( "Reconstruction", final_img * (1.0 / 255) );
+    waitKey(0);
     
     return 0;
 }

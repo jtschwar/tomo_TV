@@ -46,7 +46,7 @@ void tomography2D(Eigen::VectorXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& i
     for(int j=0; j < Nrow; j++)
     {
         a = (b(j) - A.row(j).dot(recon)) / innerProduct(j);
-        recon = recon + A.row(j).transpose() * a * beta;
+        recon += A.row(j).transpose() * a * beta;
     }
 }
 
