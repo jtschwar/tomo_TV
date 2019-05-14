@@ -50,6 +50,23 @@ void tomography2D(Eigen::VectorXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& i
     }
 }
 
+Eigen::MatrixXf tv2Dderivative(Eigen::MatrixXf& recon)
+{
+    //MatrixXf r(recon.rows() + 2, recon.cols() + 2);
+    //MatrixXf v1n = 4 * circshift2D(recon, r, 0, 0) - 2 * circshift2D(recon, r, 1, 0) - 2 * circshift2D(recon, r, 0, 1);
+    //MatrixXf v1d = 1e-8 + (r-circshift2D(recon, r, 1, 0)).array().pow(2) + (r-circshift2D(recon, r, 0, 1).array().pow(2);
+
+    MatrixXf v;
+    return v;
+}
+
+void circshift2D(Eigen::MatrixXf& input, Eigen::MatrixXf& output, int i, int j)
+{
+    // i == shift in the y - direction.
+    // j == shift in the x - direction.
+    output.block(1+i, 1+j, input.rows(), output.rows()) = input;
+}
+
 void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, Eigen::RowMajor>& A)
 {
     //Nside = Nray = y dimension of tilt series.
