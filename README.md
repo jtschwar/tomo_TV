@@ -6,6 +6,6 @@ C++ toolbox for Total Varation tomographic reconstruction created by Jonathan Sc
 
     Dependencies: OpenCV
 
-    Build your compiler with: cmake . 
+    Build your make file: cmake . 
     Compile: make -jX (where x is number of cores available)
     Run: ./tomo_tv
