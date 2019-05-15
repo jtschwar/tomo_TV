@@ -65,33 +65,46 @@ int main(int argc, const char * argv[]) {
     //Vectorize/Initialize the reconstruction and experimental data.
     tiltSeries.resize(tiltSeries.size(), 1);
     VectorXf b = A * tiltSeries;
-    VectorXf vec_recon(Ncol,1);
-    vec_recon.setZero();
+    MatrixXf recon (Nslice, Nray);
+    MatrixXf temp_recon(Nslice, Nray);
+    float dPOCS;
     
     //Main Loop.
     for(int i=0; i < Niter; i++)
     {
-        cout << "Iteration: " << i + 1 << " / " << Niter << "\n";
-        tomography2D(vec_recon, b, rowInnerProduct, A, beta);
-        vec_recon = (vec_recon.array() < 0).select(0, vec_recon);
+        //cout << "Iteration: " << i + 1 << " / " << Niter << "\n";
+        temp_recon = recon;
+        
+        //ART Reconstruction.
+        recon.resize(Ncol, 1);
+        tomography2D(recon, b, rowInnerProduct, A, beta);
+        recon.resize(Nslice, Nray);
+        
+        //Positivity Constraint.
+        recon = (recon.array() < 0).select(0, recon);
         
         beta = beta*beta_red;
         
-//        if (i == 0)
-//        {
-//            float dPOCS = (
-//        }
+        if (i == 0)
+        {
+            dPOCS = (temp_recon - recon).norm();
+        }
         
-//        for(int j=0; j<ng; j++)
-//        {
-//
-//        }
+        //float dp = (temp_recon - recon).norm();
+        //temp_recon = recon;
+        
+        for(int j=0; j<ng; j++)
+        {
+            MatrixXf v = tv2Dderivative(recon);
+            recon -= dPOCS * v;
+            recon = (recon.array() < 0).select(0, recon);
+        }
+        cout << recon.maxCoeff() << endl;
+        
     }
     
+    
     //Display and Save final reconstruction.
-    MatrixXf recon;
-    Map<MatrixXf> temp_recon(vec_recon.data(), Nray, Nray);
-    recon = temp_recon;
     Mat final_img;
     cv::eigen2cv(recon, final_img);
     
