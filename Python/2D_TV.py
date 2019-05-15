@@ -1,12 +1,11 @@
 import numpy as np
 from PIL import Image
 from matplotlib import pyplot as plt
-from tvlib import tv_derivative2D, parallelRay
-import cv2
+from tvlib import tv_derivative2D, parallelRay, tv2D
 
-Niter = 25
+Niter = 40
 num_tilts = 30
-ng = 20
+ng = 5
 beta_0 = 1.0
 r_max = 1.0
 gamma_red = 0.8
@@ -61,44 +60,36 @@ for i in range(Niter): #main loop
     #calculate tomogram change due to POCS
     if i == 0:
         dPOCS = np.linalg.norm(recon_temp - recon)
-        print(dPOCS)
+        print('dPOCS ' +str(dPOCS))
 
     dp = np.linalg.norm(recon_temp - recon)
 
     recon_temp = recon.copy() 
 
-    v = tv_derivative2D(recon)
-    print(str(np.amin(v)) + ' ' + str(np.amax(v)))
-    recon = recon - dPOCS * v
-    recon[recon < 0] = 0
+    # 2D TV minimization
+    for j in range(ng):
+        R_0 = tv2D(recon)
+        print('R_0 ' + str(R_0))
+        v = tv_derivative2D(recon)
+        recon_prime = recon - dPOCS * v
+        recon_prime[recon_prime < 0] = 0
+        gamma = 1.0
+        R_f = tv2D(recon_prime)
 
-    #2D TV minimization
-    # for j in range(ng):
-    #     R_0 = tv(recon)
-    #     v = tv_derivative(recon)
-    #     recon_prime = recon - dPOCS * v
-    #     recon_prime[recon_prime < 0] = 0
-    #     gamma = 1.0
-    #     R_f = tv(recon_prime)
+        #Projected Line search
+        while R_f > R_0:
+            print('R_f ' + str(R_f))
+            gamma = gamma * gamma_red
+            recon_prime = recon - gamma * dPOCS * v
+            recon_prime[recon_prime < 0] = 0
+            R_f = tv2D(recon_prime)
+        recon[:] = recon_prime
 
-    #     #Projected Line search
-    #     while R_f > R_0:
-    #         gamma = gamma * gamma_red
-    #         recon_prime = recon - gamma * dPOCS * v
-    #         recon_prime[recon_prime < 0] = 0
-    #         R_f = tv(recon_prime)
-    #     recon[:] = recon_prime
+    dg = np.linalg.norm(recon - recon_temp)
 
-    #dg = np.linalg.norm(recon - recon_temp)
+    if dg > r_max*dp:
+        dPOCS = dPOCS*0.8
 
-    #if dg > r_max*dp:
-        #dPOCS = dPOCS*0.8
-
-    #t = (1+np.sqrt(4*t0**2))/2
-    #recon = recon + (t0-1)/t*(recon - recon_temp)
-    #t0 = t
-
-print(np.amax(recon))
 plt.imshow(recon,cmap='gray')
 plt.axis('off')
 plt.show()

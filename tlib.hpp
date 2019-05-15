@@ -17,11 +17,11 @@ void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::Vect
 
 void tomography2D(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, Eigen::RowMajor>& A, int beta);
 
-Eigen::MatrixXf tv2Dderivative(Eigen::MatrixXf& recon);
+Eigen::MatrixXf tv2Dderivative(Eigen::MatrixXf recon);
 
 float tv2D(Eigen::MatrixXf& recon);
 
-void circshift(Eigen::MatrixXf& input, Eigen::MatrixXf& output, int i, int j);
+void circshift(Eigen::MatrixXf input, Eigen::MatrixXf& output, int i, int j);
 
 float rmepsilon(float input);
 

@@ -53,35 +53,38 @@ void tomography2D(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& i
     recon = f;
 }
 
-Eigen::MatrixXf tv2Dderivative(Eigen::MatrixXf& recon)
+Eigen::MatrixXf tv2Dderivative(Eigen::MatrixXf recon)
 {
     int padX = recon.rows() + 2;
     int padY = recon.cols() + 2;
     
     MatrixXf v1n, v1d, v2n, v2d, v3n, v3d, v;
     MatrixXf r(padX, padY), rXp(padX, padY), rYp(padX, padY);
+    r.setZero(), rXp.setZero(), rYp.setZero();
     circshift(recon, r, 0, 0), circshift(recon, rXp, 1, 0), circshift(recon, rYp, 0, 1);
-    v1n = 4 * r - 2 * rXp - 2 * rYp;
-    v1d = sqrt(1e-8 + (r - rXp).array().square() + (r - rYp).array().square());
+    v1n = 4 * r.array() - 2 * rXp.array() - 2 * rYp.array();
+    v1d = sqrt( 1e-8 + (r - rXp).array().square() + (r - rYp).array().square() );
     rXp.resize(0,0), rYp.resize(0,0);
     
     MatrixXf rXn(padX, padY), rXnYp(padX, padY);
+    rXn.setZero(), rXnYp.setZero();
     circshift(recon, rXn, -1, 0), circshift(recon, rXnYp, -1, 1);
-    v2n = 2 * (r - rXn).array().square();
-    v2d = sqrt(1e-8 + (rXn - r).array().square() + (rXn - rXnYp).array().square());
+    v2n = 2 * (r - rXn).array();
+    v2d = sqrt( 1e-8 + (rXn - r).array().square() + (rXn - rXnYp).array().square() );
     rXn.resize(0,0), rYp.resize(0,0);
     
     MatrixXf rYn(padX, padY), rXpYn(padX, padY);
+    rYn.setZero(), rXpYn.setZero();
     circshift(recon, rYn, 0, -1), circshift(recon, rXpYn, 1, -1);
-    v3n = 2 * (r - rYn).array().square();
-    v3d = sqrt(1e-8 + (rYn - r).array().square() + (rYn - rXpYn).array().square());
+    v3n = 2 * (r - rYn).array();
+    v3d = sqrt( 1e-8 + (rYn - r).array().square() + (rYn - rXpYn).array().square() );
     rYn.resize(0,0), rXpYn.resize(0,0);
     
     v = v1n.array() / v1d.array() + v2n.array() / v2d.array() + v3n.array() / v3d.array();
     MatrixXf v2(recon.rows(), recon.cols());
-    v2 = v.block(1,1,recon.rows(), recon.cols());
-    v2 = v2/v2.norm();
-    
+    v2 = v.block(1, 1, recon.rows(), recon.cols());
+    v.resize(0,0), v1n.resize(0,0), v1d.resize(0,0), v2n.resize(0,0), v2d.resize(0,0), v3n.resize(0,0), v3d.resize(0,0);
+    v2 /= v2.norm();
     return v2;
 }
 
@@ -89,18 +92,22 @@ float tv2D(Eigen::MatrixXf& recon)
 {
     int padX = recon.rows() + 2;
     int padY = recon.cols() + 2;
+    MatrixXf temp_tv(recon.rows(), recon.cols());
+    temp_tv.setZero();
     float tv;
     MatrixXf r(padX, padY), rXp(padX, padY), rYp(padX, padY);
+    r.setZero(), rXp.setZero(), rYp.setZero();
     circshift(recon, r, 0, 0), circshift(recon, rXp, 1, 0), circshift(recon, rYp, 0, 1);
-    MatrixXf mat_tx = sqrt((r - rXp).array().square() + (r - rYp).array().square());
-    tv = (mat_tx.block(1,1,recon.rows(), recon.cols())).sum();
+    MatrixXf mat_tv = sqrt( (r - rXp).array().square() + (r - rYp).array().square() );
+    temp_tv = mat_tv.block(1, 1, recon.rows(), recon.cols());
+    tv = temp_tv.sum();
     return tv;
 }
 
-void circshift(Eigen::MatrixXf& input, Eigen::MatrixXf& output, int i, int j)
+void circshift(Eigen::MatrixXf input, Eigen::MatrixXf& output, int i, int j)
 {
-    // i == shift in the y - direction.
-    // j == shift in the x - direction.
+    // i == shift in the x - direction.
+    // j == shift in the y - direction.
     output.block(1+i, 1+j, input.rows(), input.rows()) = input;
 }
 

@@ -51,6 +51,8 @@ def tv_derivative(recon):
     v1d = np.sqrt(1e-8 + (r - np.roll(r, 1, axis=0))**2 + (r -
                   np.roll(r, 1, axis=1))**2 + (r - np.roll(r, 1, axis=2))**2) # noqa TODO reformat this
 
+    print('v1d ' + str(v1d))
+
     v2n = r - np.roll(r, -1, axis=0)
     v2d = np.sqrt(1e-8 + (np.roll(r, -1, axis=0) - r)**2 +
             (np.roll(r, -1, axis=0) -  # noqa TODO reformat this
@@ -83,7 +85,8 @@ def tv(recon):
     return tv
 
 def tv_derivative2D(recon):
-    r = np.lib.pad(recon, ((1, 1), (1, 1)), 'edge')
+    #r = np.lib.pad(recon, ((1, 1), (1, 1)), 'edge')
+    r = np.lib.pad(recon, ((1, 1), (1, 1)), 'constant', constant_values = 0)
     v1n = 4 * r - 2 * np.roll(r, 1, axis=0) - \
                           2 * np.roll(r, 1, axis=1)  # noqa TODO reformat this
     v1d = np.sqrt(1e-8 + (r - np.roll(r, 1, axis=0))**2 + 
@@ -104,7 +107,8 @@ def tv_derivative2D(recon):
     return v
 
 def tv2D(recon):
-    r = np.lib.pad(recon, ((1, 1), (1, 1)), 'edge')
+    #r = np.lib.pad(recon, ((1, 1), (1, 1)), 'edge')
+    r = np.lib.pad(recon, ((1, 1), (1, 1)), 'constant', constant_values=0)
     tv = np.sqrt((r - np.roll(r, 1, axis=0))**2 +
                  (r - np.roll(r, 1, axis=1))**2 )
     tv = np.sum(tv[1:-1, 1:-1])
