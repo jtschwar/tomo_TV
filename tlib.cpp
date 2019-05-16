@@ -17,29 +17,10 @@
 using namespace Eigen;
 using namespace std;
 
-void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float>& A, int beta)
-{
-    Map<VectorXf> b(tiltSeries.data(), tiltSeries.size());
-    Map<VectorXf> f(recon.data(), recon.size());
-    
-    long Nrow = A.rows();
-    long Nray = recon.rows();
-    float a;
-    
-    for(int j=0; j < Nrow; j++)
-    {
-        a = (b(j) - A.row(j).dot(f)) / innerProduct(j);
-        f = f + A.row(j) * a * beta;
-    }
-    f.resize(Nray, Nray);
-    recon = f;
-}
-
 void tomography2D(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, RowMajor>& A, int beta)
 {
     //2D ART Tomography
     long Nrow = A.rows();
-    long Nray = recon.rows();
     float a;
     
     VectorXf f(recon.rows());
@@ -102,6 +83,24 @@ float tv2D(Eigen::MatrixXf& recon)
     temp_tv = mat_tv.block(1, 1, recon.rows(), recon.cols());
     tv = temp_tv.sum();
     return tv;
+}
+
+Eigen::VectorXf forwardModel(Eigen::MatrixXf input, Eigen::SparseMatrix<float, Eigen::RowMajor>& A)
+{
+    //Input can either be the reconstruction or experimental data.
+    //Forward projection for measuring difference of projections.
+    
+    input.resize(input.size(), 1);
+    long Nrow = A.rows();
+    VectorXf f(input.rows());
+    VectorXf g(input.rows());
+    f = input;
+    
+    for(int j=0; j < Nrow; j++)
+    {
+        g(j) = A.row(j).dot(f);
+    }
+    return g;
 }
 
 void circshift(Eigen::MatrixXf input, Eigen::MatrixXf& output, int i, int j)
@@ -301,4 +300,22 @@ void removeBadElements(Eigen::VectorXf& xx, Eigen::VectorXf& yy, Eigen::VectorXf
     xx.resize(ind), yy.resize(ind);
     xx = xx_temp.head(ind);
     yy = yy_temp.head(ind);
+}
+
+void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float>& A, int beta)
+{
+    Map<VectorXf> b(tiltSeries.data(), tiltSeries.size());
+    Map<VectorXf> f(recon.data(), recon.size());
+    
+    long Nrow = A.rows();
+    long Nray = recon.rows();
+    float a;
+    
+    for(int j=0; j < Nrow; j++)
+    {
+        a = (b(j) - A.row(j).dot(f)) / innerProduct(j);
+        f = f + A.row(j) * a * beta;
+    }
+    f.resize(Nray, Nray);
+    recon = f;
 }

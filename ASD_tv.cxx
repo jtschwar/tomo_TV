@@ -43,6 +43,10 @@ float gamma_red = 0.8;
 //Data Tolerance Parameter
 float eps = 0.1;
 
+//dPOCS and reduction criteria
+float r_max = 0.95;
+float alph_red = 0.95;
+
 ///////////////////////////////////////////////////////////
 
 int main(int argc, const char * argv[]) {
@@ -71,6 +75,11 @@ int main(int argc, const char * argv[]) {
     //Vectorize/Initialize the reconstruction and experimental data.
     tiltSeries.resize(tiltSeries.size(), 1);
     VectorXf b = A * tiltSeries;
+    MatrixXf b_temp(b.size(),1);
+    b_temp = b;
+    VectorXf g0, g;
+    g0 = forwardModel(b_temp, A);
+    
     MatrixXf recon (Nslice, Nray), temp_recon(Nslice, Nray), v, recon_prime;;
     float dPOCS,R0, Rf;
 
@@ -86,6 +95,8 @@ int main(int argc, const char * argv[]) {
         recon.resize(Nslice, Nray);
         recon = (recon.array() < 0).select(0, recon);
         beta *= beta_red;
+        
+        g = forwardModel(recon, A);
 
         if(i == 0)
         {
@@ -104,7 +115,6 @@ int main(int argc, const char * argv[]) {
             Rf = tv2D(recon_prime);
             float gamma = 1.0;
 
-
             while (Rf > R0)
             {
                 gamma *= gamma_red;
@@ -119,7 +129,7 @@ int main(int argc, const char * argv[]) {
 
         if (dg > dp)
         {
-            dPOCS *= 0.8;
+            dPOCS *= alph_red;
         }
     }
 

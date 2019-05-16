@@ -23,7 +23,7 @@ using namespace cv;
 String filename = "phantom.tif";
 
 //Total Number of Iterations.
-int Niter = 50;
+int Niter = 100;
 
 //Number of Projections for Forward Model.
 int Nproj = 30;
@@ -35,7 +35,7 @@ int ng = 5;
 float beta = 1.0;
 
 //ART reduction.
-float beta_red = 0.9;
+float beta_red = 0.95;
 
 //TV Reduction.
 float gamma_red = 0.8;
@@ -77,7 +77,8 @@ int main(int argc, const char * argv[]) {
     //Main Loop.
     for(int i=0; i < Niter; i++)
     {
-        cout << "Iteration: " << i + 1 << " / " << Niter << "\n";
+        if (i % 10 == 0)
+            cout << "Iteration: " << i + 1 << " / " << Niter << "\n";
         temp_recon = recon;
 
         //ART Reconstruction.
@@ -87,11 +88,7 @@ int main(int argc, const char * argv[]) {
         recon = (recon.array() < 0).select(0, recon);
         beta *= beta_red;
 
-        if(i == 0)
-        {
-            dPOCS = (recon - temp_recon).norm();
-        }
-
+        dPOCS = (recon - temp_recon).norm();
         float dp = (temp_recon - recon).norm();
         temp_recon = recon;
 

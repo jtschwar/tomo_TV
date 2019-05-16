@@ -51,8 +51,6 @@ def tv_derivative(recon):
     v1d = np.sqrt(1e-8 + (r - np.roll(r, 1, axis=0))**2 + (r -
                   np.roll(r, 1, axis=1))**2 + (r - np.roll(r, 1, axis=2))**2) # noqa TODO reformat this
 
-    print('v1d ' + str(v1d))
-
     v2n = r - np.roll(r, -1, axis=0)
     v2d = np.sqrt(1e-8 + (np.roll(r, -1, axis=0) - r)**2 +
             (np.roll(r, -1, axis=0) -  # noqa TODO reformat this

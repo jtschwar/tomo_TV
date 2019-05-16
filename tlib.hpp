@@ -23,6 +23,8 @@ float tv2D(Eigen::MatrixXf& recon);
 
 void circshift(Eigen::MatrixXf input, Eigen::MatrixXf& output, int i, int j);
 
+Eigen::VectorXf forwardModel(Eigen::MatrixXf input, Eigen::SparseMatrix<float, Eigen::RowMajor>& A);
+
 float rmepsilon(float input);
 
 void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, Eigen::RowMajor>& A);

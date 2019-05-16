@@ -60,7 +60,6 @@ for i in range(Niter): #main loop
     #calculate tomogram change due to POCS
     if i == 0:
         dPOCS = np.linalg.norm(recon_temp - recon)
-        print('dPOCS ' +str(dPOCS))
 
     dp = np.linalg.norm(recon_temp - recon)
 
@@ -69,7 +68,6 @@ for i in range(Niter): #main loop
     # 2D TV minimization
     for j in range(ng):
         R_0 = tv2D(recon)
-        print('R_0 ' + str(R_0))
         v = tv_derivative2D(recon)
         recon_prime = recon - dPOCS * v
         recon_prime[recon_prime < 0] = 0
@@ -78,7 +76,6 @@ for i in range(Niter): #main loop
 
         #Projected Line search
         while R_f > R_0:
-            print('R_f ' + str(R_f))
             gamma = gamma * gamma_red
             recon_prime = recon - gamma * dPOCS * v
             recon_prime[recon_prime < 0] = 0
