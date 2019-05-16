@@ -23,25 +23,16 @@ using namespace cv;
 String filename = "phantom.tif";
 
 //Total Number of Iterations.
-int Niter = 100;
+int Niter = 50;
 
 //Number of Projections for Forward Model.
 int Nproj = 30;
-
-//Number of iterations in TV loop.
-int ng = 20;
 
 //Parameter in ART Reconstruction.
 float beta = 1.0;
 
 //ART reduction.
-float beta_red = 0.95;
-
-//TV Reduction.
-float gamma_red = 0.8;
-
-//Data Tolerance Parameter
-float eps = 0.1;
+float beta_red = 0.995;
 
 ///////////////////////////////////////////////////////////
 
@@ -71,63 +62,38 @@ int main(int argc, const char * argv[]) {
     //Vectorize/Initialize the reconstruction and experimental data.
     tiltSeries.resize(tiltSeries.size(), 1);
     VectorXf b = A * tiltSeries;
-    MatrixXf recon (Nslice, Nray), temp_recon(Nslice, Nray), v, recon_prime;;
-    float dPOCS,R0, Rf;
+//    MatrixXf sinogram(Nrow,1);
+//    sinogram = b.transpose();
+//    sinogram.resize(Nray, Nproj);
 
-    //Main Loop.
+    MatrixXf recon (Nslice, Nray);
+    recon.setZero();
+
+//    //Main Loop.
     for(int i=0; i < Niter; i++)
     {
-        if (i % 10 == 0)
+        if ( i % 10 == 0)
             cout << "Iteration: " << i + 1 << " / " << Niter << "\n";
-        temp_recon = recon;
 
-        //ART Reconstruction.
+//        //ART Reconstruction.
         recon.resize(Ncol, 1);
         tomography2D(recon, b, rowInnerProduct, A, beta);
-        recon.resize(Nslice, Nray);
         recon = (recon.array() < 0).select(0, recon);
+        recon.resize(Nslice, Nray);
         beta *= beta_red;
-
-        if (i == 0)
-            dPOCS = (recon - temp_recon).norm();
-        float dp = (temp_recon - recon).norm();
-        temp_recon = recon;
-
-        for(int j=0; j<ng; j++)
-        {
-            R0 = tv2D(recon);
-            v = tv2Dderivative(recon);
-            recon_prime = recon.array() - dPOCS * v.array();
-            recon_prime = (recon_prime.array() < 0).select(0, recon_prime);
-            Rf = tv2D(recon_prime);
-            float gamma = 1.0;
-
-
-            while (Rf > R0)
-            {
-                gamma *= gamma_red;
-                recon_prime = recon.array() - gamma * dPOCS * v.array();
-                Rf = tv2D(recon_prime);
-                recon_prime = (recon_prime.array() < 0).select(0, recon_prime);
-            }
-            recon = recon_prime;
-        }
-
-        float dg = (recon - temp_recon).norm();
-
-        if (dg > dp)
-        {
-            dPOCS *= 0.8;
-        }
     }
+    
+    
 
-    //Display and Save final reconstruction.
+//    Display and Save final reconstruction.
+    recon.resize(Nslice, Nray);
     Mat final_img;
     cv::eigen2cv(recon, final_img);
 
     namedWindow( "Reconstruction", WINDOW_AUTOSIZE );
-    imshow( "Reconstruction", final_img * (1.0 / 255) );
+    imshow( "Reconstruction", final_img * (1.0 / recon.maxCoeff()) );
+//    imshow( "Reconstruction", sinogram_img * (1.0 / sinogram.maxCoeff() ));
     waitKey(0);
-    
+//
     return 0;
 }

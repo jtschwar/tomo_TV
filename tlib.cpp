@@ -11,13 +11,14 @@
 #include <Eigen/Core>
 #include <iostream>
 #include <fstream>
+#include <random>
 
 #define PI 3.14159265359
 
 using namespace Eigen;
 using namespace std;
 
-void tomography2D(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, RowMajor>& A, int beta)
+void tomography2D(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, RowMajor>& A, float beta)
 {
     //2D ART Tomography
     long Nrow = A.rows();
@@ -32,6 +33,39 @@ void tomography2D(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& i
         f += A.row(j).transpose() * a * beta;
     }
     recon = f;
+}
+
+float CosAlpha(Eigen::MatrixXf& recon, Eigen::MatrixXf& tv_derivative, Eigen::VectorXf& g, Eigen::VectorXf& b, Eigen::SparseMatrix<float, Eigen::RowMajor>& A)
+{
+    float cosA, Nx, Ny, norm;
+    int Ncol;
+
+    Nx = recon.rows();
+    Ny = recon.cols();
+    Ncol = A.cols();
+
+    MatrixXf d_tv(Ncol,1), d_data(Ncol,1);
+    d_tv.setZero(), d_data.setZero();
+
+    //Vectorize.
+    recon.resize(Ncol,1), tv_derivative.resize(Ncol,1);
+
+    VectorXf nabla_h(Ncol);
+    nabla_h = 2 * A.transpose() * ( g - b);
+
+    for(int i=0; i < recon.size(); i++ )
+    {
+        if( abs(recon(i)) > 1e-10 )
+        {
+            d_tv(i) = tv_derivative(i);
+            d_data(i) = nabla_h(i);
+            cosA += d_data(i) * d_tv(i);
+        }
+    }
+    recon.resize(Nx, Ny);
+    norm = d_data.norm() * d_tv.norm();
+    cosA /= norm;
+    return cosA;
 }
 
 Eigen::MatrixXf tv2Dderivative(Eigen::MatrixXf recon)
@@ -65,7 +99,6 @@ Eigen::MatrixXf tv2Dderivative(Eigen::MatrixXf recon)
     MatrixXf v2(recon.rows(), recon.cols());
     v2 = v.block(1, 1, recon.rows(), recon.cols());
     v.resize(0,0), v1n.resize(0,0), v1d.resize(0,0), v2n.resize(0,0), v2d.resize(0,0), v3n.resize(0,0), v3d.resize(0,0);
-    v2 /= v2.norm();
     return v2;
 }
 
@@ -83,24 +116,6 @@ float tv2D(Eigen::MatrixXf& recon)
     temp_tv = mat_tv.block(1, 1, recon.rows(), recon.cols());
     tv = temp_tv.sum();
     return tv;
-}
-
-Eigen::VectorXf forwardModel(Eigen::MatrixXf input, Eigen::SparseMatrix<float, Eigen::RowMajor>& A)
-{
-    //Input can either be the reconstruction or experimental data.
-    //Forward projection for measuring difference of projections.
-    
-    input.resize(input.size(), 1);
-    long Nrow = A.rows();
-    VectorXf f(input.rows());
-    VectorXf g(input.rows());
-    f = input;
-    
-    for(int j=0; j < Nrow; j++)
-    {
-        g(j) = A.row(j).dot(f);
-    }
-    return g;
 }
 
 void circshift(Eigen::MatrixXf input, Eigen::MatrixXf& output, int i, int j)
@@ -302,6 +317,15 @@ void removeBadElements(Eigen::VectorXf& xx, Eigen::VectorXf& yy, Eigen::VectorXf
     yy = yy_temp.head(ind);
 }
 
+void saveVecTxt(Eigen::VectorXf vec, std::string name)
+{
+    std::ofstream outfile( "Vector_Outputs/" + name + ".txt");
+    for (int i=0; i < vec.size(); i++)
+    {
+        outfile << vec(i) << "\n";
+    }
+}
+
 void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float>& A, int beta)
 {
     Map<VectorXf> b(tiltSeries.data(), tiltSeries.size());
@@ -318,4 +342,25 @@ void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::Vect
     }
     f.resize(Nray, Nray);
     recon = f;
+}
+
+void poissonNoise(Eigen::VectorXf& b, int Nc)
+{
+    VectorXf temp_b(b.size());
+    temp_b = b;
+    float mean = b.mean();
+    float N = b.sum();
+    b  = b / ( b.sum() ) * Nc * b.size();
+    std::default_random_engine generator;
+    for(int i=0; i < b.size(); i++)
+    {
+        std::poisson_distribution<int> distribution(b(i));
+        b(i) = distribution(generator);
+        
+    }
+    b = b / ( Nc * b.size() ) * N;
+    temp_b = temp_b.array() - b.array();
+    float std = sqrt( ( temp_b.array() - temp_b.mean() ).square().sum() / (temp_b.size() - 1) );
+    float SNR = mean/std;
+    cout << SNR << endl;
 }

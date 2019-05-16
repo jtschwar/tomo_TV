@@ -23,12 +23,16 @@ float tv2D(Eigen::MatrixXf& recon);
 
 void circshift(Eigen::MatrixXf input, Eigen::MatrixXf& output, int i, int j);
 
-Eigen::VectorXf forwardModel(Eigen::MatrixXf input, Eigen::SparseMatrix<float, Eigen::RowMajor>& A);
-
 float rmepsilon(float input);
 
 void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, Eigen::RowMajor>& A);
 
 void removeBadElements(Eigen::VectorXf& xx, Eigen::VectorXf& yy, Eigen::VectorXf I);
+
+void saveVecTxt(Eigen::VectorXf vec, std::string name);
+
+float CosAlpha(Eigen::MatrixXf& recon, Eigen::MatrixXf& tv_derivative, Eigen::VectorXf& g, Eigen::VectorXf& b, Eigen::SparseMatrix<float, Eigen::RowMajor>& A);
+
+void poissonNoise(Eigen::VectorXf& sinogram);
 
 #endif /* tlib_hpp */

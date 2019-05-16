@@ -23,29 +23,27 @@ using namespace cv;
 String filename = "phantom.tif";
 
 //Total Number of Iterations.
-int Niter = 50;
+int Niter = 1000;
 
 //Number of Projections for Forward Model.
 int Nproj = 30;
 
 //Number of iterations in TV loop.
-int ng = 5;
+int ng = 20;
 
 //Parameter in ART Reconstruction.
 float beta = 1.0;
 
 //ART reduction.
-float beta_red = 0.9;
-
-//TV Reduction.
-float gamma_red = 0.8;
+float beta_red = 0.995;
 
 //Data Tolerance Parameter
-float eps = 0.1;
+float eps = 1.0;
 
 //dPOCS and reduction criteria
 float r_max = 0.95;
-float alph_red = 0.95;
+float alpha_red = 0.95;
+float alpha = 0.2;
 
 ///////////////////////////////////////////////////////////
 
@@ -75,70 +73,75 @@ int main(int argc, const char * argv[]) {
     //Vectorize/Initialize the reconstruction and experimental data.
     tiltSeries.resize(tiltSeries.size(), 1);
     VectorXf b = A * tiltSeries;
-    MatrixXf b_temp(b.size(),1);
-    b_temp = b;
-    VectorXf g0, g;
-    g0 = forwardModel(b_temp, A);
-    
-    MatrixXf recon (Nslice, Nray), temp_recon(Nslice, Nray), v, recon_prime;;
-    float dPOCS,R0, Rf;
+    tiltSeries.resize(Nslice, Nray);
+    VectorXf g;
+    MatrixXf recon (Nslice, Nray), temp_recon(Nslice, Nray), v, recon_prime;
+    recon.setZero();
+    float dPOCS, dd, dp, dg;
+    VectorXf dd_vec(Niter), dp_vec(Niter), dg_vec(Niter);
+    VectorXf dPOCS_vec(Niter), beta_vec(Niter), rmse_vec(Niter);
+    VectorXf cos_alpha_vec(Niter);
 
     //Main Loop.
     for(int i=0; i < Niter; i++)
     {
-        cout << "Iteration: " << i + 1 << " / " << Niter << "\n";
+        if ( i % 100 == 0)
+            cout << "Iteration: " << i + 1 << " / " << Niter << "\n";
+        
         temp_recon = recon;
-
+        beta_vec(i) = beta;
+        
         //ART Reconstruction.
         recon.resize(Ncol, 1);
         tomography2D(recon, b, rowInnerProduct, A, beta);
-        recon.resize(Nslice, Nray);
         recon = (recon.array() < 0).select(0, recon);
-        beta *= beta_red;
+        g = A * recon;
+        recon.resize(Nslice, Nray);
         
-        g = forwardModel(recon, A);
-
         if(i == 0)
         {
-            dPOCS = (recon - temp_recon).norm();
+            dPOCS = (recon - temp_recon).norm() * alpha;
         }
-
-        float dp = (temp_recon - recon).norm();
+        
+        dd_vec(i) = (g - b).norm() / g.size();
+        dp_vec(i) = (temp_recon - recon).norm();
         temp_recon = recon;
 
         for(int j=0; j<ng; j++)
         {
-            R0 = tv2D(recon);
             v = tv2Dderivative(recon);
-            recon_prime = recon.array() - dPOCS * v.array();
-            recon_prime = (recon_prime.array() < 0).select(0, recon_prime);
-            Rf = tv2D(recon_prime);
-            float gamma = 1.0;
-
-            while (Rf > R0)
-            {
-                gamma *= gamma_red;
-                recon_prime = recon.array() - gamma * dPOCS * v.array();
-                Rf = tv2D(recon_prime);
-                recon_prime = (recon_prime.array() < 0).select(0, recon_prime);
-            }
-            recon = recon_prime;
+            v /= v.norm();
+            recon.array() -= dPOCS * v.array();
         }
 
-        float dg = (recon - temp_recon).norm();
+        dg_vec(i) = (recon - temp_recon).norm();
 
-        if (dg > dp)
+        if (dg_vec(i) > dp_vec(i) * r_max && dd_vec(i) > eps)
         {
-            dPOCS *= alph_red;
+            dPOCS *= alpha_red;
         }
-    }
+        
+        dPOCS_vec(i) = dPOCS;
+        beta *= beta_red;
+        rmse_vec(i) = (tiltSeries - recon).norm();
+        cos_alpha_vec(i) = CosAlpha(recon, v, g, b, A);
 
-    //Display and Save final reconstruction.
+    }
+    
+    //Save all the vectors.
+    saveVecTxt(beta_vec, "beta");
+    saveVecTxt(dd_vec, "dd");
+    saveVecTxt(dp_vec, "dp");
+    saveVecTxt(dg_vec, "dg");
+    saveVecTxt(dPOCS_vec, "dPOCS");
+    saveVecTxt(rmse_vec, "RMSE");
+    saveVecTxt(cos_alpha_vec, "Cos_Alpha");
+
+    //    Display and Save final reconstruction.
     Mat final_img;
     cv::eigen2cv(recon, final_img);
-
     namedWindow( "Reconstruction", WINDOW_AUTOSIZE );
-    imshow( "Reconstruction", final_img * (1.0 / 255) );
+    imshow( "Reconstruction", final_img * (1.0 / recon.maxCoeff()) );
     waitKey(0);
     
     return 0;
