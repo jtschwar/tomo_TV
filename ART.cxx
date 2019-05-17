@@ -38,6 +38,9 @@ float beta_red = 0.995;
 
 int main(int argc, const char * argv[]) {
     
+    int n = 5;
+    Eigen::setNbThreads(n);
+    
     //Load Dataset.
     Mat img = imread(filename, cv::ImreadModes::IMREAD_GRAYSCALE);
     int Nslice = img.rows;
@@ -74,7 +77,7 @@ int main(int argc, const char * argv[]) {
 
 //        //ART Reconstruction.
         recon.resize(Ncol, 1);
-        tomography2D(recon, b, rowInnerProduct, A, beta);
+        tomography(recon, b, rowInnerProduct, A, beta);
         recon = (recon.array() < 0).select(0, recon);
         recon.resize(Nslice, Nray);
         beta *= beta_red;

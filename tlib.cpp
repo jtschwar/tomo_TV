@@ -18,7 +18,7 @@
 using namespace Eigen;
 using namespace std;
 
-void tomography2D(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, RowMajor>& A, float beta)
+void tomography(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, RowMajor>& A, float beta)
 {
     //2D ART Tomography
     long Nrow = A.rows();
@@ -317,31 +317,22 @@ void removeBadElements(Eigen::VectorXf& xx, Eigen::VectorXf& yy, Eigen::VectorXf
     yy = yy_temp.head(ind);
 }
 
-void saveVecTxt(Eigen::VectorXf vec, int direc, std::string name)
+void saveResults(Eigen::VectorXf vec, int direc, std::string name)
 {
-    std::ofstream outfile( "Results/" to_string(direc) + "/" + name + ".txt");
+    std::ofstream outfile( "Results/" + to_string(direc) + "/" + name + ".txt");
     for (int i=0; i < vec.size(); i++)
     {
         outfile << vec(i) << "\n";
     }
 }
 
-void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float>& A, int beta)
+void saveVec(Eigen::VectorXf vec, std::string name)
 {
-    Map<VectorXf> b(tiltSeries.data(), tiltSeries.size());
-    Map<VectorXf> f(recon.data(), recon.size());
-    
-    long Nrow = A.rows();
-    long Nray = recon.rows();
-    float a;
-    
-    for(int j=0; j < Nrow; j++)
+    std::ofstream outfile( "Results/" + name + ".txt");
+    for (int i=0; i < vec.size(); i++)
     {
-        a = (b(j) - A.row(j).dot(f)) / innerProduct(j);
-        f = f + A.row(j) * a * beta;
+        outfile << vec(i) << "\n";
     }
-    f.resize(Nray, Nray);
-    recon = f;
 }
 
 void poissonNoise(Eigen::VectorXf& b, int Nc)

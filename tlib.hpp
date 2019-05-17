@@ -13,9 +13,7 @@
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
 
-void tomography(Eigen::MatrixXf& recon, Eigen::MatrixXf& tiltSeries, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float>& A, int beta);
-
-void tomography2D(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, Eigen::RowMajor>& A, int beta);
+void tomography(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, Eigen::RowMajor>& A, int beta);
 
 Eigen::MatrixXf tv2Dderivative(Eigen::MatrixXf recon);
 
@@ -29,7 +27,9 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, 
 
 void removeBadElements(Eigen::VectorXf& xx, Eigen::VectorXf& yy, Eigen::VectorXf I);
 
-void saveVecTxt(Eigen::VectorXf vec, std::string name);
+void saveResults(Eigen::VectorXf vec, int direc, std::string name);
+
+void saveVec(Eigen::VectorXf vec, std::string name);
 
 float CosAlpha(Eigen::MatrixXf& recon, Eigen::MatrixXf& tv_derivative, Eigen::VectorXf& g, Eigen::VectorXf& b, Eigen::SparseMatrix<float, Eigen::RowMajor>& A);
 

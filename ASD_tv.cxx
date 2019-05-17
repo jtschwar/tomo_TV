@@ -102,7 +102,7 @@ int main(int argc, const char * argv[]) {
         
         //ART Reconstruction.
         recon.resize(Ncol, 1);
-        tomography2D(recon, b, rowInnerProduct, A, beta);
+        tomography(recon, b, rowInnerProduct, A, beta);
         recon = (recon.array() < 0).select(0, recon);
         g = A * recon;
         recon.resize(Nslice, Nray);
@@ -140,13 +140,13 @@ int main(int argc, const char * argv[]) {
     }
     
     //Save all the vectors.
-    saveVecTxt(beta_vec, "beta");
-    saveVecTxt(dd_vec, "dd");
-    saveVecTxt(dp_vec, "dp");
-    saveVecTxt(dg_vec, "dg");
-    saveVecTxt(dPOCS_vec, "dPOCS");
-    saveVecTxt(rmse_vec, "RMSE");
-    saveVecTxt(cos_alpha_vec, "Cos_Alpha");
+//    saveVecTxt(beta_vec, "beta");
+//    saveVecTxt(dd_vec, "dd");
+//    saveVecTxt(dp_vec, "dp");
+//    saveVecTxt(dg_vec, "dg");
+//    saveVecTxt(dPOCS_vec, "dPOCS");
+//    saveVecTxt(rmse_vec, "RMSE");
+//    saveVecTxt(cos_alpha_vec, "Cos_Alpha");
 
     //Display and Save final reconstruction.
     Mat final_img;

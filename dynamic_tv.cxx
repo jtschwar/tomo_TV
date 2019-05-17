@@ -106,7 +106,7 @@ int main(int argc, const char * argv[]) {
             
             //ART Reconstruction.
             recon.resize(Ncol, 1);
-            tomography2D(recon, b, rowInnerProduct, A, beta);
+            tomography(recon, b, rowInnerProduct, A, beta);
             recon = (recon.array() < 0).select(0, recon);
             g = A * recon;
             recon.resize(Nslice, Nray);
@@ -144,20 +144,20 @@ int main(int argc, const char * argv[]) {
         }
         
         //Save all the vectors.
-        saveVecTxt(beta_vec, Nproj, "beta");
-        saveVecTxt(dd_vec, Nproj, "dd");
-        saveVecTxt(dp_vec, Nproj, "dp");
-        saveVecTxt(dg_vec, Nproj, "dg");
-        saveVecTxt(dPOCS_vec, Nproj, "dPOCS");
-        saveVecTxt(rmse_vec, Nproj, "RMSE");
-        saveVecTxt(cos_alpha_vec, Nproj, "Cos_Alpha");
+        saveResults(beta_vec, Nproj, "beta");
+        saveResults(dd_vec, Nproj, "dd");
+        saveResults(dp_vec, Nproj, "dp");
+        saveResults(dg_vec, Nproj, "dg");
+        saveResults(dPOCS_vec, Nproj, "dPOCS");
+        saveResults(rmse_vec, Nproj, "RMSE");
+        saveResults(cos_alpha_vec, Nproj, "Cos_Alpha");
         
         //Save the Image.
         recon.resize(Nslice, Nray);
         Mat final_img;
         cv::eigen2cv(recon, final_img);
         final_img /= recon.maxCoeff();
-        imwrite("Results/" + to_string(Nproj) + ".tif", final_img)
+        imwrite("Results/" + to_string(Nproj) + ".tif", final_img);
         
     }
     

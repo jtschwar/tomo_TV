@@ -1,19 +1,36 @@
+
 cmake_minimum_required(VERSION 3.1)
 project( tomo_tv ) 
-#add_executable( art art.cxx )  
-#add_executable( line_tv proj_line_tv.cxx )
-add_executable( asd_tv asd_tv.cxx )
-add_executable( dynamic_tv dynamic_tv.cxx )
+
+
 find_package( OpenCV )
-#target_link_libraries( line_tv ${OpenCV_LIBS} ) 
-target_link_libraries( asd_tv ${OpenCV_LIBS} ) 
-target_link_libraries( art ${OpenCV_LIBS} ) 
-target_link_libraries( dynamic_tv ${OpenCV_LIBS} )
 include_directories( ./Dependencies/Eigen/ )
-#include_directories( line_tv ${OpenCV_INCLUDE_DIRS} ) 
-include_directories( asd_tv ${OpenCV_INCLUDE_DIRS} )
-include_directories( art ${OpenCV_INCLUDE_DIRS} )
-include_directories( dynamic_tv ${OpenCV_INCLUDE_DIRS} )
+
+
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -O2 -Wno-div-by-zero")
+
+
+############ ASD TV #################
+add_executable( asd_tv asd_tv.cxx )
+target_link_libraries( asd_tv ${OpenCV_LIBS} ) 
+include_directories( asd_tv ${OpenCV_INCLUDE_DIRS} )
+
+
+############ Dynamic TV #################
+add_executable( dynamic_tv dynamic_tv.cxx )
+target_link_libraries( dynamic_tv ${OpenCV_LIBS} )
+include_directories( dynamic_tv ${OpenCV_INCLUDE_DIRS} )
+
+
+############ ART #################
+add_executable( art art.cxx ) 
+target_link_libraries( art ${OpenCV_LIBS} ) 
+include_directories( art ${OpenCV_INCLUDE_DIRS} )
+
+
+##### Projected Line Search ########
+#add_executable( line_tv proj_line_tv.cxx )
+#target_link_libraries( line_tv ${OpenCV_LIBS} ) 
+#include_directories( line_tv ${OpenCV_INCLUDE_DIRS} ) 

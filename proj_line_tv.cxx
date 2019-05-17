@@ -80,7 +80,7 @@ int main(int argc, const char * argv[]) {
 
         //ART Reconstruction.
         recon.resize(Ncol, 1);
-        tomography2D(recon, b, rowInnerProduct, A, beta);
+        tomography(recon, b, rowInnerProduct, A, beta);
         recon.resize(Nslice, Nray);
         recon = (recon.array() < 0).select(0, recon);
         beta *= beta_red;
