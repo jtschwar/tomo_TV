@@ -38,8 +38,8 @@ float beta_red = 0.995;
 
 int main(int argc, const char * argv[]) {
     
-    int n = 5;
-    Eigen::setNbThreads(n);
+//    int n = 5;
+//    Eigen::setNbThreads(n);
     
     //Load Dataset.
     Mat img = imread(filename, cv::ImreadModes::IMREAD_GRAYSCALE);
@@ -69,13 +69,13 @@ int main(int argc, const char * argv[]) {
     MatrixXf recon (Nslice, Nray);
     recon.setZero();
 
-//    //Main Loop.
+    //Main Loop.
     for(int i=0; i < Niter; i++)
     {
         if ( i % 10 == 0)
             cout << "Iteration: " << i + 1 << " / " << Niter << "\n";
 
-//        //ART Reconstruction.
+        //ART Reconstruction.
         recon.resize(Ncol, 1);
         tomography(recon, b, rowInnerProduct, A, beta);
         recon = (recon.array() < 0).select(0, recon);
@@ -88,13 +88,10 @@ int main(int argc, const char * argv[]) {
     Mat final_img;
     cv::eigen2cv(recon, final_img);
     final_img /= recon.maxCoeff();
-    
-    int test = 20;
-    imwrite("Results/" + to_string(test) + "/recon.tif", final_img);
 
-//    namedWindow( "Reconstruction", WINDOW_AUTOSIZE );
-//    imshow( "Reconstruction", final_img );
-//    waitKey(0);
-//
+    namedWindow( "Reconstruction", WINDOW_AUTOSIZE );
+    imshow( "Reconstruction", final_img );
+    waitKey(0);
+
     return 0;
 }

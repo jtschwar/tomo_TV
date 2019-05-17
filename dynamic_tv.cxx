@@ -7,6 +7,7 @@
 //
 
 #include <iostream>
+#include <sys/stat.h>
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
 #include <opencv2/opencv.hpp>
@@ -23,24 +24,24 @@ using namespace cv;
 String filename = "phantom.tif";
 
 //Total Number of Iterations.
-int Niter = 200;
+int Niter = 300;
 
 //Number of iterations in TV loop.
-int ng = 20;
-
-//Parameter in ART Reconstruction.
-float beta = 1.0;
+int ng = 5;
 
 //ART reduction.
 float beta_red = 0.995;
 
 //Data Tolerance Parameter
-float eps = 1.0;
+float eps = 0;
 
 //dPOCS and reduction criteria
 float r_max = 0.95;
 float alpha_red = 0.95;
 float alpha = 0.2;
+
+// Step Size for Theta.
+float dTheta = 5;
 
 // Number of Counts for Poisson Noise. 
 int Nc = 100;
@@ -56,17 +57,31 @@ int main(int argc, const char * argv[]) {
     Eigen::MatrixXf tiltSeries;
     cv::cv2eigen(img, tiltSeries);
     
-    // Increase the Sampling By 20 degree incremenets.
-    for(int k= 0; k < 8; k++)
+    // Empty Vectors/Matrices for Reconstruction.
+    VectorXf g;
+    MatrixXf recon (Nslice, Nray), temp_recon(Nslice, Nray), v;
+    recon.setZero();
+    float dPOCS;
+    
+    //Parameter in ART Reconstruction.
+    float beta = 1.0;
+    
+    // Increase the Sampling By 1 Degree for 20 degree chunks.
+    for(int k= 0; k < 9; k++)
     {
         
         //Number of Projections for Forward Model.
-        int Nproj = 20 + 20 * k;
+        int theta_max = 20 + 20 * k;
+        int Nproj = theta_max/dTheta + 1;
+        
+        cout << "\nReconstructing From Tilt Angles: 0 -- " << theta_max << endl;
         
         //Generate Measurement Matrix.
-        VectorXf tiltAngles = VectorXf::LinSpaced(Nproj + 1, 0, Nproj);
-        int Nrow = Nray*Nproj;
-        int Ncol = Nray*Nray;
+        VectorXf tiltAngles = VectorXf::LinSpaced(Nproj, 0, theta_max );
+        cout << tiltAngles.transpose() << endl;
+        int Nrow = Nray * (Nproj + 1);
+        int Ncol = Nray * Nray;
+        
         SparseMatrix<float, Eigen::RowMajor> A(Nrow,Ncol);
         parallelRay(Nray, tiltAngles, A);
 
@@ -76,23 +91,17 @@ int main(int argc, const char * argv[]) {
         {
             rowInnerProduct(j) = A.row(j).dot(A.row(j));
         }
-
-        //Vectorize/Initialize the reconstruction and experimental data.
+        
+        // Create Projections.
         tiltSeries.resize(tiltSeries.size(), 1);
         VectorXf b = A * tiltSeries;
-        //poissonNoise(b, Nc); //Uncoment if you'd like to add poisson Noise.
+        //poissonNoise(b, Nc);                  //Add poisson Noise.
         tiltSeries.resize(Nslice, Nray);
-        
-        // Empty Vectors/Matrices for Reconstruction.
-        VectorXf g;
-        MatrixXf recon (Nslice, Nray), temp_recon(Nslice, Nray), v;
-        recon.setZero();
-        float dPOCS;
         
         //Vectors to evalutate convergence.
         VectorXf dd_vec(Niter), dp_vec(Niter), dg_vec(Niter);
         VectorXf dPOCS_vec(Niter), beta_vec(Niter), rmse_vec(Niter);
-        VectorXf cos_alpha_vec(Niter);
+        VectorXf cos_alpha_vec(Niter), tv_vec(Niter);
 
         //Main Loop.
         for(int i=0; i < Niter; i++)
@@ -140,24 +149,30 @@ int main(int argc, const char * argv[]) {
             beta *= beta_red;
             rmse_vec(i) = (tiltSeries - recon).norm();
             cos_alpha_vec(i) = CosAlpha(recon, v, g, b, A);
+            tv_vec(i) = tv2D(recon);
 
         }
         
+        //Create Directory to Save Results.
+        String directory ="Results/" + to_string(theta_max);
+        int foo = mkdir("Results/" + to_string(theta_max));
+        
         //Save all the vectors.
-        saveResults(beta_vec, Nproj, "beta");
-        saveResults(dd_vec, Nproj, "dd");
-        saveResults(dp_vec, Nproj, "dp");
-        saveResults(dg_vec, Nproj, "dg");
-        saveResults(dPOCS_vec, Nproj, "dPOCS");
-        saveResults(rmse_vec, Nproj, "RMSE");
-        saveResults(cos_alpha_vec, Nproj, "Cos_Alpha");
+        saveResults(beta_vec, theta_max, "beta");
+        saveResults(dd_vec, theta_max, "dd");
+        saveResults(dp_vec, theta_max, "dp");
+        saveResults(dg_vec, theta_max, "dg");
+        saveResults(dPOCS_vec, theta_max, "dPOCS");
+        saveResults(rmse_vec, theta_max, "RMSE");
+        saveResults(cos_alpha_vec, theta_max, "Cos_Alpha");
+        saveResults(tv_vec, theta_max, "TV");
         
         //Save the Image.
         recon.resize(Nslice, Nray);
         Mat final_img;
         cv::eigen2cv(recon, final_img);
         final_img /= recon.maxCoeff();
-        imwrite("Results/" + to_string(Nproj) + ".tif", final_img);
+        imwrite("Results/" + to_string(theta_max) + "/recon.tif", final_img);
         
     }
     

@@ -131,8 +131,8 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, 
     int Nside = Nray;
     
     //When is this not equal to 1??
-    int pixelWidth = 1;
-    int rayWidth = 1;
+    float pixelWidth = 1;
+    float rayWidth = 1;
     
     //Number of projections.
     int Nproj = angles.rows();
@@ -211,8 +211,8 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, 
                 I.resize(xx.size()), I.setOnes();
                 for(int k=0; k<xx.size()-1; k++)
                 {
-                    if(abs(xx(k+1) - xx(k)) <= 1e-8)
-                    {    if(abs(yy(k+1) - yy(k)) <= 1e-8)
+                    if(abs(xx(k+1) - xx(k)) <= 1e-4)
+                    {    if(abs(yy(k+1) - yy(k)) <= 1e-4)
                          {
                              I(k) = 0;
                          }
@@ -247,8 +247,7 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, 
                 //Calculate corresponding indices in measurement matrix
                 if(numvals > 0 && check == true)
                 {
-                    //First, calculate the mid points coord. between two
-                    //adjacent grid points
+                    
                     tne = xx.size() - 1;
                     VectorXf midpointsX(tne);
                     VectorXf midpointsY(tne);
@@ -264,6 +263,14 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, 
                     //Calculate the pixel index for mid points
                     VectorXf pixelIndex(tne);
                     pixelIndex = floor((Nside/2 - midpointsY.array()/pixelWidth))*Nside + floor((midpointsX.array()/pixelWidth + Nside/2));
+                    
+                    for (int x = 0; x < pixelIndex.size(); x ++)
+                    {
+                        if (pixelIndex(x) > 256 * 256)
+                        {
+                            cout << "Projection Angle: " << i << " Ray Number: " << j << endl;
+                        }
+                    }
     
                     //Create the indices to store the values to the measurement matrix
                     int idxstart = idxend;
@@ -282,6 +289,7 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, 
         }
         
     }
+    
     //Truncate excess zeros.
     for(int i=0; i <idxend; i++)
     {

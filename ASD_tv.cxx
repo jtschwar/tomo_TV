@@ -1,4 +1,4 @@
-// Minimize the Objects TV with ASD - POCS. 
+// Minimize the Objects TV with ASD - POCS.
 // tomo_tv.cxx
 //  TV
 //
@@ -23,10 +23,10 @@ using namespace cv;
 String filename = "phantom.tif";
 
 //Total Number of Iterations.
-int Niter = 50;
+int Niter = 300;
 
 //Number of Projections for Forward Model.
-int Nproj = 30;
+int Nproj = 18;
 
 //Number of iterations in TV loop.
 int ng = 20;
@@ -38,7 +38,7 @@ float beta = 1.0;
 float beta_red = 0.995;
 
 //Data Tolerance Parameter
-float eps = 1.0;
+float eps = 0;
 
 //dPOCS and reduction criteria
 float r_max = 0.95;
@@ -60,7 +60,7 @@ int main(int argc, const char * argv[]) {
     cv::cv2eigen(img, tiltSeries);
 
     //Generate Measurement Matrix.
-    VectorXf tiltAngles = VectorXf::LinSpaced(Nproj, 0, 180);
+    VectorXf tiltAngles = VectorXf::LinSpaced(Nproj, 0, 170);
     int Nrow = Nray*Nproj;
     int Ncol = Nray*Nray;
     SparseMatrix<float, Eigen::RowMajor> A(Nrow,Ncol);
@@ -88,7 +88,7 @@ int main(int argc, const char * argv[]) {
     //Vectors to evalutate convergence.
     VectorXf dd_vec(Niter), dp_vec(Niter), dg_vec(Niter);
     VectorXf dPOCS_vec(Niter), beta_vec(Niter), rmse_vec(Niter);
-    VectorXf cos_alpha_vec(Niter);
+    VectorXf cos_alpha_vec(Niter), tv_vec(Niter);
 
     //Main Loop.
     for(int i=0; i < Niter; i++)
@@ -136,24 +136,33 @@ int main(int argc, const char * argv[]) {
         beta *= beta_red;
         rmse_vec(i) = (tiltSeries - recon).norm();
         cos_alpha_vec(i) = CosAlpha(recon, v, g, b, A);
+        tv_vec(i) = tv2D(recon);
 
     }
     
     //Save all the vectors.
-//    saveVecTxt(beta_vec, "beta");
-//    saveVecTxt(dd_vec, "dd");
-//    saveVecTxt(dp_vec, "dp");
-//    saveVecTxt(dg_vec, "dg");
-//    saveVecTxt(dPOCS_vec, "dPOCS");
-//    saveVecTxt(rmse_vec, "RMSE");
-//    saveVecTxt(cos_alpha_vec, "Cos_Alpha");
+    saveVec(beta_vec, "beta");
+    saveVec(dd_vec, "dd");
+    saveVec(dp_vec, "dp");
+    saveVec(dg_vec, "dg");
+    saveVec(dPOCS_vec, "dPOCS");
+    saveVec(rmse_vec, "RMSE");
+    saveVec(cos_alpha_vec, "Cos_Alpha");
+    saveVec(tv_vec, "TV");
 
-    //Display and Save final reconstruction.
+    //Display the final reconstruction.
+//    Mat final_img;
+//    cv::eigen2cv(recon, final_img);
+//    namedWindow( "Reconstruction", WINDOW_AUTOSIZE );
+//    imshow( "Reconstruction", final_img * (1.0 / recon.maxCoeff()) );
+//    waitKey(0);
+    
+    //Save the Image.
+    recon.resize(Nslice, Nray);
     Mat final_img;
     cv::eigen2cv(recon, final_img);
-    namedWindow( "Reconstruction", WINDOW_AUTOSIZE );
-    imshow( "Reconstruction", final_img * (1.0 / recon.maxCoeff()) );
-    waitKey(0);
+    final_img /= recon.maxCoeff();
+    imwrite("Results/recon.tif", final_img);
     
     return 0;
 }
