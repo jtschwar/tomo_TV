@@ -1,4 +1,4 @@
-//
+// ART Reconstruction. 
 // tomo_tv.cxx
 //  TV
 //
@@ -23,7 +23,7 @@ using namespace cv;
 String filename = "phantom.tif";
 
 //Total Number of Iterations.
-int Niter = 50;
+int Niter = 100;
 
 //Number of Projections for Forward Model.
 int Nproj = 30;
@@ -62,9 +62,6 @@ int main(int argc, const char * argv[]) {
     //Vectorize/Initialize the reconstruction and experimental data.
     tiltSeries.resize(tiltSeries.size(), 1);
     VectorXf b = A * tiltSeries;
-//    MatrixXf sinogram(Nrow,1);
-//    sinogram = b.transpose();
-//    sinogram.resize(Nray, Nproj);
 
     MatrixXf recon (Nslice, Nray);
     recon.setZero();
@@ -89,11 +86,11 @@ int main(int argc, const char * argv[]) {
     recon.resize(Nslice, Nray);
     Mat final_img;
     cv::eigen2cv(recon, final_img);
+    imwrite("recon.tif", final_img);
 
-    namedWindow( "Reconstruction", WINDOW_AUTOSIZE );
-    imshow( "Reconstruction", final_img * (1.0 / recon.maxCoeff()) );
-//    imshow( "Reconstruction", sinogram_img * (1.0 / sinogram.maxCoeff() ));
-    waitKey(0);
+//    namedWindow( "Reconstruction", WINDOW_AUTOSIZE );
+//    imshow( "Reconstruction", final_img * (1.0 / recon.maxCoeff()) );
+//    waitKey(0);
 //
     return 0;
 }

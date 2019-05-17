@@ -3,12 +3,9 @@ from PIL import Image
 from matplotlib import pyplot as plt
 from tvlib import tv_derivative2D, parallelRay, tv2D
 
-Niter = 5
+Niter = 50
 num_tilts = 30
-ng = 5
 beta_0 = 1.0
-r_max = 1.0
-gamma_red = 0.8
 beta_red = 0.995
 
 beta = beta_0
@@ -55,15 +52,11 @@ for i in range(Niter): #main loop
         f = f + row * a[0,0] * beta
     recon = f.reshape(Nx, Nx)
 
-    print('Before: ' + str(np.amin(recon)))
-
     recon[recon < 0] = 0 #Positivity constraint  
-
-    # print('After: ' + str(np.amin(recon)))
 
     beta = beta*beta_red
 
 
-plt.imshow(b,cmap='gray')
+plt.imshow(recon,cmap='gray')
 plt.axis('off')
 plt.show()

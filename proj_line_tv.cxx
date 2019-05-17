@@ -1,4 +1,4 @@
-//
+// Minimize the Objects TV with a Projected Line Search. 
 // tomo_tv.cxx
 //  TV
 //
@@ -35,13 +35,10 @@ int ng = 20;
 float beta = 1.0;
 
 //ART reduction.
-float beta_red = 0.95;
+float beta_red = 0.995;
 
 //TV Reduction.
 float gamma_red = 0.8;
-
-//Data Tolerance Parameter
-float eps = 0.1;
 
 ///////////////////////////////////////////////////////////
 
@@ -101,7 +98,6 @@ int main(int argc, const char * argv[]) {
             recon_prime = (recon_prime.array() < 0).select(0, recon_prime);
             Rf = tv2D(recon_prime);
             float gamma = 1.0;
-
 
             while (Rf > R0)
             {

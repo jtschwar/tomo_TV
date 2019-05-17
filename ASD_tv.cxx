@@ -1,4 +1,4 @@
-//
+// Minimize the Objects TV with ASD - POCS. 
 // tomo_tv.cxx
 //  TV
 //
@@ -23,7 +23,7 @@ using namespace cv;
 String filename = "phantom.tif";
 
 //Total Number of Iterations.
-int Niter = 1000;
+int Niter = 50;
 
 //Number of Projections for Forward Model.
 int Nproj = 30;
@@ -44,6 +44,9 @@ float eps = 1.0;
 float r_max = 0.95;
 float alpha_red = 0.95;
 float alpha = 0.2;
+
+// Number of Counts for Poisson Noise. 
+int Nc = 100;
 
 ///////////////////////////////////////////////////////////
 
@@ -73,11 +76,16 @@ int main(int argc, const char * argv[]) {
     //Vectorize/Initialize the reconstruction and experimental data.
     tiltSeries.resize(tiltSeries.size(), 1);
     VectorXf b = A * tiltSeries;
+    //poissonNoise(b, Nc); //Uncoment if you'd like to add poisson Noise.
     tiltSeries.resize(Nslice, Nray);
+    
+    // Empty Vectors/Matrices for Reconstruction. 
     VectorXf g;
-    MatrixXf recon (Nslice, Nray), temp_recon(Nslice, Nray), v, recon_prime;
+    MatrixXf recon (Nslice, Nray), temp_recon(Nslice, Nray), v;
     recon.setZero();
-    float dPOCS, dd, dp, dg;
+    float dPOCS;
+    
+    //Vectors to evalutate convergence.
     VectorXf dd_vec(Niter), dp_vec(Niter), dg_vec(Niter);
     VectorXf dPOCS_vec(Niter), beta_vec(Niter), rmse_vec(Niter);
     VectorXf cos_alpha_vec(Niter);
@@ -85,6 +93,7 @@ int main(int argc, const char * argv[]) {
     //Main Loop.
     for(int i=0; i < Niter; i++)
     {
+        // Print the Iteration Number.
         if ( i % 100 == 0)
             cout << "Iteration: " << i + 1 << " / " << Niter << "\n";
         
@@ -107,6 +116,7 @@ int main(int argc, const char * argv[]) {
         dp_vec(i) = (temp_recon - recon).norm();
         temp_recon = recon;
 
+        //TV Loop.
         for(int j=0; j<ng; j++)
         {
             v = tv2Dderivative(recon);
@@ -116,6 +126,7 @@ int main(int argc, const char * argv[]) {
 
         dg_vec(i) = (recon - temp_recon).norm();
 
+        //Reduce TV if data constraint isn't met.
         if (dg_vec(i) > dp_vec(i) * r_max && dd_vec(i) > eps)
         {
             dPOCS *= alpha_red;
@@ -137,7 +148,7 @@ int main(int argc, const char * argv[]) {
     saveVecTxt(rmse_vec, "RMSE");
     saveVecTxt(cos_alpha_vec, "Cos_Alpha");
 
-    //    Display and Save final reconstruction.
+    //Display and Save final reconstruction.
     Mat final_img;
     cv::eigen2cv(recon, final_img);
     namedWindow( "Reconstruction", WINDOW_AUTOSIZE );
