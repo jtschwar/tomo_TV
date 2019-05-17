@@ -79,17 +79,18 @@ int main(int argc, const char * argv[]) {
         recon.resize(Nslice, Nray);
         beta *= beta_red;
     }
-    
-    
 
 //    Display and Save final reconstruction.
     recon.resize(Nslice, Nray);
     Mat final_img;
     cv::eigen2cv(recon, final_img);
-    imwrite("recon.tif", final_img);
+    final_img /= recon.maxCoeff();
+    
+    int test = 20;
+    imwrite("Results/" + to_string(test) + "/recon.tif", final_img);
 
 //    namedWindow( "Reconstruction", WINDOW_AUTOSIZE );
-//    imshow( "Reconstruction", final_img * (1.0 / recon.maxCoeff()) );
+//    imshow( "Reconstruction", final_img );
 //    waitKey(0);
 //
     return 0;

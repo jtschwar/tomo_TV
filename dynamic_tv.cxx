@@ -144,20 +144,22 @@ int main(int argc, const char * argv[]) {
         }
         
         //Save all the vectors.
-        saveVecTxt(beta_vec, "beta");
-        saveVecTxt(dd_vec, "dd");
-        saveVecTxt(dp_vec, "dp");
-        saveVecTxt(dg_vec, "dg");
-        saveVecTxt(dPOCS_vec, "dPOCS");
-        saveVecTxt(rmse_vec, "RMSE");
-        saveVecTxt(cos_alpha_vec, "Cos_Alpha");
+        saveVecTxt(beta_vec, Nproj, "beta");
+        saveVecTxt(dd_vec, Nproj, "dd");
+        saveVecTxt(dp_vec, Nproj, "dp");
+        saveVecTxt(dg_vec, Nproj, "dg");
+        saveVecTxt(dPOCS_vec, Nproj, "dPOCS");
+        saveVecTxt(rmse_vec, Nproj, "RMSE");
+        saveVecTxt(cos_alpha_vec, Nproj, "Cos_Alpha");
         
         //Save the Image.
         recon.resize(Nslice, Nray);
         Mat final_img;
         cv::eigen2cv(recon, final_img);
-        // String save_directory = "Results/"
-        // imwrite("/Results/", Nproj, ".tif", 
+        final_img /= recon.maxCoeff();
+        imwrite("Results/" + to_string(Nproj) + ".tif", final_img)
+        
+    }
     
     return 0;
 }

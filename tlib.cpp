@@ -317,9 +317,9 @@ void removeBadElements(Eigen::VectorXf& xx, Eigen::VectorXf& yy, Eigen::VectorXf
     yy = yy_temp.head(ind);
 }
 
-void saveVecTxt(Eigen::VectorXf vec, std::string name)
+void saveVecTxt(Eigen::VectorXf vec, int direc, std::string name)
 {
-    std::ofstream outfile( "Vector_Outputs/" + name + ".txt");
+    std::ofstream outfile( "Results/" to_string(direc) + "/" + name + ".txt");
     for (int i=0; i < vec.size(); i++)
     {
         outfile << vec(i) << "\n";
