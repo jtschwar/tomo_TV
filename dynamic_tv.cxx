@@ -24,7 +24,7 @@ using namespace cv;
 String filename = "phantom.tif";
 
 //Total Number of Iterations.
-int Niter = 30;
+int Niter = 50;
 
 //Number of iterations in TV loop.
 int ng = 5;
@@ -38,10 +38,10 @@ float eps = 0;
 //dPOCS and reduction criteria
 float r_max = 0.95;
 float alpha_red = 0.95;
-float alpha = 0.2;
+float alpha = 0.1;
 
 // Step Size for Theta.
-float dTheta = 10;
+float dTheta = 2;
 
 // Number of Counts for Poisson Noise. 
 int Nc = 100;

@@ -63,7 +63,10 @@ int main(int argc, const char * argv[]) {
     //Generate Measurement Matrix.
     int Nproj = 180/dTheta + 1;
     VectorXf tiltAngles = VectorXf::LinSpaced(Nproj, 0, 180);
+<<<<<<< HEAD
     cout << tiltAngles.transpose() << endl;
+=======
+>>>>>>> be0cd46d4319102035b9ee590e382a12b62c638a
     int Nrow = Nray*Nproj;
     int Ncol = Nray*Nray;
     SparseMatrix<float, Eigen::RowMajor> A(Nrow,Ncol);
