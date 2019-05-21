@@ -163,10 +163,6 @@ def parallelRay(Nside, pixelWidth, angles, Nray, rayWidth):
             xx = xx[I]
             yy = yy[I]
 
-            if(j == 107):
-                print(xx.shape)
-                print(yy.shape)
-
             # Get rid of points that are outside the image grid
             Ix = np.logical_and(xx >= -Nside / 2.0 * pixelWidth,
                                 xx <= Nside / 2.0 * pixelWidth)
@@ -224,12 +220,9 @@ def parallelRay(Nside, pixelWidth, angles, Nray, rayWidth):
                 print(("Ray No.", j + 1, "at", angles[i],
                        "degree is out of image grid!"))
     # Truncate excess zeros.
-    print(numvals)
-    print(idxend)
     rows = rows[:idxend]
     cols = cols[:idxend]
     vals = vals[:idxend]
-    print(rows.shape)
     A = ss.coo_matrix((vals, (rows, cols)), shape=(Nray*Nproj, Nside**2),
                       dtype=np.float32)
     return A
