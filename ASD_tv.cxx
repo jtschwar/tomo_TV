@@ -7,6 +7,7 @@
 //
 
 #include <iostream>
+#include <sys/stat.h>
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
 #include <opencv2/opencv.hpp>
@@ -139,6 +140,10 @@ int main(int argc, const char * argv[]) {
         tv_vec(i) = tv2D(recon);
 
     }
+
+    //Create Directory to Save Results.
+    String directory = "Results/ASD_tv";
+    mkdir(directory, ACCESSPERMS);
     
     //Save all the vectors.
     saveVec(beta_vec, "beta");
@@ -162,7 +167,7 @@ int main(int argc, const char * argv[]) {
     Mat final_img;
     cv::eigen2cv(recon, final_img);
     final_img /= recon.maxCoeff();
-    imwrite("Results/recon.tif", final_img);
+    imwrite("Results/ASD_tv/recon.tif", final_img);
     
     return 0;
 }

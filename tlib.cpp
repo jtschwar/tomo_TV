@@ -336,7 +336,7 @@ void saveResults(Eigen::VectorXf vec, int direc, std::string name)
 
 void saveVec(Eigen::VectorXf vec, std::string name)
 {
-    std::ofstream outfile( "Results/" + name + ".txt");
+    std::ofstream outfile( "Results/ASD_tv/" + name + ".txt");
     for (int i=0; i < vec.size(); i++)
     {
         outfile << vec(i) << "\n";
