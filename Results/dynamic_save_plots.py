@@ -21,29 +21,28 @@ for j in range(len(index)):
 	tv = np.loadtxt(str(i)+'/tv.txt')
 	dd = np.loadtxt(str(i)+'/dd.txt')
 
-	# beta = np.loadtxt(str(i)+'/beta.txt')
-	# dPOCS = np.loadtxt(str(i)+'/dPOCS.txt')
-	# dg = np.loadtxt(str(i)+'/dg.txt')
-	# dp = np.loadtxt(str(i)+'/dp.txt')
-
 	x = np.arange(tv.shape[0]) + 1
 
-	fig, (ax1,ax2, ax3, ax4) = plt.subplots(4,1)
+	fig, (ax1,ax2, ax3, ax4) = plt.subplots(4,1, figsize=(7, 7))
 	fig.subplots_adjust(hspace=1.0)
 
 	ax1.plot(x,rmse,color='m',linewidth=2.0)
-	ax1.set_ylabel('rmse')
+	ax1.set_ylabel('RMSE', fontweight='bold')
+	ax1.set_title('Min RMSE: ' +str(np.amin(rmse)), loc='right', fontsize=10)
 
 	ax2.plot(x,tv,color='green',linewidth=2.0)
-	ax2.set_ylabel('tv')
+	ax2.set_ylabel('TV' ,fontweight='bold')
 	ax2.axhline(y=tv0, color='r')
+	ax2.set_title('Final TV: ' +str(tv[-1]), loc='right', fontsize=10)
 
-	ax3.plot(x,dd,color='black',linewidth=2.0)
+	ax3.plot(x,dd,color='black', linewidth=2.0)
 	ax3.axhline(y=eps, color='r')
-	ax3.set_ylabel('dd')
+	ax3.set_ylabel('DD', fontweight='bold')
+	ax3.set_title('Min dd: ' +str(np.amin(dd)), loc='right', fontsize=10)
 
 	ax4.plot(x, cosAlph,color='blue',linewidth=2.0)
-	ax4.set_ylabel('Cosine Alpha')
-	ax4.set_xlabel('Number of Iterations')
+	ax4.set_ylabel('Cosine Alpha', fontweight='bold')
+	ax4.set_xlabel('Number of Iterations', fontweight='bold')
+	ax4.set_title('Min Cosine-Alpha: ' +str(np.amin(cosAlph)), loc='right', fontsize=10)
 
 	plt.savefig(str(i)+'/plot.png')
