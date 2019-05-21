@@ -24,7 +24,7 @@ using namespace cv;
 String filename = "phantom.tif";
 
 //Total Number of Iterations.
-int Niter = 300;
+int Niter = 50;
 
 //Number of Projections for Forward Model.
 int Nproj = 18;
@@ -142,8 +142,7 @@ int main(int argc, const char * argv[]) {
     }
 
     //Create Directory to Save Results.
-    String directory = "Results/ASD_tv";
-    mkdir(directory, ACCESSPERMS);
+    mkdir("Results/ASD_tv", ACCESSPERMS);
     
     //Save all the vectors.
     saveVec(beta_vec, "beta");
