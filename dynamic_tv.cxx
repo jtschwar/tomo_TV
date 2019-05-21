@@ -24,7 +24,7 @@ using namespace cv;
 String filename = "phantom.tif";
 
 //Total Number of Iterations.
-int Niter = 300;
+int Niter = 30;
 
 //Number of iterations in TV loop.
 int ng = 5;
@@ -41,7 +41,7 @@ float alpha_red = 0.95;
 float alpha = 0.2;
 
 // Step Size for Theta.
-float dTheta = 5;
+float dTheta = 10;
 
 // Number of Counts for Poisson Noise. 
 int Nc = 100;
@@ -74,11 +74,11 @@ int main(int argc, const char * argv[]) {
         int theta_max = 20 + 20 * k;
         int Nproj = theta_max/dTheta + 1;
         
-        cout << "\nReconstructing From Tilt Angles: 0 -- " << theta_max << endl;
+        cout << "\nReconstructing  Tilt Angles: 0 -> " << theta_max << " Degrees" <<endl;
         
         //Generate Measurement Matrix.
         VectorXf tiltAngles = VectorXf::LinSpaced(Nproj, 0, theta_max );
-        cout << tiltAngles.transpose() << endl;
+//        cout << tiltAngles.transpose() << endl;
         int Nrow = Nray * (Nproj + 1);
         int Ncol = Nray * Nray;
         
@@ -144,7 +144,7 @@ int main(int argc, const char * argv[]) {
             {
                 dPOCS *= alpha_red;
             }
-            
+
             dPOCS_vec(i) = dPOCS;
             beta *= beta_red;
             rmse_vec(i) = (tiltSeries - recon).norm();
@@ -154,8 +154,8 @@ int main(int argc, const char * argv[]) {
         }
         
         //Create Directory to Save Results.
-        String directory ="Results/" + to_string(theta_max);
-        int foo = mkdir("Results/" + to_string(theta_max));
+        String directory = "Results/" + to_string(theta_max);
+        mkdir(directory.c_str(), ACCESSPERMS);
         
         //Save all the vectors.
         saveResults(beta_vec, theta_max, "beta");

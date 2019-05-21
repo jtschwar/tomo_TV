@@ -1,7 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib.ticker as mticker
-from PIL import Image
 
 index = [20, 40, 60, 80, 100, 120, 140, 160, 180]
 
@@ -10,31 +9,21 @@ i = 180
 
 # Set Epsilon value. 
 eps = 0
+
+# Set Original TV value. 
 tv0 = 372273
 
-beta = np.loadtxt(str(i)+'/beta.txt')
-dPOCS = np.loadtxt(str(i)+'/dPOCS.txt')
-dd = np.loadtxt(str(i)+'/dd.txt')
-dg = np.loadtxt(str(i)+'/dg.txt')
-dp = np.loadtxt(str(i)+'/dp.txt')
+#Read the Data. 
 rmse = np.loadtxt(str(i)+'/rmse.txt')
 cosAlph = np.loadtxt(str(i)+'/Cos_Alpha.txt')
 tv = np.loadtxt(str(i)+'/tv.txt')
-
-# recon = Image.open(str(i) + '/recon.tif')
+dd = np.loadtxt(str(i)+'/dd.txt')
 
 print('Minimum Cosine Alpha value : ' +str(np.amin(cosAlph)))
 print('Minimum dd value : ' +str(np.amin(dd)))
 print('Minimum RMSE: ' + str(np.amin(rmse)))
 
-# tv = tv[:100]
-
 x = np.arange(tv.shape[0]) + 1
-
-# plt.plot(x, tv)
-# plt.axhline(y=tv0, color='r')
-# # plt.ylim(0.1,0.2)
-# plt.show()
 
 fig, (ax1,ax2, ax3, ax4) = plt.subplots(4,1)
 fig.subplots_adjust(hspace=1.0)
@@ -54,9 +43,4 @@ ax4.plot(x, cosAlph,color='blue',linewidth=2.0)
 ax4.set_ylabel('Cosine Alpha')
 ax4.set_xlabel('Number of Iterations')
 
-plt.savefig(str(i)+'/plot.png')
-
-# plt.figure(3)
-# plt.imshow(recon, cmap = 'gray')
-# plt.axis('off')
-# plt.show()
+plt.show()

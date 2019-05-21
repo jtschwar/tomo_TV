@@ -1,32 +1,30 @@
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib.ticker as mticker
-from PIL import Image
 
+#Theta Max Values. 
 index = [20, 40, 60, 80, 100, 120, 140, 160, 180]
 
 # Set Epsilon value. 
 eps = 0
-tv0 = 372273
 
-print(index[0])
+# Set the original TV value. 
+tv0 = 372273
 
 for j in range(len(index)):
 
 	i = index[j]
 
-	beta = np.loadtxt(str(i)+'/beta.txt')
-	dPOCS = np.loadtxt(str(i)+'/dPOCS.txt')
-	dd = np.loadtxt(str(i)+'/dd.txt')
-	dg = np.loadtxt(str(i)+'/dg.txt')
-	dp = np.loadtxt(str(i)+'/dp.txt')
+	#Read the Data. 
 	rmse = np.loadtxt(str(i)+'/rmse.txt')
 	cosAlph = np.loadtxt(str(i)+'/Cos_Alpha.txt')
 	tv = np.loadtxt(str(i)+'/tv.txt')
+	dd = np.loadtxt(str(i)+'/dd.txt')
 
-	print('Minimum Cosine Alpha value : ' +str(np.amin(cosAlph)))
-	print('Minimum dd value : ' +str(np.amin(dd)))
-	print('Minimum RMSE: ' + str(np.amin(rmse)))
+	# beta = np.loadtxt(str(i)+'/beta.txt')
+	# dPOCS = np.loadtxt(str(i)+'/dPOCS.txt')
+	# dg = np.loadtxt(str(i)+'/dg.txt')
+	# dp = np.loadtxt(str(i)+'/dp.txt')
 
 	x = np.arange(tv.shape[0]) + 1
 
