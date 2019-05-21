@@ -24,10 +24,10 @@ using namespace cv;
 String filename = "phantom.tif";
 
 //Total Number of Iterations.
-int Niter = 50;
+int Niter = 300;
 
-//Number of Projections for Forward Model.
-int Nproj = 18;
+// Step Size for Theta.
+float dTheta = 10;
 
 //Number of iterations in TV loop.
 int ng = 20;
@@ -61,7 +61,9 @@ int main(int argc, const char * argv[]) {
     cv::cv2eigen(img, tiltSeries);
 
     //Generate Measurement Matrix.
-    VectorXf tiltAngles = VectorXf::LinSpaced(Nproj, 0, 170);
+    int Nproj = 180/dTheta + 1;
+    VectorXf tiltAngles = VectorXf::LinSpaced(Nproj, 0, 180);
+    cout << tiltAngles.transpose() << endl;
     int Nrow = Nray*Nproj;
     int Ncol = Nray*Nray;
     SparseMatrix<float, Eigen::RowMajor> A(Nrow,Ncol);
