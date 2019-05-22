@@ -27,7 +27,7 @@ String filename = "phantom.tif";
 int Niter = 300;
 
 // Step Size for Theta.
-float dTheta = 10;
+float dTheta = 2;
 
 //Number of iterations in TV loop.
 int ng = 20;

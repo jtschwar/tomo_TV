@@ -24,10 +24,10 @@ using namespace cv;
 String filename = "phantom.tif";
 
 //Total Number of Iterations.
-int Niter = 200;
+int Niter = 25;
 
 //Number of iterations in TV loop.
-int ng = 20;
+int ng = 10;
 
 //ART reduction.
 float beta_red = 0.995;
@@ -41,7 +41,7 @@ float alpha_red = 0.95;
 float alpha = 0.2;
 
 // Step Size for Theta.
-float dTheta = 10;
+float dTheta = 2;
 
 // Number of Counts for Poisson Noise. 
 int Nc = 100;
@@ -66,7 +66,6 @@ int main(int argc, const char * argv[]) {
     // Increase the Sampling By 1 Degree for 20 degree chunks.
     for(int k= 0; k < 9; k++)
     {
-        
         //Parameter in ART Reconstruction.
         float beta = 1.0;
         
