@@ -22,8 +22,10 @@ void tomography(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& inn
 {
     //2D ART Tomography
     long Nrow = A.rows();
+    long Ncol = A.cols();
     float a;
     
+    recon.resize(Ncol, 1);
     VectorXf f(recon.rows());
     f = recon;
     

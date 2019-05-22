@@ -76,7 +76,6 @@ int main(int argc, const char * argv[]) {
             cout << "Iteration: " << i + 1 << " / " << Niter << "\n";
 
         //ART Reconstruction.
-        recon.resize(Ncol, 1);
         tomography(recon, b, rowInnerProduct, A, beta);
         recon = (recon.array() < 0).select(0, recon);
         recon.resize(Nslice, Nray);
