@@ -9,7 +9,8 @@ index = [20, 40, 60, 80, 100, 120, 140, 160, 180]
 eps = 0
 
 # Set the original TV value. 
-tv0 = 372273
+# tv0 = 372273 #phantom
+tv0 = 187589 #Co2P (256)
 
 for j in range(len(index)):
 

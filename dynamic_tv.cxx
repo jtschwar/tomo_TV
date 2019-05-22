@@ -21,13 +21,16 @@ using namespace cv;
 ///////////////RECONSTRUCTION PARAMETERS///////////////////
 
 //File Name (Input Tilt Series).
-String filename = "phantom.tif";
+String filename = "180.tif";
 
 //Total Number of Iterations.
-int Niter = 25;
+int Niter = 300;
+
+// Step Size for Theta.
+float dTheta = 2;
 
 //Number of iterations in TV loop.
-int ng = 10;
+int ng = 5;
 
 //ART reduction.
 float beta_red = 0.995;
@@ -38,10 +41,7 @@ float eps = 0;
 //dPOCS and reduction criteria
 float r_max = 0.95;
 float alpha_red = 0.95;
-float alpha = 0.2;
-
-// Step Size for Theta.
-float dTheta = 2;
+float alpha = 0.05;
 
 // Number of Counts for Poisson Noise. 
 int Nc = 100;
@@ -51,7 +51,7 @@ int Nc = 100;
 int main(int argc, const char * argv[]) {
     
     //Load Dataset.
-    Mat img = imread(filename, cv::ImreadModes::IMREAD_GRAYSCALE);
+    Mat img = imread("Test_Images/" + filename, cv::ImreadModes::IMREAD_GRAYSCALE);
     int Nslice = img.rows;
     int Nray = img.cols;
     Eigen::MatrixXf tiltSeries;
@@ -78,7 +78,7 @@ int main(int argc, const char * argv[]) {
         //Generate Measurement Matrix.
         VectorXf tiltAngles = VectorXf::LinSpaced(Nproj, 0, theta_max );
 //        cout << tiltAngles.transpose() << endl;
-        int Nrow = Nray * (Nproj + 1);
+        int Nrow = Nray * Nproj;
         int Ncol = Nray * Nray;
         
         SparseMatrix<float, Eigen::RowMajor> A(Nrow,Ncol);

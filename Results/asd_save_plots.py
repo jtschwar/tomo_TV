@@ -6,7 +6,8 @@ import matplotlib.ticker as mticker
 eps = 0
 
 # Set Original TV value. 
-tv0 = 372273
+# tv0 = 372273 #phantom
+tv0 = 187589 #Co2P (256)
 
 #Read the Data. 
 rmse = np.loadtxt('ASD_tv/rmse.txt')

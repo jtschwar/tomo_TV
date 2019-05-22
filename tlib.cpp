@@ -265,15 +265,8 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, 
                     //Calculate the pixel index for mid points
                     VectorXf pixelIndex(tne);
                     pixelIndex = floor((Nside/2 - midpointsY.array()/pixelWidth))*Nside + floor((midpointsX.array()/pixelWidth + Nside/2));
+                    pixelIndex = (pixelIndex.array() < 0 ).select(0,pixelIndex);
                     
-                    for (int x = 0; x < pixelIndex.size(); x ++)
-                    {
-                        if (pixelIndex(x) > 256 * 256)
-                        {
-                            cout << "Projection Angle: " << i << " Ray Number: " << j << endl;
-                        }
-                    }
-    
                     //Create the indices to store the values to the measurement matrix
                     int idxstart = idxend;
                     idxend = idxstart + numvals;

@@ -45,7 +45,7 @@ float gamma_red = 0.8;
 int main(int argc, const char * argv[]) {
     
     //Load Dataset.
-    Mat img = imread(filename, cv::ImreadModes::IMREAD_GRAYSCALE);
+    Mat img = imread("Test_Images/" + filename, cv::ImreadModes::IMREAD_GRAYSCALE);
     int Nslice = img.rows;
     int Nray = img.cols;
     Eigen::MatrixXf tiltSeries;
