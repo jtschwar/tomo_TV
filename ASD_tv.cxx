@@ -21,16 +21,16 @@ using namespace cv;
 ///////////////RECONSTRUCTION PARAMETERS///////////////////
 
 //File Name (Input Tilt Series).
-String filename = "Co2P.tif";
+String filename = "Co2P_v2.tif";
 
 //Total Number of Iterations.
-int Niter = 200;
+int Niter = 100;
 
 // Step Size for Theta.
-float dTheta = 1;
+float dTheta = 2;
 
 //Number of iterations in TV loop.
-int ng = 5;
+int ng = 20;
 
 //Parameter in ART Reconstruction.
 float beta = 1.0;
@@ -44,7 +44,7 @@ float eps = 0;
 //dPOCS and reduction criteria
 float r_max = 0.95;
 float alpha_red = 0.95;
-float alpha = 0.1;
+float alpha = 0.2;
 
 // Number of Counts for Poisson Noise. 
 int Nc = 100;
@@ -52,6 +52,7 @@ int Nc = 100;
 ///////////////////////////////////////////////////////////
 
 int main(int argc, const char * argv[]) {
+    
     
     //Load Dataset.
     Mat img = imread("Test_Images/" + filename, cv::ImreadModes::IMREAD_GRAYSCALE);

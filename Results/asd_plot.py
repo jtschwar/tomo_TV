@@ -7,7 +7,9 @@ eps = 0
 
 # Set Original TV value. 
 # tv0 = 372273 #phantom
-tv0 = 187589 #Co2P (256)
+tv0 = 169217 #Co2P 
+# tv0 = 277064 #180 
+# tv0 = 203848
 
 #Read the Data. 
 rmse = np.loadtxt('ASD_tv/rmse.txt')
@@ -39,4 +41,5 @@ ax4.set_xlabel('Number of Iterations', fontweight='bold')
 ax4.set_title('Min Cosine-Alpha: ' +str(np.amin(cosAlph)), loc='right', fontsize=10)
 ax4.set_title('Cosine-Alpha', loc='left', fontweight='bold')
 
-plt.savefig('ASD_tv/plot.png')
+plt.show()
+# plt.savefig('ASD_tv/plot.png')

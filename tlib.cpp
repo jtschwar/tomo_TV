@@ -113,7 +113,9 @@ float tv2D(Eigen::MatrixXf& recon)
     float tv;
     MatrixXf r(padX, padY), rXp(padX, padY), rYp(padX, padY);
     r.setZero(), rXp.setZero(), rYp.setZero();
-    circshift(recon, r, 0, 0), circshift(recon, rXp, 1, 0), circshift(recon, rYp, 0, 1);
+    circshift(recon, r, 0, 0);
+    circshift(recon, rXp, 1, 0);
+    circshift(recon, rYp, 0, 1);
     MatrixXf mat_tv = sqrt( (r - rXp).array().square() + (r - rYp).array().square() );
     temp_tv = mat_tv.block(1, 1, recon.rows(), recon.cols());
     tv = temp_tv.sum();

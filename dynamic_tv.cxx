@@ -21,16 +21,16 @@ using namespace cv;
 ///////////////RECONSTRUCTION PARAMETERS///////////////////
 
 //File Name (Input Tilt Series).
-String filename = "180.tif";
+String filename = "Co2P_v2.tif";
 
 //Total Number of Iterations.
-int Niter = 300;
+int Niter = 100;
 
 // Step Size for Theta.
 float dTheta = 2;
 
 //Number of iterations in TV loop.
-int ng = 5;
+int ng = 20;
 
 //ART reduction.
 float beta_red = 0.995;
@@ -41,7 +41,7 @@ float eps = 0;
 //dPOCS and reduction criteria
 float r_max = 0.95;
 float alpha_red = 0.95;
-float alpha = 0.05;
+float alpha = 0.2;
 
 // Number of Counts for Poisson Noise. 
 int Nc = 100;
@@ -118,7 +118,7 @@ int main(int argc, const char * argv[]) {
             g = A * recon;
             recon.resize(Nslice, Nray);
             
-            if(i == 0)
+            if(k == 0 && i == 0)
             {
                 dPOCS = (recon - temp_recon).norm() * alpha;
             }
