@@ -23,6 +23,8 @@ void tomography(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& inn
     //2D ART Tomography
     long Nrow = A.rows();
     long Ncol = A.cols();
+    long Nx = recon.rows();
+    long Ny = recon.cols();
     float a;
     
     recon.resize(Ncol, 1);
@@ -35,6 +37,7 @@ void tomography(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& inn
         f += A.row(j).transpose() * a * beta;
     }
     recon = f;
+    recon.resize(Nx, Ny);
 }
 
 float CosAlpha(Eigen::MatrixXf& recon, Eigen::MatrixXf& tv_derivative, Eigen::VectorXf& g, Eigen::VectorXf& b, Eigen::SparseMatrix<float, Eigen::RowMajor>& A)

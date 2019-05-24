@@ -78,12 +78,12 @@ int main(int argc, const char * argv[]) {
         //ART Reconstruction.
         tomography(recon, b, rowInnerProduct, A, beta);
         recon = (recon.array() < 0).select(0, recon);
-        recon.resize(Nslice, Nray);
+        // recon.resize(Nslice, Nray);
         beta *= beta_red;
     }
 
 //    Display and Save final reconstruction.
-    recon.resize(Nslice, Nray);
+    // recon.resize(Nslice, Nray);
     Mat final_img;
     cv::eigen2cv(recon, final_img);
     final_img /= recon.maxCoeff();
