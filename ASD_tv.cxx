@@ -107,7 +107,6 @@ int main(int argc, const char * argv[]) {
         tomography(recon, b, rowInnerProduct, A, beta);
         recon = (recon.array() < 0).select(0, recon);
         g = A * recon;
-        // recon.resize(Nslice, Nray);
         
         if(i == 0)
         {
