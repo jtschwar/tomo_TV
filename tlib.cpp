@@ -37,7 +37,6 @@ void tomography(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& inn
         f += A.row(j).transpose() * a * beta;
     }
     recon = f;
-    recon.resize(Nx, Ny);
 }
 
 float CosAlpha(Eigen::MatrixXf& recon, Eigen::MatrixXf& tv_derivative, Eigen::VectorXf& g, Eigen::VectorXf& b, Eigen::SparseMatrix<float, Eigen::RowMajor>& A)

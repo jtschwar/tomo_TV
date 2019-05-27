@@ -24,13 +24,13 @@ using namespace cv;
 String filename = "Co2P_v2.tif";
 
 //Total Number of Iterations.
-int Niter = 100;
+int Niter = 75;
 
 // Step Size for Theta.
 float dTheta = 2;
 
 //Number of iterations in TV loop.
-int ng = 20;
+int ng = 5;
 
 //ART reduction.
 float beta_red = 0.995;
@@ -41,7 +41,7 @@ float eps = 0;
 //dPOCS and reduction criteria
 float r_max = 0.95;
 float alpha_red = 0.95;
-float alpha = 0.2;
+float alpha = 0.1;
 
 // Number of Counts for Poisson Noise. 
 int Nc = 100;
@@ -116,7 +116,7 @@ int main(int argc, const char * argv[]) {
             tomography(recon, b, rowInnerProduct, A, beta);
             recon = (recon.array() < 0).select(0, recon);
             g = A * recon;
-            // recon.resize(Nslice, Nray);
+            recon.resize(Nslice, Nray);
             
             if(k == 0 && i == 0)
             {

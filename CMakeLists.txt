@@ -9,7 +9,7 @@ include_directories( ./Dependencies/Eigen/ )
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -O2 -Wno-div-by-zero")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -O3 -Wno-div-by-zero")
 
 
 ############ ASD TV #################
