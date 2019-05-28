@@ -56,7 +56,7 @@ int main(int argc, const char * argv[]) {
     for(int k= 0; k < 9; k++)
     {
         //Parameter in ART Reconstruction.
-        beta = beta0;
+        float beta = beta0;
         
         //Number of Projections for Forward Model.
         int theta_max = 20 + 20 * k;

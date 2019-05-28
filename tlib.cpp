@@ -347,7 +347,7 @@ void read_parameters(int& Niter,int& ng,float& dTheta,float& beta,float& beta_re
     //Read values in Parameters.txt file. 
     ifstream parametersFile;
     parametersFile.open("parameters.txt");
-    String input[25];
+    string input[30];
     int i = 0;
     string text;
     while(!parametersFile.eof())
@@ -361,7 +361,7 @@ void read_parameters(int& Niter,int& ng,float& dTheta,float& beta,float& beta_re
     Niter = stoi(input[1]);
     ng = stoi(input[4]);
     dTheta = stof(input[7]);
-    beta = stof(input[10])
+    beta = stof(input[10]);
     beta_red = stof(input[13]);
     alpha = stof(input[16]);
     alpha_red = stof(input[19]);

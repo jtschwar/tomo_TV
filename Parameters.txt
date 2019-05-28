@@ -1,5 +1,5 @@
 //Total Number of Iterations (Niter)
-75
+100
 
 //Number of TV iterations (ng)
 5
@@ -20,7 +20,7 @@
 0.95 
 
 //Data Tolerance Parameter (eps)
-0
+3.0
 
 //r_max
 0.95

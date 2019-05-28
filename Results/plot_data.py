@@ -1,12 +1,13 @@
 import numpy as np
-from matplotlib import pyplot as plt
-import matplotlib.ticker as mticker
+import matplotlib.pyplot as plt
+from skimage import io
+import os.path
 
 #Theta Max Values. 
 index = [20, 40, 60, 80, 100, 120, 140, 160, 180]
 
 # Set Epsilon value. 
-eps = 0
+eps = 3.0
 
 # Set the original TV value. 
 # tv0 = 372273 #phantom
@@ -70,6 +71,7 @@ fig.subplots_adjust(top=0.9)
 
 # Plot ASD Figure. 
 #######################################################
+
 #Read the Data. 
 rmse = np.loadtxt('ASD_tv/rmse.txt')
 cosAlph = np.loadtxt('ASD_tv/Cos_Alpha.txt')
@@ -101,5 +103,27 @@ ax4.set_title('Min Cosine-Alpha: ' +str(np.amin(cosAlph)), loc='right', fontsize
 ax4.set_title('Cosine-Alpha', loc='left', fontweight='bold')
 
 fig.suptitle('Fixed Batch (ASD - POCS)', fontsize=14)
-fig.subplots_adjust(top=0.9)
-plt.show()  
+fig.subplots_adjust(top=0.9) 
+
+# Show Final Reconstructions.
+###########################################################################
+orig_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Test_Images/Co2P_v2.tif')
+original_img = plt.imread(orig_dir)
+dynamic_recon = io.imread('180/recon.tif')
+ASD_recon = io.imread('ASD_tv/recon.tif')
+
+fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(6,4))
+
+ax1.imshow(original_img, cmap='gray')
+ax1.set_title('Original Image')
+ax1.axis('off')
+
+ax2.imshow(dynamic_recon, cmap='gray')
+ax2.set_title('Dynamic CS')
+ax2.axis('off')
+
+ax3.imshow(ASD_recon, cmap='gray')
+ax3.set_title('Traditional ASD/POCS')
+ax3.axis('off')
+
+plt.show() 
