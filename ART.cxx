@@ -82,7 +82,7 @@ int main(int argc, const char * argv[]) {
     }
 
 //    Display and Save final reconstruction.
-    // recon.resize(Nslice, Nray);
+    recon.resize(Nslice, Nray);
     Mat final_img;
     cv::eigen2cv(recon, final_img);
     final_img /= recon.maxCoeff();

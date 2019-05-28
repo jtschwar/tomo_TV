@@ -10,8 +10,7 @@ eps = 0
 
 # Set the original TV value. 
 # tv0 = 372273 #phantom
-tv0 = 203848
-tv0 = 169217
+tv0 = 251920 #Co2P - Volume
 
 temp = np.loadtxt('20/rmse.txt')
 ind = temp.size

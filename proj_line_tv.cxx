@@ -81,6 +81,8 @@ int main(int argc, const char * argv[]) {
         //ART Reconstruction.
         tomography(recon, b, rowInnerProduct, A, beta);
         recon = (recon.array() < 0).select(0, recon);
+        recon.resize(Nslice, Nray);
+        
         beta *= beta_red;
 
         if (i == 0)
