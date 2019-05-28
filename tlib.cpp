@@ -342,6 +342,35 @@ void saveVec(Eigen::VectorXf vec, std::string name)
     }
 }
 
+void read_parameters(int& Niter,int& ng,float& dTheta,float& beta,float& beta_red,float& alpha,float& alpha_red,float& eps,float& r_max)
+{
+    //Read values in Parameters.txt file. 
+    ifstream parametersFile;
+    parametersFile.open("parameters.txt");
+    String input[25];
+    int i = 0;
+    string text;
+    while(!parametersFile.eof())
+    {
+        getline(parametersFile,text);
+        input[i++]=text;
+    }
+    parametersFile.close();
+
+    // Convert Strings into Int/Float. 
+    Niter = stoi(input[1]);
+    ng = stoi(input[4]);
+    dTheta = stof(input[7]);
+    beta = stof(input[10])
+    beta_red = stof(input[13]);
+    alpha = stof(input[16]);
+    alpha_red = stof(input[19]);
+    eps = stof(input[22]);
+    r_max = stof(input[25]);
+    
+
+}
+
 void poissonNoise(Eigen::VectorXf& b, int Nc)
 {
     VectorXf temp_b(b.size());

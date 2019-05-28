@@ -23,25 +23,11 @@ using namespace cv;
 //File Name (Input Tilt Series).
 String filename = "Co2P_v2.tif";
 
-//Total Number of Iterations.
-int Niter = 75;
-
-// Step Size for Theta.
-float dTheta = 2;
-
-//Number of iterations in TV loop.
-int ng = 5;
-
-//ART reduction.
-float beta_red = 0.995;
-
-//Data Tolerance Parameter
-float eps = 0;
-
-//dPOCS and reduction criteria
-float r_max = 0.95;
-float alpha_red = 0.95;
-float alpha = 0.1;
+int Niter, ng;                 //Number of Iterations (Main and TV).
+float dTheta;                  //Step Size for Theta.
+float beta0, beta_red;          //Parameter in ART Reconstruction.
+float eps;                     //Data Tolerance Parameter.
+float alpha, alpha_red, r_max; //TV Parameter and reduction criteria.
 
 // Number of Counts for Poisson Noise. 
 int Nc = 100;
@@ -49,7 +35,10 @@ int Nc = 100;
 ///////////////////////////////////////////////////////////
 
 int main(int argc, const char * argv[]) {
-    
+
+    //Assign Values from parameters.txt
+    read_parameters(Niter, ng, dTheta, beta0, beta_red, alpha, alpha_red, eps, r_max);  
+
     //Load Dataset.
     Mat img = imread("Test_Images/" + filename, cv::ImreadModes::IMREAD_GRAYSCALE);
     int Nslice = img.rows;
@@ -67,7 +56,7 @@ int main(int argc, const char * argv[]) {
     for(int k= 0; k < 9; k++)
     {
         //Parameter in ART Reconstruction.
-        float beta = 1.0;
+        beta = beta0;
         
         //Number of Projections for Forward Model.
         int theta_max = 20 + 20 * k;

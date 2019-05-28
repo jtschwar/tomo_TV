@@ -1,19 +1,26 @@
-//Total Number of Iterations.
-Niter = 75;
+//Total Number of Iterations (Niter)
+75
 
-// Step Size for Theta.
-dTheta = 2;
+//Number of TV iterations (ng)
+5
 
-//Number of iterations in TV loop.
-ng = 5;
+// Step Size for Theta (dTheta)
+2
 
-//ART reduction.
-beta_red = 0.995;
+// ART - Beta
+1.0
 
-//Data Tolerance Parameter
-eps = 0;
+//ART reduction (beta_red)
+0.995
 
-//dPOCS and reduction criteria
-r_max = 0.95;
-alpha_red = 0.95;
-alpha = 0.1; 
+// TV - Alpha
+0.1 
+
+// Alpha Reduction (alpha_red)
+0.95 
+
+//Data Tolerance Parameter (eps)
+0
+
+//r_max
+0.95
