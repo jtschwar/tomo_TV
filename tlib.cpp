@@ -342,7 +342,7 @@ void saveVec(Eigen::VectorXf vec, std::string name)
     }
 }
 
-void read_parameters(int& Niter,int& ng,float& dTheta,float& beta,float& beta_red,float& alpha,float& alpha_red,float& eps,float& r_max)
+void read_parameters(int& Niter,float& Niter_red,int& ng,float& dTheta,float& beta,float& beta_red,float& alpha,float& alpha_red,float& eps,float& r_max)
 {
     //Read values in Parameters.txt file. 
     ifstream parametersFile;
@@ -359,14 +359,15 @@ void read_parameters(int& Niter,int& ng,float& dTheta,float& beta,float& beta_re
 
     // Convert Strings into Int/Float. 
     Niter = stoi(input[1]);
-    ng = stoi(input[4]);
-    dTheta = stof(input[7]);
-    beta = stof(input[10]);
-    beta_red = stof(input[13]);
-    alpha = stof(input[16]);
-    alpha_red = stof(input[19]);
-    eps = stof(input[22]);
-    r_max = stof(input[25]);
+    Niter_red = stof(input[4])
+    ng = stoi(input[7]);
+    dTheta = stof(input[10]);
+    beta = stof(input[13]);
+    beta_red = stof(input[16]);
+    alpha = stof(input[19]);
+    alpha_red = stof(input[22]);
+    eps = stof(input[25]);
+    r_max = stof(input[28]);
     
 
 }

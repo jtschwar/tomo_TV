@@ -24,6 +24,7 @@ using namespace cv;
 String filename = "Co2P_v2.tif";
 
 int Niter, ng;                 //Number of Iterations (Main and TV).
+float Niter_red;               // Number of Iterations Reduction.
 float dTheta;                  //Step Size for Theta.
 float beta0, beta_red;          //Parameter in ART Reconstruction.
 float eps;                     //Data Tolerance Parameter.
@@ -37,7 +38,7 @@ int Nc = 100;
 int main(int argc, const char * argv[]) {
 
     //Assign Values from parameters.txt
-    read_parameters(Niter, ng, dTheta, beta0, beta_red, alpha, alpha_red, eps, r_max);  
+    read_parameters(Niter, Niter_red, ng, dTheta, beta0, beta_red, alpha, alpha_red, eps, r_max);  
 
     //Load Dataset.
     Mat img = imread("Test_Images/" + filename, cv::ImreadModes::IMREAD_GRAYSCALE);
@@ -160,6 +161,8 @@ int main(int argc, const char * argv[]) {
         cv::eigen2cv(recon, final_img);
         final_img /= recon.maxCoeff();
         imwrite("Results/" + to_string(theta_max) + "/recon.tif", final_img);
+        
+        Niter *= Niter_red; //Niter_red.
         
     }
     

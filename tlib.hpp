@@ -35,6 +35,6 @@ float CosAlpha(Eigen::MatrixXf& recon, Eigen::MatrixXf& tv_derivative, Eigen::Ve
 
 void poissonNoise(Eigen::VectorXf& sinogram);
 
-void read_parameters(int& Niter,int& ng,float& dTheta,float& beta,float& beta_red,float& alpha,float& alpha_red,float& eps,float& r_max);
+void read_parameters(int& Niter,float& Niter_red,int& ng,float& dTheta,float& beta,float& beta_red,float& alpha,float& alpha_red,float& eps,float& r_max);
 
 #endif /* tlib_hpp */
