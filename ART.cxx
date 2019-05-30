@@ -20,7 +20,7 @@ using namespace cv;
 ///////////////RECONSTRUCTION PARAMETERS///////////////////
 
 //File Name (Input Tilt Series).
-String filename = "phantom.tif";
+String filename = "phantom_256.tif";
 
 //Total Number of Iterations.
 int Niter = 100;
@@ -38,23 +38,21 @@ float beta_red = 0.995;
 
 int main(int argc, const char * argv[]) {
     
-//    int n = 5;
-//    Eigen::setNbThreads(n);
-    
+
     //Load Dataset.
     Mat img = imread("Test_Images/" + filename, cv::ImreadModes::IMREAD_GRAYSCALE);
     int Nslice = img.rows;
     int Nray = img.cols;
     Eigen::MatrixXf tiltSeries;
     cv::cv2eigen(img, tiltSeries);
-
+    
     //Generate Measurement Matrix.
     VectorXf tiltAngles = VectorXf::LinSpaced(Nproj, 0, 180);
     int Nrow = Nray*Nproj;
     int Ncol = Nray*Nray;
     SparseMatrix<float, Eigen::RowMajor> A(Nrow,Ncol);
     parallelRay(Nray, tiltAngles, A);
-
+    
     //Calculate Inner Product.
     VectorXf rowInnerProduct(Nrow);
     for(int j=0; j < Nrow; j++)

@@ -1,14 +1,14 @@
 //Total Number of Iterations (Niter)
-100
+500
 
 //# Iterations Reduction (Niter_red)
-1.0
+0.98
 
 //Number of TV iterations (ng)
 5
 
 // Step Size for Theta (dTheta)
-2
+1
 
 // ART - Beta
 1.0

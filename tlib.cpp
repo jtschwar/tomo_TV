@@ -359,7 +359,7 @@ void read_parameters(int& Niter,float& Niter_red,int& ng,float& dTheta,float& be
 
     // Convert Strings into Int/Float. 
     Niter = stoi(input[1]);
-    Niter_red = stof(input[4])
+    Niter_red = stof(input[4]);
     ng = stoi(input[7]);
     dTheta = stof(input[10]);
     beta = stof(input[13]);
