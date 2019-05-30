@@ -143,6 +143,7 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, 
     //Number of projections.
     int Nproj = angles.rows();
     int idxend = 0;
+    int hold;
     
     //Initialize vectors that contain matrix elements and corresponding row/column numbers.
     //Ray coordinates at 0 degrees.
@@ -286,7 +287,7 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, 
                     }
                 }
         }
-        
+        cout << rows.maxCoeff() << endl; 
     }
     
     //Truncate excess zeros.

@@ -13,7 +13,7 @@
 #include <Eigen/SparseCore>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/eigen.hpp>
-#include "tlib.cpp"
+#include "dynamic_tlib.cpp"
 
 using namespace Eigen;
 using namespace std;
@@ -33,14 +33,14 @@ float beta0, beta_red;          //Parameter in ART Reconstruction.
 float eps;                     //Data Tolerance Parameter.
 float alpha, alpha_red, r_max; //TV Parameter and reduction criteria.
 
-//Time .
-float timer;
-int i;
-clock_t t0, tART;
-float time_limit = 180.0; //Time diveded by Nslices.
-float total_time;
-float Ncores = 16;
 ///////////////////////////////////////////////////////////
+
+//Time .
+float timer;              // Timer = track time elapsed.
+int i;                    // Track number of iterations completed per recon.
+clock_t t0;               // Clock.
+float time_limit = 180.0 / 512.0 * 16.0; // Total Time to Run Reconstruction (s).
+//float Ncores = 16;        // Ncores to simulate.
 
 int main(int argc, const char * argv[]) {
     
@@ -58,60 +58,61 @@ int main(int argc, const char * argv[]) {
     VectorXf g;
     MatrixXf recon (Nslice, Nray), temp_recon(Nslice, Nray), v;
     recon.setZero();
-    float dPOCS;
     
     VectorXf Niter_vec(180);
+    float dp, dg, dPOCS, beta;
+    int theta_max, Nproj, Nrow, Ncol;
+    
+    //Number of Projections for Forward Model.
+    theta_max = 180;
+    Nproj = theta_max/dTheta + 1;
+    
+    //Generate Measurement Matrix.
+    VectorXf tiltAngles = VectorXf::LinSpaced(Nproj, 0, theta_max );
+    Nrow = Nray * Nproj;          // Number of Rows in Measurement Matrix (A)
+    Ncol = Nray * Nray;           // Number of Columns in Measurement Matrix (A)
+    
+    VectorXf angle_vec(181);
+    
+    SparseMatrix<float, Eigen::RowMajor> A(Nrow,Ncol);
+    parallelRay(Nray, tiltAngles, angle_vec, A);
+    
+    // Create Projections.
+    tiltSeries.resize(tiltSeries.size(), 1);
+    VectorXf b = A * tiltSeries;
+    tiltSeries.resize(Nslice, Nray);
+    
+    //Calculate Inner Product.
+    VectorXf rowInnerProduct(Nrow);
+    for(int j=0; j < Nrow; j++)
+    {
+        rowInnerProduct(j) = A.row(j).dot(A.row(j));
+    }
+    
+    theta_max = 1;
     
     // Increase the Sampling By 1 Degree for 20 degree chunks.
     for(int k= 0; k < 180; k++)
     {
-        t0 = clock();
+        cout << "\nReconstructing  Tilt Angles: 0 -> " << theta_max << " Degrees" <<endl;
         
         //Parameter in ART Reconstruction.
-        float beta = beta0;
-        
-        //Number of Projections for Forward Model.
-        int theta_max = theta_block + theta_block * k;
-        int Nproj = theta_max/dTheta + 1;
-        
-        cout << "\nReconstructing  Tilt Angles: 0 -> " << theta_max << " Degrees" <<endl;
-        //Generate Measurement Matrix.
-        VectorXf tiltAngles = VectorXf::LinSpaced(Nproj, 0, theta_max );
-        int Nrow = Nray * Nproj;
-        int Ncol = Nray * Nray;
-        
-        SparseMatrix<float, Eigen::RowMajor> A(Nrow,Ncol);
-        parallelRay(Nray, tiltAngles, A);
+        beta = beta0;
 
-        //Calculate Inner Product.
-        VectorXf rowInnerProduct(Nrow);
-        for(int j=0; j < Nrow; j++)
-        {
-            rowInnerProduct(j) = A.row(j).dot(A.row(j));
-        }
-        
-        // Create Projections.
-        tiltSeries.resize(tiltSeries.size(), 1);
-        VectorXf b = A * tiltSeries;
-        //poissonNoise(b, Nc);                  //Add poisson Noise.
-        tiltSeries.resize(Nslice, Nray);
-        
         //Vectors to evalutate convergence.
-        VectorXf dd_vec(Niter), dp_vec(Niter), dg_vec(Niter);
-        VectorXf dPOCS_vec(Niter), beta_vec(Niter), rmse_vec(Niter);
-        VectorXf cos_alpha_vec(Niter), tv_vec(Niter);
+        VectorXf dd_vec(Niter), rmse_vec(Niter), tv_vec(Niter);
         dd_vec.setZero(), rmse_vec.setZero(), tv_vec.setZero();
         
-        total_time = (time_limit - (clock() - t0)/1e6) / 256 * Ncores;
         i = 0;
+        t0 = clock();
+        
         //Main Loop.
         do {
             
             temp_recon = recon;
-            beta_vec(i) = beta;
 
             //ART Reconstruction.
-            tomography(recon, b, rowInnerProduct, A, beta);
+            tomography(recon, b, rowInnerProduct, A, beta, angle_vec(k));
             recon = (recon.array() < 0).select(0, recon);
             g = A * recon;
             recon.resize(Nslice, Nray);
@@ -122,7 +123,7 @@ int main(int argc, const char * argv[]) {
             }
 
             dd_vec(i) = (g - b).norm() / g.size();
-            dp_vec(i) = (temp_recon - recon).norm();
+            dp = (temp_recon - recon).norm();
             temp_recon = recon;
 
             //TV Loop.
@@ -133,24 +134,22 @@ int main(int argc, const char * argv[]) {
                 recon.array() -= dPOCS * v.array();
             }
 
-            dg_vec(i) = (recon - temp_recon).norm();
+            dg = (recon - temp_recon).norm();
 
             //Reduce TV if data constraint isn't met.
-            if (dg_vec(i) > dp_vec(i) * r_max && dd_vec(i) > eps)
+            if (dg > dp * r_max && dd_vec(i) > eps)
             {
                 dPOCS *= alpha_red;
             }
 
-            dPOCS_vec(i) = dPOCS;
             beta *= beta_red;
             rmse_vec(i) = (tiltSeries - recon).norm();
-//            cos_alpha_vec(i) = CosAlpha(recon, v, g, b, A);
             tv_vec(i) = tv2D(recon);
             
             ++i;
             timer = (clock() - t0)/1e6;
             
-        } while (timer < total_time);
+        } while (timer < time_limit);
         
         Niter_vec(k) = i;
         cout << "Number of Iterations: " << i << endl;
@@ -176,6 +175,8 @@ int main(int argc, const char * argv[]) {
         
         if (Niter > 1.0)
             Niter *= Niter_red;
+        
+        theta_max++;
         
     }
     
