@@ -81,7 +81,7 @@ int main(int argc, const char * argv[]) {
     tiltSeries.resize(tiltSeries.size(), 1);
     VectorXf b = A * tiltSeries;
     tiltSeries.resize(Nslice, Nray);
-    
+
     //Calculate Inner Product.
     VectorXf rowInnerProduct(Nrow);
     for(int j=0; j < Nrow; j++)
@@ -102,7 +102,7 @@ int main(int argc, const char * argv[]) {
         //Vectors to evalutate convergence.
         VectorXf dd_vec(Niter), rmse_vec(Niter), tv_vec(Niter);
         dd_vec.setZero(), rmse_vec.setZero(), tv_vec.setZero();
-        
+
         i = 0;
         t0 = clock();
         

@@ -21,9 +21,10 @@ using namespace cv;
 ///////////////RECONSTRUCTION PARAMETERS///////////////////
 
 //File Name (Input Tilt Series).
-String filename = "Co2P_v2.tif";
+String filename = "Co2P_256.tif";
 
 int Niter, ng;                 //Number of Iterations (Main and TV).
+float Niter_red;               // Number of Iterations Reduction.
 float dTheta;                  //Step Size for Theta.
 float beta, beta_red;          //Parameter in ART Reconstruction.
 float eps;                     //Data Tolerance Parameter.
@@ -36,7 +37,7 @@ int Nc = 100; // Number of Counts for Poisson Noise.
 int main(int argc, const char * argv[]) {
     
     //Assign Values from parameters.txt
-    read_parameters(Niter, ng, dTheta, beta, beta_red, alpha, alpha_red, eps, r_max);
+    read_parameters(Niter, Niter_red, ng, dTheta, beta, beta_red, alpha, alpha_red, eps, r_max);
     
     //Load Dataset.
     Mat img = imread("Test_Images/" + filename, cv::ImreadModes::IMREAD_GRAYSCALE);
@@ -130,14 +131,14 @@ int main(int argc, const char * argv[]) {
     mkdir("Results/ASD_tv", ACCESSPERMS);
     
     //Save all the vectors.
-    saveVec(beta_vec, "beta");
-    saveVec(dd_vec, "dd");
-    saveVec(dp_vec, "dp");
-    saveVec(dg_vec, "dg");
-    saveVec(dPOCS_vec, "dPOCS");
+//    saveVec(beta_vec, "beta");
+//    saveVec(dd_vec, "dd");
+//    saveVec(dp_vec, "dp");
+//    saveVec(dg_vec, "dg");
+//    saveVec(dPOCS_vec, "dPOCS");
     saveVec(rmse_vec, "RMSE");
-    saveVec(cos_alpha_vec, "Cos_Alpha");
-    saveVec(tv_vec, "TV");
+//    saveVec(cos_alpha_vec, "Cos_Alpha");
+//    saveVec(tv_vec, "TV");
 
     //Display the final reconstruction.
 //    Mat final_img;

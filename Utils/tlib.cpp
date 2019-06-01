@@ -287,7 +287,6 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, 
                     }
                 }
         }
-        cout << rows.maxCoeff() << endl; 
     }
     
     //Truncate excess zeros.

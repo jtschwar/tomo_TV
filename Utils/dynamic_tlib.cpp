@@ -140,7 +140,6 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::VectorXf& row_vec, E
     //Number of projections.
     int Nproj = angles.rows();
     int idxend = 0;
-    int hold;
     
     //Initialize vectors that contain matrix elements and corresponding row/column numbers.
     //Ray coordinates at 0 degrees.

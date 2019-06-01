@@ -1,8 +1,8 @@
 //Total Number of Iterations (Niter)
-500
+75
 
 //# Iterations Reduction (Niter_red)
-0.98
+1.0
 
 //Number of TV iterations (ng)
 5
@@ -14,13 +14,13 @@
 1.0
 
 //ART reduction (beta_red)
-0.995
+0.9
 
 // TV - Alpha
 0.5
 
 // Alpha Reduction (alpha_red)
-0.95 
+0.995 
 
 //Data Tolerance Parameter (eps)
 1.0
