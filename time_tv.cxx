@@ -22,7 +22,7 @@ using namespace cv;
 ///////////////RECONSTRUCTION PARAMETERS///////////////////
 
 //File Name (Input Tilt Series).
-String filename = "Co2P_512.tif";
+String filename = "Co2P_256.tif";
 
 int theta_block = 1;
 
@@ -39,7 +39,7 @@ float alpha, alpha_red, r_max; //TV Parameter and reduction criteria.
 float timer;              // Timer = track time elapsed.
 int i;                    // Track number of iterations completed per recon.
 clock_t t0;               // Clock.
-float time_limit = 180.0 / 512.0 * 16.0; // Total Time to Run Reconstruction (s).
+float time_limit = 180.0 / 512.0 * 8.0; // Total Time to Run Reconstruction (s).
 //float Ncores = 16;        // Ncores to simulate.
 
 int main(int argc, const char * argv[]) {
@@ -72,15 +72,8 @@ int main(int argc, const char * argv[]) {
     Nrow = Nray * Nproj;          // Number of Rows in Measurement Matrix (A)
     Ncol = Nray * Nray;           // Number of Columns in Measurement Matrix (A)
     
-    VectorXf angle_vec(181);
-    
     SparseMatrix<float, Eigen::RowMajor> A(Nrow,Ncol);
-    parallelRay(Nray, tiltAngles, angle_vec, A);
-    
-    // Create Projections.
-    tiltSeries.resize(tiltSeries.size(), 1);
-    VectorXf b = A * tiltSeries;
-    tiltSeries.resize(Nslice, Nray);
+    parallelRay(Nray, tiltAngles, A);
 
     //Calculate Inner Product.
     VectorXf rowInnerProduct(Nrow);
@@ -88,6 +81,11 @@ int main(int argc, const char * argv[]) {
     {
         rowInnerProduct(j) = A.row(j).dot(A.row(j));
     }
+    
+    // Create Projections.
+    tiltSeries.resize(tiltSeries.size(), 1);
+    VectorXf b = A * tiltSeries;
+    tiltSeries.resize(Nslice, Nray);
     
     theta_max = 1;
     
@@ -102,6 +100,7 @@ int main(int argc, const char * argv[]) {
         //Vectors to evalutate convergence.
         VectorXf dd_vec(Niter), rmse_vec(Niter), tv_vec(Niter);
         dd_vec.setZero(), rmse_vec.setZero(), tv_vec.setZero();
+        Nrow = Nray * theta_max;
 
         i = 0;
         t0 = clock();
@@ -112,9 +111,9 @@ int main(int argc, const char * argv[]) {
             temp_recon = recon;
 
             //ART Reconstruction.
-            tomography(recon, b, rowInnerProduct, A, beta, angle_vec(k));
+            tomography(recon, b, rowInnerProduct, A, beta, Nrow);
             recon = (recon.array() < 0).select(0, recon);
-            g = A * recon;
+            g = A.topRows(Nrow) * recon;
             recon.resize(Nslice, Nray);
 
             if(k == 0 && i == 0)
@@ -122,7 +121,7 @@ int main(int argc, const char * argv[]) {
                 dPOCS = (recon - temp_recon).norm() * alpha;
             }
 
-            dd_vec(i) = (g - b).norm() / g.size();
+            dd_vec(i) = (g - b.topRows(Nrow)).norm() / g.size();
             dp = (temp_recon - recon).norm();
             temp_recon = recon;
 

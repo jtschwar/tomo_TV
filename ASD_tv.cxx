@@ -131,14 +131,14 @@ int main(int argc, const char * argv[]) {
     mkdir("Results/ASD_tv", ACCESSPERMS);
     
     //Save all the vectors.
+    saveVec(rmse_vec, "RMSE");
+    saveVec(tv_vec, "TV");
+    saveVec(dd_vec, "dd");
 //    saveVec(beta_vec, "beta");
-//    saveVec(dd_vec, "dd");
 //    saveVec(dp_vec, "dp");
 //    saveVec(dg_vec, "dg");
 //    saveVec(dPOCS_vec, "dPOCS");
-    saveVec(rmse_vec, "RMSE");
 //    saveVec(cos_alpha_vec, "Cos_Alpha");
-//    saveVec(tv_vec, "TV");
 
     //Display the final reconstruction.
 //    Mat final_img;

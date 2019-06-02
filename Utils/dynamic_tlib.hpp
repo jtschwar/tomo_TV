@@ -23,7 +23,7 @@ void circshift(Eigen::MatrixXf input, Eigen::MatrixXf& output, int i, int j);
 
 float rmepsilon(float input);
 
-void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::VectorXf& row_vec, Eigen::SparseMatrix<float, Eigen::RowMajor>& A);
+void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, Eigen::RowMajor>& A);
 
 void removeBadElements(Eigen::VectorXf& xx, Eigen::VectorXf& yy, Eigen::VectorXf I);
 

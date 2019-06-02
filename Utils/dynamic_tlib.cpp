@@ -28,7 +28,7 @@ void tomography(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& inn
     VectorXf f(recon.rows());
     f = recon;
     
-    for(int j=0; j < max_row + 1; j++)
+    for(int j=0; j < max_row; j++)
     {
         a = (b(j) - A.row(j).dot(f)) / innerProduct(j);
         f += A.row(j).transpose() * a * beta;
@@ -128,7 +128,7 @@ void circshift(Eigen::MatrixXf input, Eigen::MatrixXf& output, int i, int j)
     output.block(1+i, 1+j, input.rows(), input.rows()) = input;
 }
 
-void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::VectorXf& row_vec, Eigen::SparseMatrix<float, Eigen::RowMajor>& A)
+void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::SparseMatrix<float, Eigen::RowMajor>& A)
 {
     //Nside = Nray = y dimension of tilt series.
     int Nside = Nray;
@@ -283,7 +283,7 @@ void parallelRay(int& Nray, Eigen::VectorXf& angles, Eigen::VectorXf& row_vec, E
                     }
                 }
         }
-        row_vec(i) = rows.maxCoeff();
+
     }
     
     //Truncate excess zeros.

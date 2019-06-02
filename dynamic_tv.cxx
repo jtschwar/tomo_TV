@@ -52,6 +52,30 @@ int main(int argc, const char * argv[]) {
     MatrixXf recon (Nslice, Nray), temp_recon(Nslice, Nray), v;
     recon.setZero();
     float dPOCS;
+
+    //Number of Projections for Forward Model.
+    int theta_max = 180;
+    int Nproj = theta_max/dTheta + 1;
+    
+    //Generate Measurement Matrix.
+    VectorXf tiltAngles = VectorXf::LinSpaced(Nproj, 0, theta_max );
+    int Nrow = Nray * Nproj;
+    int Ncol = Nray * Nray;
+    
+    SparseMatrix<float, Eigen::RowMajor> A(Nrow,Ncol);
+    parallelRay(Nray, tiltAngles, A);
+
+    //Calculate Inner Product.
+    VectorXf rowInnerProduct(Nrow);
+    for(int j=0; j < Nrow; j++)
+    {
+        rowInnerProduct(j) = A.row(j).dot(A.row(j));
+    }
+    
+    // Create Projections.
+    tiltSeries.resize(tiltSeries.size(), 1);
+    VectorXf b = A * tiltSeries;
+    tiltSeries.resize(Nslice, Nray);
     
     // Increase the Sampling By 1 Degree for 20 degree chunks.
     for(int k= 0; k < 9; k++)
@@ -59,33 +83,11 @@ int main(int argc, const char * argv[]) {
         //Parameter in ART Reconstruction.
         float beta = beta0;
         
-        //Number of Projections for Forward Model.
-        int theta_max = 20 + 20 * k;
-        int Nproj = theta_max/dTheta + 1;
-        
-        cout << "\nReconstructing  Tilt Angles: 0 -> " << theta_max << " Degrees" <<endl;
-        
-        //Generate Measurement Matrix.
-        VectorXf tiltAngles = VectorXf::LinSpaced(Nproj, 0, theta_max );
-//        cout << tiltAngles.transpose() << endl;
-        int Nrow = Nray * Nproj;
-        int Ncol = Nray * Nray;
-        
-        SparseMatrix<float, Eigen::RowMajor> A(Nrow,Ncol);
-        parallelRay(Nray, tiltAngles, A);
+        theta_max = 20 + 20 * k;
+        Nproj = theta_max/dTheta + 1;
+        Nrow = Nray * Nproj;
 
-        //Calculate Inner Product.
-        VectorXf rowInnerProduct(Nrow);
-        for(int j=0; j < Nrow; j++)
-        {
-            rowInnerProduct(j) = A.row(j).dot(A.row(j));
-        }
-        
-        // Create Projections.
-        tiltSeries.resize(tiltSeries.size(), 1);
-        VectorXf b = A * tiltSeries;
-        //poissonNoise(b, Nc);                  //Add poisson Noise.
-        tiltSeries.resize(Nslice, Nray);
+        cout << "\nReconstructing  Tilt Angles: 0 -> " << theta_max << " Degrees" <<endl;
         
         //Vectors to evalutate convergence.
         VectorXf dd_vec(Niter), dp_vec(Niter), dg_vec(Niter);
@@ -101,11 +103,10 @@ int main(int argc, const char * argv[]) {
             
             temp_recon = recon;
             beta_vec(i) = beta;
-            
             //ART Reconstruction.
-            tomography(recon, b, rowInnerProduct, A, beta);
+            tomography(recon, b, rowInnerProduct, A, beta, Nrow);
             recon = (recon.array() < 0).select(0, recon);
-            g = A * recon;
+            g = A.topRows(Nrow) * recon;
             recon.resize(Nslice, Nray);
             
             if(k == 0 && i == 0)
@@ -113,7 +114,7 @@ int main(int argc, const char * argv[]) {
                 dPOCS = (recon - temp_recon).norm() * alpha;
             }
             
-            dd_vec(i) = (g - b).norm() / g.size();
+            dd_vec(i) = (g - b.topRows(Nrow)).norm() / g.size();
             dp_vec(i) = (temp_recon - recon).norm();
             temp_recon = recon;
 
@@ -136,7 +137,7 @@ int main(int argc, const char * argv[]) {
             dPOCS_vec(i) = dPOCS;
             beta *= beta_red;
             rmse_vec(i) = (tiltSeries - recon).norm();
-            cos_alpha_vec(i) = CosAlpha(recon, v, g, b, A);
+            // cos_alpha_vec(i) = CosAlpha(recon, v, g, b, A);
             tv_vec(i) = tv2D(recon);
 
         }
@@ -146,14 +147,15 @@ int main(int argc, const char * argv[]) {
         mkdir(directory.c_str(), ACCESSPERMS);
         
         //Save all the vectors.
-        saveResults(beta_vec, theta_max, "beta");
         saveResults(dd_vec, theta_max, "dd");
-        saveResults(dp_vec, theta_max, "dp");
-        saveResults(dg_vec, theta_max, "dg");
-        saveResults(dPOCS_vec, theta_max, "dPOCS");
         saveResults(rmse_vec, theta_max, "RMSE");
-        saveResults(cos_alpha_vec, theta_max, "Cos_Alpha");
         saveResults(tv_vec, theta_max, "TV");
+        // saveResults(beta_vec, theta_max, "beta");
+        // saveResults(dp_vec, theta_max, "dp");
+        // saveResults(dg_vec, theta_max, "dg");
+        // saveResults(dPOCS_vec, theta_max, "dPOCS");
+        // saveResults(cos_alpha_vec, theta_max, "Cos_Alpha");
+       
         
         //Save the Image.
         recon.resize(Nslice, Nray);

@@ -13,15 +13,15 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -O3 -Wno-div-by-zero")
 
 
 ############ ASD TV #################
-add_executable( asd_tv asd_tv.cxx )
-target_link_libraries( asd_tv ${OpenCV_LIBS} ) 
-include_directories( asd_tv ${OpenCV_INCLUDE_DIRS} )
+#add_executable( asd_tv asd_tv.cxx )
+#target_link_libraries( asd_tv ${OpenCV_LIBS} ) 
+#include_directories( asd_tv ${OpenCV_INCLUDE_DIRS} )
 
 
 ############ Dynamic TV #################
-#add_executable( dynamic_tv dynamic_tv.cxx )
-#target_link_libraries( dynamic_tv ${OpenCV_LIBS} )
-#include_directories( dynamic_tv ${OpenCV_INCLUDE_DIRS} )
+add_executable( dynamic_tv dynamic_tv.cxx )
+target_link_libraries( dynamic_tv ${OpenCV_LIBS} )
+include_directories( dynamic_tv ${OpenCV_INCLUDE_DIRS} )
 
 ############ Time TV #################
 add_executable( time_tv time_tv.cxx )
