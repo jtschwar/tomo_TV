@@ -6,3 +6,6 @@ PYCONFIG = ctvlib`python3-config --extension-suffix`
 
 add: ctvlib.cpp  ctvlib.hpp
 	$(CXX) $(CXXFLAGS) $(EIGEN) $(PYBIND11) ctvlib.cpp -o $(PYCONFIG) 
+
+add: dynamic_ctvlib.cpp  dynamic_ctvlib.hpp
+	$(CXX) $(CXXFLAGS) $(EIGEN) $(PYBIND11) ctvlib.cpp -o $(PYCONFIG)

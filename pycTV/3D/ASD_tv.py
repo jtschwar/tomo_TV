@@ -87,4 +87,4 @@ for i in range(Niter):
         dPOCS *= alpha_red
 
 # Save the Reconstruction.
-np.save('recon.npy', recon)
+np.save('Results/Co2P_recon.npy', recon)
