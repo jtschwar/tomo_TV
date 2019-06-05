@@ -1,13 +1,13 @@
-import sys
+import sys, os
 sys.path.append('./Utils')
 from pytvlib import tv, tv_derivative
-import ctvlib 
 from skimage import io
 import numpy as np
+import ctvlib 
 ########################################
 
 # Number of Iterations (Main Loop)
-Niter = 20
+Niter = 100
 
 # Number of Iterations (TV Loop)
 ng = 20
@@ -16,12 +16,12 @@ ng = 20
 beta_red = 0.995
 
 # Data Tolerance Parameter
-eps = 0.5
+eps = 100
 
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
-alpha = 0.3
+alpha = 1.0
 
 ##########################################
 
@@ -65,7 +65,7 @@ for k in range(10):
         temp_recon = recon.copy()
 
         for s in range(Nslice):
-            recon[:,:,s] = obj.recon(recon[:,:,s].ravel(), beta, s, Nray) 
+            recon[:,:,s] = obj.recon(recon[:,:,s].ravel(), beta, s, -1) 
 
         #Positivity constraint 
         recon[recon < 0] = 0  
@@ -94,13 +94,13 @@ for k in range(10):
         if (dg > dp * r_max and dd_vec[i] > eps):
             dPOCS *= alpha_red
 
-    eps += 0.1
-    eps = round(eps, 1)
-
     # Save the Reconstruction.
-    os.mkdir('Results/Epsilon_Test/' + str(eps))
+    os.makedirs('Results/Epsilon_Test/' + str(eps), exist_ok=True)
     np.save('Results/Epsilon_Test/' + str(eps) + '/recon.npy', recon)
     np.save('Results/Epsilon_Test/' + str(eps) + '/tv.npy', tv_vec)
     np.save('Results/Epsilon_Test/' + str(eps) + '/dd.npy', dd_vec)
+
+    eps += 100
+    eps = round(eps, 1)
 
     

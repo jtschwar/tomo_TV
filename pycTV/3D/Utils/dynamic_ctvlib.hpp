@@ -45,7 +45,7 @@ public:
 
 	// Member Variables. 
 	SpMat A;
-	int Nrow, Ncol;
+	int Nrow, Ncol, Nx;
 	Eigen::VectorXf innerProduct;
 	Mat b;
     

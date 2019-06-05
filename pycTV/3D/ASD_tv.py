@@ -58,7 +58,7 @@ for i in range(Niter):
     temp_recon = recon.copy()
 
     for s in range(Nslice):
-        recon[:,:,s] = obj.recon(recon[:,:,s].ravel(), beta, s, Nray) 
+        recon[:,:,s] = obj.recon(recon[:,:,s].ravel(), beta, s, -1) 
 
     #Positivity constraint 
     recon[recon < 0] = 0  

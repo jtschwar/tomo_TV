@@ -24,7 +24,7 @@ typedef Eigen::SparseMatrix<float, Eigen::RowMajor> SpMat;
 public: 
 
 	// Initializes Measurement Matrix. 
-	ctvlib(int Nx, int Ny, int Nz);
+	ctvlib(int Nslice, int Nray, int Nproj);
 
 	// Initialize Experimental Projections. 
 	void setTiltSeries(Mat in);
@@ -34,7 +34,7 @@ public:
 	void normalization();
 
 	// 2D ART Reconstruction 
-	Mat recon(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s, int Nx);
+	Mat recon(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s, int dyn_ind);
 
 	// Functions For Constructing Measurement Matrix. 
 	float rmepsilon(float input);
@@ -45,7 +45,7 @@ public:
 
 	// Member Variables. 
 	SpMat A;
-	int Nrow, Ncol;
+	int Nrow, Ncol, Nx;
 	Eigen::VectorXf innerProduct;
 	Mat b;
     

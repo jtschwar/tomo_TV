@@ -23,11 +23,12 @@ namespace py = pybind11;
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Mat;
 typedef Eigen::SparseMatrix<float, Eigen::RowMajor> SpMat;
 
-ctvlib::ctvlib(int Nx, int Ny, int Nz)
+ctvlib::ctvlib(int Nslice, int Nray, int Nproj)
 {
-    // 
-    Nrow = Ny*Nz;
-    Ncol = Ny*Ny;
+    //
+    Nx = Nray;
+    Nrow = Nray*Nproj;
+    Ncol = Nray*Nray;
     A.resize(Nrow,Ncol);
     innerProduct.resize(Nrow);
     b.resize(Nrow, Nx);
@@ -203,12 +204,18 @@ void ctvlib::parallelRay(int Nray, Eigen::VectorXf angles)
     A.makeCompressed();
 }
 
-Mat ctvlib::recon(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s, int Nx)
+Mat ctvlib::recon(Eigen::Ref<Eigen::VectorXf> recon, double beta, int slice, int dyn_ind)
 {
+    //No dynamic reconstruction, assume fully sampled batch.
+    if (dyn_ind == -1)
+        dyn_ind = Nrow;
+    else //Calculate how many projections were sampled.
+        dyn_ind *= Nx;
+    
     float a;
-    for(int j=0; j < Nrow; j++)
+    for(int j=0; j < dyn_ind; j++)
     {
-        a = (b(j,s) - A.row(j).dot(recon)) / innerProduct(j);
+        a = (b(j,slice) - A.row(j).dot(recon)) / innerProduct(j);
         recon += A.row(j).transpose() * a * beta;
     }
     Mat foo = recon;

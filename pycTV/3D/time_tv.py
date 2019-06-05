@@ -1,13 +1,14 @@
-import sys
+import sys, os
 sys.path.append('./Utils')
-from pytvlib import tv, tv_derivative
-import ctvlib 
-from skimage import io
+from pytvlib import tv, tv_derivative 
+from skimage.io import imread
 import numpy as np
+import ctvlib
+import time
 ########################################
 
 # Number of Iterations (TV Loop)
-ng = 20
+ng = 25
 
 # Parameter in ART Reconstruction.
 beta = 1.0
@@ -21,12 +22,14 @@ eps = 1.0
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
-alpha = 0.2
+alpha = 1.0
+
+time_limit = 180
 
 ##########################################
 
 #Read Image. 
-tiltSeries = io.imread('Co2P_tiltser.tiff')
+tiltSeries = imread('Co2P_tiltser.tiff')
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
 (Nproj, Nray, Nslice) = tiltSeries.shape 
 b = np.zeros([Nray*Nproj, Nslice])
@@ -50,15 +53,17 @@ obj.rowInnerProduct()
 
 #Generate Reconstruction. 
 recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32)
-tv_vec = np.zeros()
+Niter = np.zeros(Nproj)
 
 #Dynamic Tilt Series Loop. 
-for i in range(180):
+for i in range(1,Nproj+1):
 
     print('Reconstructing Tilt Angles: 0 -> ' + str(i+1) )
 
-    tv_vec = np.zeros(100)
-    dd_vec = np.zeros(100)
+    tv_vec = np.zeros(Nproj)
+    dd_vec = np.zeros(Nproj)
+
+    t0 = time.time()
 
     k = 0
  
@@ -69,7 +74,7 @@ for i in range(180):
 
         #ART Reconstruction. 
         for s in range(Nslice):
-            recon[:,:,s] = obj.recon(recon[:,:,s].ravel(), beta, s, Nray) 
+            recon[:,:,s] = obj.recon(recon[:,:,s].ravel(), beta, s, i) 
 
         #Positivity constraint 
         recon[recon < 0] = 0  
@@ -102,15 +107,20 @@ for i in range(180):
         tv_vec[k] = tv(recon)
         k += 1
 
+        time = (time.time() - t0)
+
         if time > time_limit:
             break
 
+    Niter[i] = k
 
     # Save Data. 
-    os.mkdir('Results/Time/' + str(i))
+    os.makdirs('Results/Time/' + str(i), exist_ok=True)
     np.save('Results/Time/' + str(i) + '/tv.npy', tv_vec)
     np.save('Results/Time/' + str(i) + '/dd.npy', dd_vec)
-    np.save('Results/Time/' + str(i) + '/recon.npy', recon)
+
+    if (i % 10 == 0):
+        np.save('Results/Time/' + str(i) + '/recon.npy', recon)
 
 # Save the Reconstruction.
-np.save('Results/Co2P_recon.npy', recon)
+np.save('Results/Time/Co2P_recon.npy', recon)

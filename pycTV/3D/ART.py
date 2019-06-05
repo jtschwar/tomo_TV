@@ -34,7 +34,7 @@ for i in range(Niter):
     print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
 
     for s in range(Nslice):
-        recon[:,:,s] = obj.recon(recon[:,:,s].ravel(), beta, s, Nray)
+        recon[:,:,s] = obj.recon(recon[:,:,s].ravel(), beta, s, -1)
 
     #Positivity constraint 
     recon[recon < 0] = 0  
