@@ -10,33 +10,30 @@ import ctvlib
 Niter = 100
 
 # Number of Iterations (TV Loop)
-ng = 20
+ng = 10
 
 # ART Reduction.
 beta_red = 0.995
 
-# Data Tolerance Parameter
-eps = 100
-
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
-alpha = 1.0
+alpha = 0.4
 
 ##########################################
 
 #Read Image. 
-tiltSeries = io.imread('Co2P_tiltser.tiff')
+tiltSeries = io.imread('Tilt_Series/Co2P_tiltser.tiff')
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
 (Nproj, Nray, Nslice) = tiltSeries.shape 
-b = np.zeros([Nray*Nproj, Nslice])
-g = np.zeros([Nray*Nproj, Nslice])
+b = np.zeros([Nslice, Nray*Nproj])
+g = np.zeros([Nslice, Nray*Nproj])
 
 # Initialize C++ Object.. 
 obj = ctvlib.ctvlib(Nslice, Nray, Nproj)
 
 for s in range(Nslice):
-    b[:,s] = tiltSeries[:,:,s].ravel()
+    b[s,:] = tiltSeries[:,:,s].ravel()
 obj.setTiltSeries(b)
 tiltSeries = None
 
@@ -47,9 +44,12 @@ tiltAngles = np.linspace(-75, 75, 76, dtype=np.float32)
 obj.parallelRay(Nray, tiltAngles)
 obj.rowInnerProduct()
 
-for k in range(10):
+#Array of Data Tolerance Parameters. 
+eps = np.linspace(0.1, 2.0, 20)
 
-    print('Reconstructing with Epsilon = ' + str(eps))
+for k in len(range(eps)):
+
+    print('Reconstructing with Epsilon = ' + str(eps[k]))
 
     # Reset Beta.
     beta = 1.0
@@ -74,12 +74,12 @@ for k in range(10):
         beta = beta*beta_red 
 
         for s in range(Nslice):
-            g[:,s] = obj.forwardProjection(recon[:,:,s].ravel())
+            g[s,:] = obj.forwardProjection(recon[:,:,s].ravel(), -1)
 
         if (i == 0):
             dPOCS = np.linalg.norm(recon - temp_recon) * alpha
 
-        dd_vec[i] = np.linalg.norm(g - b)
+        dd_vec[i] = np.linalg.norm(g - b) / g.size
         dp = np.linalg.norm(recon - temp_recon)   
         temp_recon = recon.copy()
 
@@ -91,16 +91,13 @@ for k in range(10):
 
         dg = np.linalg.norm(recon - temp_recon) 
 
-        if (dg > dp * r_max and dd_vec[i] > eps):
+        if (dg > dp * r_max and dd_vec[i] > eps[k]):
             dPOCS *= alpha_red
 
     # Save the Reconstruction.
-    os.makedirs('Results/Epsilon_Test/' + str(eps), exist_ok=True)
-    np.save('Results/Epsilon_Test/' + str(eps) + '/recon.npy', recon)
-    np.save('Results/Epsilon_Test/' + str(eps) + '/tv.npy', tv_vec)
-    np.save('Results/Epsilon_Test/' + str(eps) + '/dd.npy', dd_vec)
-
-    eps += 100
-    eps = round(eps, 1)
+    os.makedirs('Results/Epsilon_Test/' + str(eps[k]), exist_ok=True)
+    np.save('Results/Epsilon_Test/' + str(eps[k]) + '/recon.npy', recon)
+    np.save('Results/Epsilon_Test/' + str(eps[k]) + '/tv.npy', tv_vec)
+    np.save('Results/Epsilon_Test/' + str(eps[k]) + '/dd.npy', dd_vec)
 
     

@@ -1,5 +1,5 @@
-from matplotlib import pyplot as plt
-# import pathos.multiprocessing as mp
+import sys
+sys.path.append('./Utils')
 from skimage import io
 import numpy as np
 import ctvlib 
@@ -12,12 +12,16 @@ beta_red = 0.95
 tiltSeries = io.imread('Co2P_tiltser.tiff')
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
 (Nproj, Nray, Nslice) = tiltSeries.shape 
+b = np.zeros( [Nray*Nproj, Nslice] )
 
 # Initialize C++ Object.. 
 obj = ctvlib.ctvlib(Nslice, Nray, Nproj)
 
 for s in range(Nslice):
-	obj.tiltSeries(tiltSeries[:,:,s].ravel(), s)
+    b[:,s] = tiltSeries[:,:,s].ravel()
+obj.setTiltSeries(b)
+tiltSeries = None
+b = None
 
 # Generate Tilt Angles.
 tiltAngles = np.linspace(-75, 75, 76, dtype=np.float32)

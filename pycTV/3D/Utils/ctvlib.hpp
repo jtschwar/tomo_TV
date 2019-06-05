@@ -41,7 +41,7 @@ public:
 	void removeBadElements(Eigen::VectorXf& xx, Eigen::VectorXf& yy, Eigen::VectorXf I);
 
 	//Forward Project Reconstruction for Data Tolerance Parameter. 
-	Eigen::VectorXf forwardProjection(Eigen::Ref<Eigen::VectorXf> recon);
+	Eigen::VectorXf forwardProjection(Eigen::Ref<Eigen::VectorXf> recon, int dyn_ind);
 
 	// Member Variables. 
 	SpMat A;

@@ -1,3 +1,5 @@
+import sys
+sys.path.append('./Utils')
 from pytvlib import tv, tv_derivative
 from skimage import io
 import numpy as np
@@ -5,10 +7,10 @@ import ctvlib
 ########################################
 
 # Number of Iterations (Main Loop)
-Niter = 10
+Niter = 15
 
 # Number of Iterations (TV Loop)
-ng = 5
+ng = 10
 
 # Parameter in ART Reconstruction.
 beta = 1.0
@@ -17,27 +19,27 @@ beta = 1.0
 beta_red = 0.995
 
 # Data Tolerance Parameter
-eps = 1.0
+eps = 0.5
 
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
-alpha = 0.2
+alpha = 0.4
 
 ##########################################
 
 #Read Image. 
-tiltSeries = io.imread('Co2P_tiltser.tiff')
+tiltSeries = io.imread('Tilt_Series/Co2P_tiltser.tiff')
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
 (Nproj, Nray, Nslice) = tiltSeries.shape 
-b = np.zeros([Nray*Nproj, Nslice])
-g = np.zeros([Nray*Nproj, Nslice])
+b = np.zeros([Nslice, Nray*Nproj])
+g = np.zeros([Nslice, Nray*Nproj])
 
 # Initialize C++ Object.. 
 obj = ctvlib.ctvlib(Nslice, Nray, Nproj)
 
 for s in range(Nslice):
-    b[:,s] = tiltSeries[:,:,s].ravel()
+    b[s,:] = tiltSeries[:,:,s].ravel()
 obj.setTiltSeries(b)
 tiltSeries = None
 
@@ -67,12 +69,12 @@ for i in range(Niter):
     beta = beta*beta_red 
 
     for s in range(Nslice):
-        g[:,s] = obj.forwardProjection(recon[:,:,s].ravel())
+        g[s,:] = obj.forwardProjection(recon[:,:,s].ravel(), -1)
 
     if (i == 0):
         dPOCS = np.linalg.norm(recon - temp_recon) * alpha
 
-    dd = np.linalg.norm(g - b)
+    dd = np.linalg.norm(g - b) / g.size
     dp = np.linalg.norm(recon - temp_recon)   
     temp_recon = recon.copy()
 

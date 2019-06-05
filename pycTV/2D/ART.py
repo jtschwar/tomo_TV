@@ -9,7 +9,7 @@ beta = 1.0
 beta_red = 0.95
 
 #Read Image. 
-tiltSeries = Image.open('phantom.tif')
+tiltSeries = Image.open('Co2P_256.tif')
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
 (Nx, Ny) = tiltSeries.shape
 tiltSeries = tiltSeries.flatten()

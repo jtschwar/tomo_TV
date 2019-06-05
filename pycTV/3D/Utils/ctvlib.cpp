@@ -211,11 +211,11 @@ Mat ctvlib::recon(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s, int dyn
         dyn_ind = Nrow;
     else //Calculate how many projections were sampled.
         dyn_ind *= Nx;
-
+    
     float a;
     for(int j=0; j < dyn_ind; j++)
     {
-        a = (b(j,s) - A.row(j).dot(recon)) / innerProduct(j);
+        a = (b(s,j) - A.row(j).dot(recon)) / innerProduct(j);
         recon += A.row(j).transpose() * a * beta;
     }
     Mat foo = recon;
@@ -258,10 +258,16 @@ void ctvlib::normalization()
     }
 }
 
-Eigen::VectorXf ctvlib::forwardProjection(Eigen::Ref<Eigen::VectorXf> recon)
+Eigen::VectorXf ctvlib::forwardProjection(Eigen::Ref<Eigen::VectorXf> recon, int dyn_ind)
 {
-    VectorXf g(Nrow);
-    for (int i = 0; i < Nrow; i++)
+    //No dynamic reconstruction, assume fully sampled batch.
+    if (dyn_ind == -1)
+        dyn_ind = Nrow;
+    else //Calculate how many projections were sampled.
+        dyn_ind *= Nx;
+    
+    VectorXf g(dyn_ind);
+    for (int i = 0; i < dyn_ind; i++)
     {
         g(i) = A.row(i).dot(recon);
     }

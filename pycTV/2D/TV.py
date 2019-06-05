@@ -72,7 +72,7 @@ for i in range(Niter):
     if (i == 0):
         dPOCS = np.linalg.norm(recon - temp_recon) * alpha
 
-    dd = np.linalg.norm(g - b)
+    dd = np.linalg.norm(g - b) / g.size
     dp = np.linalg.norm(recon - temp_recon)   
     temp_recon = recon.copy()
 
