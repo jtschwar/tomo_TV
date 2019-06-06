@@ -1,6 +1,5 @@
-// Minimize the Objects TV with ASD - POCS. 
-// tomo_tv.cxx
-//  TV
+//  Simulate tomography reconstructions when a new projection
+//  is added every three minutes. 
 //
 //  Created by Jonathan Schwartz on 5/6/19.
 //  Copyright © 2019 Jonathan Schwartz. All rights reserved.

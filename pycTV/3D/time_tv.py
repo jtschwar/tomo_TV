@@ -1,3 +1,6 @@
+# Script to simulate tomography reconstructions when a new projection 
+# is added every three minutes.
+
 import sys, os
 sys.path.append('./Utils')
 from pytvlib import tv, tv_derivative 
@@ -14,7 +17,7 @@ ng = 10
 beta_red = 0.995
 
 # Data Tolerance Parameter
-eps = 0.5
+eps = 0.9
 
 # Reduction Criteria
 r_max = 0.95

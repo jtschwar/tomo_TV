@@ -1,6 +1,4 @@
-// Minimize the Objects TV with ASD - POCS. 
-// tomo_tv.cxx
-//  TV
+// Simulate Dynamic TV when data comes in chunks of projections.
 //
 //  Created by Jonathan Schwartz on 5/6/19.
 //  Copyright © 2019 Jonathan Schwartz. All rights reserved.

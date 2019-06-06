@@ -1,3 +1,6 @@
+# Script to test the effect of TV reconstructions under multiple
+# epsilon (Data Tolerance) values. 
+
 import sys, os
 sys.path.append('./Utils')
 from pytvlib import tv, tv_derivative
@@ -20,7 +23,7 @@ r_max = 0.95
 alpha_red = 0.95
 
 #TV Parameter
-alpha = 0.3
+alpha = 0.5
 
 #Beta Parameter
 beta0 = 1.25
@@ -54,7 +57,7 @@ obj.parallelRay(Nray, tiltAngles)
 obj.rowInnerProduct()
 
 #Array of Data Tolerance Parameters. 
-eps = np.linspace(0.1, 2.0, 20)
+eps = np.linspace(min_eps, max_eps, max_eps/min_eps)
 
 for k in range(len(eps)):
 

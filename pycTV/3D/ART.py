@@ -1,3 +1,5 @@
+# General 3D - ART Reconstruction with Positivity Constraint. 
+
 import sys
 sys.path.append('./Utils')
 from skimage import io

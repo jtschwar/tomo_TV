@@ -1,4 +1,4 @@
-// ART Reconstruction. 
+// 2D - ART Reconstruction. 
 // tomo_tv.cxx
 //  TV
 //

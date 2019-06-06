@@ -1,3 +1,5 @@
+# General 2D - ASD - POCS (TV) Reconstruction Algorithm. 
+
 import numpy as np
 import ctvlib 
 from pytvlib import tv, tv_derivative
