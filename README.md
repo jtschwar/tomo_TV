@@ -11,7 +11,8 @@ As of right now, only pycTV supports both 2D and 3D datasets.
 
 cTV uses OpenCV to import and save images and the Eigen library for linear algebra operations. Eigen is the only library included in the Dependencies folder so OpenCV needs to be compiled first in order to build cTV. Cmake creates the make file. if you are in the cTV directory run these commands to build cTV.
    
-   `cmake .\n `
+   `cmake . `
+   
    `make `
      
 The list of dependencies for pycTV is stored in the requirements text file. They can all be installed with the following code:
