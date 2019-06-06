@@ -1,6 +1,6 @@
 import numpy as np
 import ctvlib 
-from pytvlib import tv2D, tv_derivative2D
+from pytvlib import tv, tv_derivative
 from PIL import Image
 from matplotlib import pyplot as plt
 
@@ -77,7 +77,7 @@ for i in range(Niter):
     temp_recon = recon.copy()
 
     for j in range(ng):
-        v = tv_derivative2D(recon)
+        v = tv_derivative(recon)
         v /= np.linalg.norm(v)
         recon -= dPOCS * v
 

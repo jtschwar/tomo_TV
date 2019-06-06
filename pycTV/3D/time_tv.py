@@ -1,7 +1,7 @@
 import sys, os
 sys.path.append('./Utils')
 from pytvlib import tv, tv_derivative 
-from skimage.io import imread
+from skimage.io import imread, imsave
 import numpy as np
 import ctvlib
 import time
@@ -14,12 +14,12 @@ ng = 10
 beta_red = 0.995
 
 # Data Tolerance Parameter
-eps = 1.0
+eps = 0.5
 
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
-alpha = 0.5
+alpha = 0.4
 
 time_limit = 180
 
@@ -120,6 +120,10 @@ for i in range(Nproj):
     os.makedirs('Results/Time/' + str(i+1), exist_ok=True)
     np.save('Results/Time/' + str(i+1) + '/tv.npy', tv_vec)
     np.save('Results/Time/' + str(i+1) + '/dd.npy', dd_vec)
+
+    #Save Slice in Directory.
+    im = recon[134,:,:]/np.amax(recon[134,:,:])
+    imsave('Results/Time/' + str(i+1) + '/slice.tif', im)
 
     if (i % 10 == 0):
         np.save('Results/Time/' + str(i+1) + '/recon.npy', recon)

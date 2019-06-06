@@ -79,7 +79,7 @@ int main(int argc, const char * argv[]) {
         temp_recon = recon;
 
         //ART Reconstruction.
-        tomography(recon, b, rowInnerProduct, A, beta);
+        ART(recon, b, rowInnerProduct, A, beta);
         recon = (recon.array() < 0).select(0, recon);
         recon.resize(Nslice, Nray);
         

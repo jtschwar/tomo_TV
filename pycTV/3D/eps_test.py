@@ -18,7 +18,16 @@ beta_red = 0.995
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
-alpha = 0.4
+
+#TV Parameter
+alpha = 0.3
+
+#Beta Parameter
+beta0 = 1.25
+
+#Minimum and Maximum Epsilon Values
+min_eps = 0.1
+max_eps = 1.0
 
 ##########################################
 
@@ -47,12 +56,12 @@ obj.rowInnerProduct()
 #Array of Data Tolerance Parameters. 
 eps = np.linspace(0.1, 2.0, 20)
 
-for k in len(range(eps)):
+for k in range(len(eps)):
 
     print('Reconstructing with Epsilon = ' + str(eps[k]))
 
     # Reset Beta.
-    beta = 1.0
+    beta = beta0
 
     #Create Vectors.
     recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32)
@@ -99,5 +108,8 @@ for k in len(range(eps)):
     np.save('Results/Epsilon_Test/' + str(eps[k]) + '/recon.npy', recon)
     np.save('Results/Epsilon_Test/' + str(eps[k]) + '/tv.npy', tv_vec)
     np.save('Results/Epsilon_Test/' + str(eps[k]) + '/dd.npy', dd_vec)
+
+    im = recon[134,:,:]/np.amax(recon[134,:,:])
+    imsave('Results/Epsilon_Test/' + str(eps[k]) + '/slice.tif', im)
 
     

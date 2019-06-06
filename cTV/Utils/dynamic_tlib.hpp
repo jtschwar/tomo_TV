@@ -13,7 +13,7 @@
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
 
-void tomography(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, Eigen::RowMajor>& A, float beta, float max_row);
+void ART(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, Eigen::RowMajor>& A, float beta, float max_row);
 
 Eigen::MatrixXf tv2Dderivative(Eigen::MatrixXf recon);
 

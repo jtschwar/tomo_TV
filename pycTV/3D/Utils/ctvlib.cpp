@@ -204,7 +204,7 @@ void ctvlib::parallelRay(int Nray, Eigen::VectorXf angles)
     A.makeCompressed();
 }
 
-Mat ctvlib::recon(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s, int dyn_ind)
+Mat ctvlib::ART(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s, int dyn_ind)
 {
     //No dynamic reconstruction, assume fully sampled batch.
     if (dyn_ind == -1)
@@ -282,7 +282,7 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def(py::init<int,int, int>());
     ctvlib.def("setTiltSeries", &ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
     ctvlib.def("parallelRay", &ctvlib::parallelRay, "Construct Measurement Matrix");
-    ctvlib.def("recon", &ctvlib::recon, "ART Tomography");
+    ctvlib.def("recon", &ctvlib::ART, "ART Tomography");
     ctvlib.def("rowInnerProduct", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
     ctvlib.def("forwardProjection", &ctvlib::forwardProjection, "Forward Project the Reconstructions");
 }

@@ -104,7 +104,7 @@ int main(int argc, const char * argv[]) {
             temp_recon = recon;
             beta_vec(i) = beta;
             //ART Reconstruction.
-            tomography(recon, b, rowInnerProduct, A, beta, Nrow);
+            ART(recon, b, rowInnerProduct, A, beta, Nrow);
             recon = (recon.array() < 0).select(0, recon);
             g = A.topRows(Nrow) * recon;
             recon.resize(Nslice, Nray);

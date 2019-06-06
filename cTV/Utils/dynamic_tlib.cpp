@@ -18,7 +18,7 @@
 using namespace Eigen;
 using namespace std;
 
-void tomography(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, RowMajor>& A, float beta, float max_row)
+void ART(Eigen::MatrixXf& recon, Eigen::VectorXf& b, Eigen::VectorXf& innerProduct, Eigen::SparseMatrix<float, RowMajor>& A, float beta, float max_row)
 {
     //2D ART Tomography
     long Ncol = A.cols();

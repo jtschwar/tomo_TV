@@ -13,9 +13,9 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -O3 -Wno-div-by-zero")
 
 
 ############ ASD TV #################
-#add_executable( asd_tv asd_tv.cxx )
-#target_link_libraries( asd_tv ${OpenCV_LIBS} ) 
-#include_directories( asd_tv ${OpenCV_INCLUDE_DIRS} )
+add_executable( asd_tv asd_tv.cxx )
+target_link_libraries( asd_tv ${OpenCV_LIBS} ) 
+include_directories( asd_tv ${OpenCV_INCLUDE_DIRS} )
 
 
 ############ Dynamic TV #################
@@ -30,12 +30,12 @@ include_directories( time_tv ${OpenCV_INCLUDE_DIRS} )
 
 
 ############ ART #################
-#add_executable( art art.cxx ) 
-#target_link_libraries( art ${OpenCV_LIBS} ) 
-#include_directories( art ${OpenCV_INCLUDE_DIRS} )
+add_executable( art art.cxx ) 
+target_link_libraries( art ${OpenCV_LIBS} ) 
+include_directories( art ${OpenCV_INCLUDE_DIRS} )
 
 
 ##### Projected Line Search ########
-#add_executable( line_tv proj_line_tv.cxx )
-#target_link_libraries( line_tv ${OpenCV_LIBS} ) 
-#include_directories( line_tv ${OpenCV_INCLUDE_DIRS} ) 
+add_executable( line_tv proj_line_tv.cxx )
+target_link_libraries( line_tv ${OpenCV_LIBS} ) 
+include_directories( line_tv ${OpenCV_INCLUDE_DIRS} ) 

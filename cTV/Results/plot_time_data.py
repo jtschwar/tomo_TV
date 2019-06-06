@@ -28,11 +28,7 @@ stop = 0
 for j in range(len(Nproj)):
 
 	i = Nproj[j]
-
 	ind = Niter[j]
-
-	start = stop
-	stop = ind + start
 	
 	ver_lines[j+1] = ind + ver_lines[j]
 
@@ -49,7 +45,6 @@ for j in range(len(Nproj)):
 	tv = np.append(tv, temp_tv)
 	dd = np.append(dd, temp_dd)
 
-print(ver_lines)
 x = np.arange(rmse.shape[0]) + 1
 
 fig, (ax1,ax2, ax3) = plt.subplots(3,1, figsize=(7, 6))

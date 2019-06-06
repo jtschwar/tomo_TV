@@ -197,7 +197,7 @@ SpMat ctvlib::parallelRay(int Nray, Eigen::VectorXf angles)
     return A;
 }
 
-void ctvlib::recon(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> b, double beta)
+void ctvlib::ART(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> b, double beta)
 {
 
     float a;
@@ -252,7 +252,7 @@ PYBIND11_MODULE(ctvlib, m)
     py::class_<ctvlib> ctvlib(m, "ctvlib");
     ctvlib.def(py::init<int,int>());
     ctvlib.def("parallelRay", &ctvlib::parallelRay, "Construct Measurement Matrix");
-    ctvlib.def("recon", &ctvlib::recon, "ART Tomography");
+    ctvlib.def("recon", &ctvlib::ART, "ART Tomography");
     ctvlib.def("rowInnerProduct", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
 }
 

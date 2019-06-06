@@ -89,7 +89,7 @@ int main(int argc, const char * argv[]) {
         beta_vec(i) = beta;
         
         //ART Reconstruction.
-        tomography(recon, b, rowInnerProduct, A, beta);
+        ART(recon, b, rowInnerProduct, A, beta);
         recon = (recon.array() < 0).select(0, recon);
         g = A * recon;
         recon.resize(Nslice, Nray);

@@ -31,7 +31,7 @@ public:
 	void normalization();
 
 	// 2D ART Reconstruction 
-	void recon(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> b, double beta);
+	void ART(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> b, double beta);
 
 	// Functions For Constructing Measurement Matrix. 
 	float rmepsilon(float input);

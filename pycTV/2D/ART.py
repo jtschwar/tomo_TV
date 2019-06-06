@@ -1,7 +1,7 @@
+from matplotlib import pyplot as plt
+from PIL import Image
 import numpy as np
 import ctvlib 
-from PIL import Image
-from matplotlib import pyplot as plt
 
 Niter = 100
 num_tilts = 30
