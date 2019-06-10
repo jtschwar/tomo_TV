@@ -35,13 +35,16 @@ public:
 
 	// 2D ART Reconstruction 
 	Mat ART(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s, int dyn_ind);
-
+    Mat ART2(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> tilt, float beta);
+    
 	// Functions For Constructing Measurement Matrix. 
 	float rmepsilon(float input);
 	void removeBadElements(Eigen::VectorXf& xx, Eigen::VectorXf& yy, Eigen::VectorXf I);
 
 	//Forward Project Reconstruction for Data Tolerance Parameter. 
 	Eigen::VectorXf forwardProjection(Eigen::Ref<Eigen::VectorXf> recon, int dyn_ind);
+    
+    void loadA(Eigen::Ref<Mat> pyA);
 
 	// Member Variables. 
 	SpMat A;

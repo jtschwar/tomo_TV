@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Epsilon Values. 
-eps = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4,  1.5, 1.6, 1.7, 1.8, 1.9, 2.0])
+eps = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0])
 final_tv = np.zeros(len(eps))
 
 for i in range(len(eps)):
@@ -29,7 +29,7 @@ for i in range(len(eps)):
 	ax2.set_title('DD', loc='center', fontweight='bold')
 	ax2.set_xlabel('Number of Iterations', fontweight='bold')
 
-	plt.savefig('Epsilon_Test/' + str(eps[i])+'/Individual_plot.png')
+	#plt.savefig('Epsilon_Test/' + str(eps[i])+'/Individual_plot.png')
 
 plt.figure(figsize=(8,4))
 plt.plot(eps, final_tv, linewidth=2.0)

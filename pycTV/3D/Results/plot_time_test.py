@@ -5,7 +5,7 @@ from skimage import io
 import os.path
 
 # Data Tolerance Parameter
-eps = 0.5
+eps = 2.0
 
 # 
 Nproj = list(range(1,77))
@@ -29,11 +29,6 @@ for j in range(len(Nproj)):
 	tv = np.append(tv, temp_tv)
 	dd = np.append(dd, temp_dd)
 
-	if ( i == 76):
-		recon = np.load('Time/' + str(i) + '/recon.npy')
-		im = recon[134,:,:]/np.amax(recon[134,:,:])
-		io.imsave('Time/' + str(i) + '/slice.tif', im)
-
 
 x = np.arange(tv.shape[0]) + 1
 
@@ -51,7 +46,7 @@ ax2.set_title('Min dd: ' +str(np.amin(dd)), loc='right', fontsize=10)
 ax2.set_title('DD', loc='center', fontweight='bold')
 ax2.set_xlabel('Number of Iterations', fontweight='bold')
 
-# plt.savefig('Time/dd_tv_plot.png')
+plt.savefig('Time/dd_tv_plot.png')
 
 plt.figure(figsize=(8,3))
 plt.plot(Nproj, Niter, color='red', linewidth=2.0)
@@ -60,5 +55,5 @@ plt.xlabel('Number of Projections', fontweight='bold')
 plt.yticks(np.arange(min(Niter), max(Niter)+1, 1))
 plt.tight_layout()
 
-# plt.savefig('Time/Niter_plot.png')
+plt.savefig('Time/Niter_plot.png')
 # plt.show()

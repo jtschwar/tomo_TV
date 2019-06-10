@@ -215,7 +215,7 @@ Mat ctvlib::ART(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s, int dyn_i
     float a;
     for(int j=0; j < dyn_ind; j++)
     {
-        a = (b(s,j) - A.row(j).dot(recon)) / innerProduct(j);
+        a = ( b(s,j) - A.row(j).dot(recon) ) / innerProduct(j);
         recon += A.row(j).transpose() * a * beta;
     }
     Mat foo = recon;
@@ -274,6 +274,15 @@ Eigen::VectorXf ctvlib::forwardProjection(Eigen::Ref<Eigen::VectorXf> recon, int
     return g;
 }
 
+void ctvlib::loadA(Eigen::Ref<Mat> pyA)
+{
+    for (int i=0; i <pyA.cols(); i++)
+    {
+        A.insert(pyA(0,i), pyA(1,i)) = pyA(2,i);
+    }
+    A.makeCompressed();
+}
+
 
 PYBIND11_MODULE(ctvlib, m)
 {
@@ -282,9 +291,10 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def(py::init<int,int, int>());
     ctvlib.def("setTiltSeries", &ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
     ctvlib.def("parallelRay", &ctvlib::parallelRay, "Construct Measurement Matrix");
-    ctvlib.def("recon", &ctvlib::ART, "ART Tomography");
+    ctvlib.def("ART", &ctvlib::ART, "ART Reconstruction");
     ctvlib.def("rowInnerProduct", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
     ctvlib.def("forwardProjection", &ctvlib::forwardProjection, "Forward Project the Reconstructions");
+    ctvlib.def("create_measurement_matrix", &ctvlib::loadA, "Load Measurement Matrix Created By Python");
 }
 
 

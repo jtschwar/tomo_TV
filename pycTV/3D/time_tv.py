@@ -3,7 +3,7 @@
 
 import sys, os
 sys.path.append('./Utils')
-from pytvlib import tv, tv_derivative 
+from pytvlib import tv, tv_derivative, parallelRay
 from skimage.io import imread, imsave
 import numpy as np
 import ctvlib
@@ -11,18 +11,18 @@ import time
 ########################################
 
 # Number of Iterations (TV Loop)
-ng = 10
+ng = 5
 
 # ART Reduction.
 beta_red = 0.995
 
 # Data Tolerance Parameter
-eps = 0.9
+eps = 2.0
 
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
-alpha = 0.4
+alpha = 0.5
 
 time_limit = 180
 
@@ -31,23 +31,26 @@ time_limit = 180
 #Read Image. 
 tiltSeries = imread('Tilt_Series/Co2P_tiltser.tiff')
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
-(Nproj, Nray, Nslice) = tiltSeries.shape 
-b = np.zeros([Nslice, Nray*Nproj])
+tiltSeries = np.swapaxes(tiltSeries, 0, 2)
+(Nslice, Nray, Nproj) = tiltSeries.shape
+b = np.zeros( [Nslice, Nray*Nproj] )
+g = np.zeros([Nslice, Nray*Nproj])
 
 # Initialize C++ Object.. 
 obj = ctvlib.ctvlib(Nslice, Nray, Nproj)
 
 #Transfer Tilt Series to C++ Object. 
 for s in range(Nslice):
-    b[s,:] = tiltSeries[:,:,s].ravel()
+    b[s,:] = tiltSeries[s,:,:].transpose().ravel()
 obj.setTiltSeries(b)
 tiltSeries = None
 
 # Generate Tilt Angles.
 tiltAngles = np.linspace(-75, 75, 76, dtype=np.float32)
 
-# Generate measurement matrix
-obj.parallelRay(Nray, tiltAngles)
+A = parallelRay(Nray, tiltAngles)
+obj.create_measurement_matrix(A)
+A = None
 obj.rowInnerProduct()
 
 #Generate Reconstruction. 
@@ -77,7 +80,7 @@ for i in range(Nproj):
 
         #ART Reconstruction. 
         for s in range(Nslice):
-            recon[:,:,s] = obj.recon(recon[:,:,s].ravel(), beta, s, i+1) 
+            recon[s,:,:] = obj.ART(recon[s,:,:].ravel(), beta, s, i+1) 
 
         #Positivity constraint 
         recon[recon < 0] = 0  
@@ -125,7 +128,7 @@ for i in range(Nproj):
     np.save('Results/Time/' + str(i+1) + '/dd.npy', dd_vec)
 
     #Save Slice in Directory.
-    im = recon[134,:,:]/np.amax(recon[134,:,:])
+    im = recon[:,134,:]/np.amax(recon[:,134,:])
     imsave('Results/Time/' + str(i+1) + '/slice.tif', im)
 
     if (i % 10 == 0):
