@@ -13,17 +13,21 @@ import time
 # Number of Iterations (TV Loop)
 ng = 5
 
+# ART Parameter.
+beta0 = 1.0
+
 # ART Reduction.
 beta_red = 0.995
 
 # Data Tolerance Parameter
-eps = 2.0
+eps = 0.5
 
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
 alpha = 0.5
 
+#Amount of time before next projection is collected (Seconds).
 time_limit = 180
 
 ##########################################
@@ -35,6 +39,7 @@ tiltSeries = np.swapaxes(tiltSeries, 0, 2)
 (Nslice, Nray, Nproj) = tiltSeries.shape
 b = np.zeros( [Nslice, Nray*Nproj] )
 g = np.zeros([Nslice, Nray*Nproj])
+# beta = np.ones(Nproj * Nray, dtype=np.float32)
 
 # Initialize C++ Object.. 
 obj = ctvlib.ctvlib(Nslice, Nray, Nproj)
@@ -46,8 +51,9 @@ obj.setTiltSeries(b)
 tiltSeries = None
 
 # Generate Tilt Angles.
-tiltAngles = np.linspace(-75, 75, 76, dtype=np.float32)
+tiltAngles = np.load('Tilt_Series/Co2P_tiltAngles.npy')
 
+# Generate measurement matrix
 A = parallelRay(Nray, tiltAngles)
 obj.create_measurement_matrix(A)
 A = None
@@ -63,7 +69,7 @@ for i in range(Nproj):
     print('Reconstructing Tilt Angles: 0 -> ' + str(i+1) )
 
     # Reset Beta.
-    beta = 1.0
+    beta = beta0
 
     tv_vec = np.zeros(Nproj)
     dd_vec = np.zeros(Nproj)
@@ -83,16 +89,17 @@ for i in range(Nproj):
             recon[s,:,:] = obj.ART(recon[s,:,:].ravel(), beta, s, i+1) 
 
         #Positivity constraint 
-        recon[recon < 0] = 0  
+        recon[recon < 0] = 0 
 
         #ART-Beta Reduction.
-        beta = beta*beta_red 
+        beta *= beta_red
+        # beta[:Nray*(i+1)] *= beta_red 
 
         #Forward Projection/
         for s in range(Nslice):
-            g[s,:] = obj.forwardProjection(recon[:,:,s].ravel(), i+1)
+            g[s,:] = obj.forwardProjection(recon[s,:,:].ravel(), i+1)
 
-        if (i == 0):
+        if (k == 0):
             dPOCS = np.linalg.norm(recon - temp_recon) * alpha
 
         dd_vec[k] = np.linalg.norm(g - b[:,:Nray * (i+1)]) / g.size
@@ -121,6 +128,7 @@ for i in range(Nproj):
 
     Niter[i] = k
     print('Number of Iterations: ' + str(k) + '\n')
+
 
     # Save Data. 
     os.makedirs('Results/Time/' + str(i+1), exist_ok=True)

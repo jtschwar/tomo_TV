@@ -11,6 +11,8 @@ for i in range(len(eps)):
 	tv = np.load('Epsilon_Test/' + str(eps[i])+'/tv.npy')
 	dd = np.load('Epsilon_Test/' + str(eps[i])+'/dd.npy')
 
+	print('Iteration: ' + str(i) + ', Min TV: ' + str(np.amin(tv)))
+
 	final_tv[i] = tv[-1]
 
 	x = np.arange(tv.shape[0]) + 1
@@ -29,7 +31,7 @@ for i in range(len(eps)):
 	ax2.set_title('DD', loc='center', fontweight='bold')
 	ax2.set_xlabel('Number of Iterations', fontweight='bold')
 
-	#plt.savefig('Epsilon_Test/' + str(eps[i])+'/Individual_plot.png')
+	plt.savefig('Epsilon_Test/' + str(eps[i])+'/Individual_plot.png')
 
 plt.figure(figsize=(8,4))
 plt.plot(eps, final_tv, linewidth=2.0)

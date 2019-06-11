@@ -1,6 +1,7 @@
 import sys
 sys.path.append('./Utils')
 from pytvlib import tv, tv_derivative, parallelRay, timer
+from matplotlib import pyplot as plt
 from skimage import io
 import numpy as np
 import ctvlib 
@@ -8,7 +9,7 @@ import time
 ########################################
 
 # Number of Iterations (Main Loop)
-Niter = 50
+Niter = 15
 
 # Number of Iterations (TV Loop)
 ng = 5
@@ -20,7 +21,7 @@ beta = 1.0
 beta_red = 0.995
 
 # Data Tolerance Parameter
-eps = 0.2
+eps = 2.0
 
 # Reduction Criteria
 r_max = 0.95
@@ -46,7 +47,7 @@ obj.setTiltSeries(b)
 tiltSeries = None
 
 # Generate Tilt Angles.
-tiltAngles = np.linspace(-75, 75, 76, dtype=np.float32)
+tiltAngles = np.load('Tilt_Series/Co2P_tiltAngles.npy')
 
 # Generate measurement matrix
 A = parallelRay(Nray, tiltAngles)
@@ -99,8 +100,9 @@ for i in range(Niter):
     timer(t0, counter, Niter)
     counter += 1
 
-# Save the Reconstruction.
-# np.save('Results/Co2P_recon.npy', recon)
-
 im = recon[:,134,:]/np.amax(recon[:,134,:])
-io.imsave('Results//slice.tif', im)
+
+# Display the Reconstruction. 
+plt.imshow(im,cmap='gray')
+plt.axis('off')
+plt.show()

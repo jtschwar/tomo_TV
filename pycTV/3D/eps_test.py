@@ -26,12 +26,12 @@ alpha_red = 0.95
 #TV Parameter
 alpha = 0.5
 
-#Beta Parameter
+#ART Parameter
 beta0 = 1.0
 
 #Minimum and Maximum Epsilon Values
 min_eps = 0.1
-max_eps = 2.0
+max_eps = 2.1
 
 ##########################################
 
@@ -52,7 +52,7 @@ obj.setTiltSeries(b)
 tiltSeries = None
 
 # Generate Tilt Angles.
-tiltAngles = np.linspace(-75, 75, 76, dtype=np.float32)
+tiltAngles = np.load('Tilt_Series/Co2P_tiltAngles.npy')
 
 # Generate measurement matrix
 A = parallelRay(Nray, tiltAngles)
@@ -61,7 +61,8 @@ A = None
 obj.rowInnerProduct()
 
 #Array of Data Tolerance Parameters. 
-eps = np.linspace(min_eps, max_eps, max_eps/min_eps)
+eps = np.arange(min_eps, max_eps, 0.1)
+eps = np.around(eps, decimals=1)
 
 t0 = time.time()
 counter = 1

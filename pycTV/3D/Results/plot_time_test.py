@@ -5,10 +5,12 @@ from skimage import io
 import os.path
 
 # Data Tolerance Parameter
-eps = 2.0
+eps = 0.5
+
+dir = 'fix_beta_'
 
 # 
-Nproj = list(range(1,77))
+Nproj = list(range(1,75))
 Niter = np.load('Time/Niter.npy')
 tv = np.array([])
 dd = np.array([])
@@ -56,4 +58,4 @@ plt.yticks(np.arange(min(Niter), max(Niter)+1, 1))
 plt.tight_layout()
 
 plt.savefig('Time/Niter_plot.png')
-# plt.show()
+plt.show()

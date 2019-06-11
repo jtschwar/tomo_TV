@@ -223,6 +223,25 @@ Mat ctvlib::ART(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s, int dyn_i
     return foo;
 }
 
+Mat ctvlib::ART2(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> beta, int s, int dyn_ind)
+{
+    //No dynamic reconstruction, assume fully sampled batch.
+    if (dyn_ind == -1)
+        dyn_ind = Nrow;
+    else //Calculate how many projections were sampled.
+        dyn_ind *= Nx;
+    
+    float a;
+    for(int j=0; j < dyn_ind; j++)
+    {
+        a = ( b(s,j) - A.row(j).dot(recon) ) / innerProduct(j);
+        recon += A.row(j).transpose() * a * beta(j);
+    }
+    Mat foo = recon;
+    foo.resize(Nx, Nx);
+    return foo;
+}
+
 float ctvlib::rmepsilon(float input)
 {
     if (abs(input) < 1e-10)
@@ -292,6 +311,7 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("setTiltSeries", &ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
     ctvlib.def("parallelRay", &ctvlib::parallelRay, "Construct Measurement Matrix");
     ctvlib.def("ART", &ctvlib::ART, "ART Reconstruction");
+    ctvlib.def("ART2", &ctvlib::ART2, "Dynamic ART Reconstruction");
     ctvlib.def("rowInnerProduct", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
     ctvlib.def("forwardProjection", &ctvlib::forwardProjection, "Forward Project the Reconstructions");
     ctvlib.def("create_measurement_matrix", &ctvlib::loadA, "Load Measurement Matrix Created By Python");

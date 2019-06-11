@@ -1,7 +1,9 @@
 # General 2D - ART Reconstruction with Positivity Constraint.
 
+import sys, os
+sys.path.append('./Utils')
 from matplotlib import pyplot as plt
-from PIL import Image
+from skimage import io
 import numpy as np
 import ctvlib 
 
@@ -11,7 +13,7 @@ beta = 1.0
 beta_red = 0.95
 
 #Read Image. 
-tiltSeries = Image.open('Co2P_256.tif')
+tiltSeries = io.imread('Test_Image/Co2P_256.tif')
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
 (Nx, Ny) = tiltSeries.shape
 tiltSeries = tiltSeries.flatten()
@@ -36,7 +38,7 @@ for i in range(Niter):
         print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
 
     # obj.recon(np.ravel(recon), b, beta)  
-    obj.recon(recon.ravel(), b, beta)
+    obj.ART(recon.ravel(), b, beta)
 
     #Positivity constraint 
     recon[recon < 0] = 0  

@@ -1,10 +1,12 @@
 # General 2D - ASD - POCS (TV) Reconstruction Algorithm. 
 
+import sys, os
+sys.path.append('./Utils')
+from pytvlib import tv, tv_derivative
+from matplotlib import pyplot as plt
+from skimage import io
 import numpy as np
 import ctvlib 
-from pytvlib import tv, tv_derivative
-from PIL import Image
-from matplotlib import pyplot as plt
 
 ########################################
 
@@ -34,7 +36,7 @@ alpha = 0.2
 ##########################################
 
 #Read Image. 
-tiltSeries = Image.open('phantom.tif')
+tiltSeries = io.imread('Test_Image/phantom.tif')
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
 (Nx, Ny) = tiltSeries.shape
 tiltSeries = tiltSeries.flatten()
@@ -61,7 +63,7 @@ for i in range(Niter):
     if (i % 10 == 0):
         print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
 
-    obj.recon(np.ravel(recon), b, beta)    
+    obj.ART(np.ravel(recon), b, beta)    
 
     #Positivity constraint 
     recon[recon < 0] = 0  

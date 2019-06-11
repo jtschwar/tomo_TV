@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 def tv_derivative(recon):
     #r = np.lib.pad(recon, ((1, 1), (1, 1)), 'edge')
@@ -29,3 +30,9 @@ def tv(recon):
                  (r - np.roll(r, 1, axis=1))**2 )
     tv = np.sum(tv[1:-1, 1:-1])
     return tv
+
+def timer(t0, counter, Niter):
+    timeLeft = (time.time() - t0)/counter * (Niter - counter)
+    timeLeftMin, timeLeftSec = divmod(timeLeft, 60)
+    timeLeftHour, timeLeftMin = divmod(timeLeftMin, 60)
+    print('Estimated time to complete: %02d:%02d:%02d' % (timeLeftHour, timeLeftMin, timeLeftSec))
