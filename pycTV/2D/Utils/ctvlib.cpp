@@ -209,6 +209,18 @@ void ctvlib::ART(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> 
     }
 }
 
+void ctvlib::ART2(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> b, double beta, int max_row)
+{
+    
+    float a;
+    int Nrow = A.rows();
+    for(int j=0; j < max_row; j++)
+    {
+        a = (b(j) - A.row(j).dot(recon)) / innerProduct(j);
+        recon += A.row(j).transpose() * a * beta;
+    }
+}
+
 
 float ctvlib::rmepsilon(float input)
 {
@@ -253,6 +265,7 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def(py::init<int,int>());
     ctvlib.def("parallelRay", &ctvlib::parallelRay, "Construct Measurement Matrix");
     ctvlib.def("ART", &ctvlib::ART, "ART Tomography");
+    ctvlib.def("ART2", &ctvlib::ART2, "Dynamic ART Tomography");
     ctvlib.def("rowInnerProduct", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
 }
 

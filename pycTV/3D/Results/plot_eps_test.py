@@ -2,8 +2,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Epsilon Values. 
-eps = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0])
-final_tv = np.zeros(len(eps))
+# eps = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0])
+# eps = np.array([0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5])
+# final_tv = np.zeros(len(eps))
+
+eps = np.array([0.1])
 
 for i in range(len(eps)):
 
@@ -13,7 +16,7 @@ for i in range(len(eps)):
 
 	print('Iteration: ' + str(i) + ', Min TV: ' + str(np.amin(tv)))
 
-	final_tv[i] = tv[-1]
+	# final_tv[i] = tv[-1]
 
 	x = np.arange(tv.shape[0]) + 1
 
@@ -33,11 +36,11 @@ for i in range(len(eps)):
 
 	plt.savefig('Epsilon_Test/' + str(eps[i])+'/Individual_plot.png')
 
-plt.figure(figsize=(8,4))
-plt.plot(eps, final_tv, linewidth=2.0)
-plt.title('TV', fontweight='bold')
-plt.title('Min TV: ' +str(np.amin(final_tv)), loc='right', fontsize=10)
-plt.xlabel('Epsilon', fontweight='bold')
-plt.xticks(np.arange(min(eps), max(eps), 0.2))
+# plt.figure(figsize=(8,4))
+# plt.plot(eps, final_tv, linewidth=2.0)
+# plt.title('TV', fontweight='bold')
+# plt.title('Min TV: ' +str(np.amin(final_tv)), loc='right', fontsize=10)
+# plt.xlabel('Epsilon', fontweight='bold')
+# plt.xticks(np.arange(min(eps), max(eps), 0.01))
 
-plt.savefig('Epsilon_Test/plot.png')
+# plt.savefig('Epsilon_Test/plot.png')

@@ -11,7 +11,7 @@ import time
 ########################################
 
 # Number of Iterations (Main Loop)
-Niter = 25
+Niter = 200
 
 # Parameter in ART Reconstruction.
 beta = 1.0
@@ -22,11 +22,13 @@ beta_red = 0.995
 ##########################################
 
 # #Read Image. 
-tiltSeries = io.imread('Tilt_Series/Co2P_tiltser.tiff')
+# tiltSeries = io.imread('Tilt_Series/Co2P_tiltser.tiff')
+tiltSeries = np.load('Tilt_Series/FePt_projections.npy')
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
-tiltSeries = np.swapaxes(tiltSeries, 0, 2)
+# tiltSeries = np.swapaxes(tiltSeries, 0, 2)
 (Nslice, Nray, Nproj) = tiltSeries.shape
-b = np.zeros([Nslice, Nray*Nproj])
+b = np.zeros([Nslice, Nray*Nproj], dtype=np.float32)
+g = np.zeros([Nslice, Nray*Nproj], dtype=np.float32)
 
 # Initialize C++ Object.. 
 obj = ctvlib.ctvlib(Nslice, Nray, Nproj)
@@ -37,7 +39,7 @@ obj.setTiltSeries(b)
 tiltSeries = None
 
 # Generate Tilt Angles.
-tiltAngles = np.load('Tilt_Series/Co2P_tiltAngles.npy')
+tiltAngles = np.load('Tilt_Series/FePt_tiltAngles.npy')
 
 # Generate measurement matrix
 A = parallelRay(Nray, tiltAngles)
@@ -46,6 +48,7 @@ A = None
 obj.rowInnerProduct()
 
 recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F')
+dd_vec = np.zeros(Niter)
 
 t0 = time.time()
 counter = 1
@@ -59,6 +62,11 @@ for i in range(Niter):
     for s in range(Nslice):
         recon[s,:,:] = obj.ART(recon[s,:,:].flatten(), beta, s, -1) 
 
+    for s in range(Nslice):
+        g[s,:] = obj.forwardProjection(recon[s,:,:].ravel(), -1)
+
+    dd_vec[i] = np.linalg.norm(g - b) / g.size
+
     #Positivity constraint 
     recon[recon < 0] = 0  
 
@@ -68,10 +76,9 @@ for i in range(Niter):
     timer(t0, counter, Niter)
     counter += 1
 
-# # Save the Reconstruction.
-im = recon[:,134,:]/np.amax(recon[:,134,:])
-
-# Display the Reconstruction. 
-plt.imshow(im,cmap='gray')
-plt.axis('off')
+x = np.arange(dd_vec.shape[0]) + 1 
+plt.plot(x,dd_vec,color='black', linewidth=2.0)
+plt.title('Last dd: ' +str(dd_vec[i]), loc='right', fontsize=10)
+plt.title('DD', loc='center', fontweight='bold')
+plt.xlabel('Number of Iterations', fontweight='bold')
 plt.show()

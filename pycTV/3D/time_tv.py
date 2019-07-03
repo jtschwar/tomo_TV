@@ -11,7 +11,7 @@ import time
 ########################################
 
 # Number of Iterations (TV Loop)
-ng = 5
+ng = 10
 
 # ART Parameter.
 beta0 = 1.0
@@ -25,7 +25,7 @@ eps = 0.5
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
-alpha = 0.5
+alpha = 0.2
 
 #Amount of time before next projection is collected (Seconds).
 time_limit = 180
@@ -39,7 +39,7 @@ tiltSeries = np.swapaxes(tiltSeries, 0, 2)
 (Nslice, Nray, Nproj) = tiltSeries.shape
 b = np.zeros( [Nslice, Nray*Nproj] )
 g = np.zeros([Nslice, Nray*Nproj])
-# beta = np.ones(Nproj * Nray, dtype=np.float32)
+beta = np.ones(Nproj * Nray, dtype=np.float32)
 
 # Initialize C++ Object.. 
 obj = ctvlib.ctvlib(Nslice, Nray, Nproj)
@@ -69,7 +69,7 @@ for i in range(Nproj):
     print('Reconstructing Tilt Angles: 0 -> ' + str(i+1) )
 
     # Reset Beta.
-    beta = beta0
+    # beta = beta0
 
     tv_vec = np.zeros(Nproj)
     dd_vec = np.zeros(Nproj)
@@ -86,14 +86,14 @@ for i in range(Nproj):
 
         #ART Reconstruction. 
         for s in range(Nslice):
-            recon[s,:,:] = obj.ART(recon[s,:,:].ravel(), beta, s, i+1) 
+            recon[s,:,:] = obj.ART2(recon[s,:,:].ravel(), beta, s, i+1) 
 
         #Positivity constraint 
         recon[recon < 0] = 0 
 
         #ART-Beta Reduction.
         beta *= beta_red
-        # beta[:Nray*(i+1)] *= beta_red 
+        beta[:Nray*(i+1)] *= beta_red 
 
         #Forward Projection/
         for s in range(Nslice):

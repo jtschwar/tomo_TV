@@ -21,7 +21,7 @@ using namespace cv;
 ///////////////RECONSTRUCTION PARAMETERS///////////////////
 
 //File Name (Input Tilt Series).
-String filename = "Co2P_256.tif";
+String filename = "Co2P_256 .tif";
 
 int theta_block = 1;
 
@@ -38,8 +38,8 @@ float alpha, alpha_red, r_max; //TV Parameter and reduction criteria.
 float timer;              // Timer = track time elapsed.
 int i;                    // Track number of iterations completed per recon.
 clock_t t0;               // Clock.
-float time_limit = 180.0 / 512.0 * 8.0; // Total Time to Run Reconstruction (s).
-//float Ncores = 16;        // Ncores to simulate.
+float time_limit = 180.0 / 256.0 * 1.0; // Total Time to Run Reconstruction (s).
+
 
 int main(int argc, const char * argv[]) {
     
@@ -141,7 +141,7 @@ int main(int argc, const char * argv[]) {
             }
 
             beta *= beta_red;
-            rmse_vec(i) = (tiltSeries - recon).norm();
+            rmse_vec(i) = sqrt( ( (tiltSeries - recon).array().square() ).mean() );
             tv_vec(i) = tv2D(recon);
             
             ++i;

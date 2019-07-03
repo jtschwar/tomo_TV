@@ -11,27 +11,27 @@ import time
 ########################################
 
 # Number of Iterations (Main Loop)
-Niter = 50
+Niter = 200
 
 # Number of Iterations (TV Loop)
-ng = 5
+ng = 10
 
 # ART Reduction.
-beta_red = 0.995
+beta_red = 0.975
 
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
 
 #TV Parameter
-alpha = 0.5
+alpha = 0.2
 
 #ART Parameter
 beta0 = 1.0
 
 #Minimum and Maximum Epsilon Values
 min_eps = 0.1
-max_eps = 2.1
+max_eps = 0.11
 
 ##########################################
 
@@ -61,8 +61,8 @@ A = None
 obj.rowInnerProduct()
 
 #Array of Data Tolerance Parameters. 
-eps = np.arange(min_eps, max_eps, 0.1)
-eps = np.around(eps, decimals=1)
+eps = np.arange(min_eps, max_eps, 0.01)
+eps = np.around(eps, decimals=2)
 
 t0 = time.time()
 counter = 1

@@ -8,11 +8,12 @@ import os.path
 Nproj = list(range(1,181))
 
 # Set Epsilon value. 
-eps = 1.0
+eps = 0
 
 # Set the original TV value. 
 # tv0 = 372273 #phantom
 tv0 = 251920 #Co2P - Volume
+# tv0 = 372274
 
 #Plot Dynamic Figure. 
 ###################################################

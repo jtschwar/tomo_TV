@@ -7,8 +7,6 @@ import os.path
 # Data Tolerance Parameter
 eps = 0.5
 
-dir = 'fix_beta_'
-
 # 
 Nproj = list(range(1,75))
 Niter = np.load('Time/Niter.npy')
@@ -38,13 +36,13 @@ fig, (ax1, ax2) = plt.subplots(2,1, figsize=(8,4))
 fig.subplots_adjust(hspace=0.4)
 
 ax1.plot(x, tv,color='blue', linewidth=2.0)
-ax1.set_title('Min TV: ' +str(np.amin(tv)), loc='right', fontsize=10)
+ax1.set_title('Final TV: ' +str(tv[-1]), loc='right', fontsize=10)
 ax1.set_title('TV', loc='center', fontweight='bold')
 ax1.set_xticklabels([])
 
 ax2.plot(x,dd,color='black', linewidth=2.0)
 ax2.axhline(y=eps, color='r')
-ax2.set_title('Min dd: ' +str(np.amin(dd)), loc='right', fontsize=10)
+ax2.set_title('Final dd: ' +str(dd[-1]), loc='right', fontsize=10)
 ax2.set_title('DD', loc='center', fontweight='bold')
 ax2.set_xlabel('Number of Iterations', fontweight='bold')
 
@@ -58,4 +56,4 @@ plt.yticks(np.arange(min(Niter), max(Niter)+1, 1))
 plt.tight_layout()
 
 plt.savefig('Time/Niter_plot.png')
-plt.show()
+# plt.show()

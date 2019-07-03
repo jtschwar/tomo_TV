@@ -9,28 +9,28 @@ import time
 ########################################
 
 # Number of Iterations (Main Loop)
-Niter = 15
+Niter = 200
 
 # Number of Iterations (TV Loop)
-ng = 5
+ng = 10
 
 # Parameter in ART Reconstruction.
 beta = 1.0
 
 # ART Reduction.
-beta_red = 0.995
+beta_red = 0.975
 
 # Data Tolerance Parameter
-eps = 2.0
+eps = 0.00146 
 
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
-alpha = 0.5
+alpha = 0.2
 
 ##########################################
 
-# #Read Image. 
+#Read Image. 
 tiltSeries = io.imread('Tilt_Series/Co2P_tiltser.tiff')
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
 tiltSeries = np.swapaxes(tiltSeries, 0, 2)
@@ -56,6 +56,9 @@ A = None
 obj.rowInnerProduct()
 
 recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32)
+dd_vec = np.zeros(Niter)
+tv_vec = np.zeros(Niter)
+gradient_vec = np.zeros(Niter)
 
 t0 = time.time()
 counter = 1
@@ -73,6 +76,9 @@ for i in range(Niter):
     #Positivity constraint 
     recon[recon < 0] = 0  
 
+    if (i == Niter - 1):
+        np.save('Results/FePt_Recon.npy', recon)
+
     #ART-Beta Reduction
     beta = beta*beta_red 
 
@@ -82,7 +88,7 @@ for i in range(Niter):
     if (i == 0):
         dPOCS = np.linalg.norm(recon - temp_recon) * alpha
 
-    dd = np.linalg.norm(g - b) / g.size
+    dd_vec[i] = np.linalg.norm(g - b) / g.size
     dp = np.linalg.norm(recon - temp_recon)   
     temp_recon = recon.copy()
 
@@ -94,15 +100,27 @@ for i in range(Niter):
 
     dg = np.linalg.norm(recon - temp_recon) 
 
-    if (dg > dp * r_max and dd > eps):
+    if (dg > dp * r_max and dd_vec[i] > eps):
         dPOCS *= alpha_red
+
+    tv_vec[i] = tv(recon)
+
 
     timer(t0, counter, Niter)
     counter += 1
 
-im = recon[:,134,:]/np.amax(recon[:,134,:])
+x = np.arange(tv_vec.shape[0]) + 1
 
-# Display the Reconstruction. 
-plt.imshow(im,cmap='gray')
-plt.axis('off')
-plt.show()
+fig, (ax1, ax2) = plt.subplots(2,1, figsize=(5,4))
+fig.subplots_adjust(hspace=0.4)
+
+ax1.plot(x, tv_vec,color='blue', linewidth=2.0)
+ax1.set_title('Min TV: ' +str(np.amin(tv_vec)), loc='right', fontsize=10)
+ax1.set_title('TV', loc='center', fontweight='bold')
+ax1.set_xticklabels([])
+
+ax2.plot(x,dd_vec,color='black', linewidth=2.0)
+ax2.axhline(y=eps, color='r')
+ax2.set_title('Min dd: ' +str(dd_vec[-1]), loc='right', fontsize=10)
+ax2.set_title('DD', loc='center', fontweight='bold')
+ax2.set_xlabel('Number of Iterations', fontweight='bold')

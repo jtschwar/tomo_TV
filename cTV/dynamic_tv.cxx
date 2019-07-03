@@ -19,7 +19,7 @@ using namespace cv;
 ///////////////RECONSTRUCTION PARAMETERS///////////////////
 
 //File Name (Input Tilt Series).
-String filename = "Co2P_v2.tif";
+String filename = "Co2P_256.tif";
 
 int Niter, ng;                 //Number of Iterations (Main and TV).
 float Niter_red;               // Number of Iterations Reduction.
@@ -134,7 +134,7 @@ int main(int argc, const char * argv[]) {
 
             dPOCS_vec(i) = dPOCS;
             beta *= beta_red;
-            rmse_vec(i) = (tiltSeries - recon).norm();
+            rmse_vec(i) = sqrt(((tiltSeries - recon).array().square()).mean());
             // cos_alpha_vec(i) = CosAlpha(recon, v, g, b, A);
             tv_vec(i) = tv2D(recon);
 
