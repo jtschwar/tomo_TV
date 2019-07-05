@@ -36,6 +36,7 @@ public:
 	// 2D ART Reconstruction 
 	Mat ART(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s, int dyn_ind);
     Mat ART2(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> beta, int s, int dyn_ind);
+    Mat SIRT(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s);
     
 	// Functions For Constructing Measurement Matrix. 
 	float rmepsilon(float input);

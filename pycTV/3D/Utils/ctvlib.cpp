@@ -242,6 +242,16 @@ Mat ctvlib::ART2(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> 
     return foo;
 }
 
+Mat ctvlib::SIRT(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s)
+{
+    VectorXf a;
+    a = A.transpose() * ( b.row(s).transpose() - A * recon );
+    recon += a * beta;
+    Mat foo = recon;
+    foo.resize(Nx, Nx);
+    return foo;
+}
+
 float ctvlib::rmepsilon(float input)
 {
     if (abs(input) < 1e-10)
@@ -312,6 +322,7 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("parallelRay", &ctvlib::parallelRay, "Construct Measurement Matrix");
     ctvlib.def("ART", &ctvlib::ART, "ART Reconstruction");
     ctvlib.def("ART2", &ctvlib::ART2, "Dynamic ART Reconstruction");
+    ctvlib.def("SIRT", &ctvlib::SIRT, "SIRT Reconstruction");
     ctvlib.def("rowInnerProduct", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
     ctvlib.def("forwardProjection", &ctvlib::forwardProjection, "Forward Project the Reconstructions");
     ctvlib.def("create_measurement_matrix", &ctvlib::loadA, "Load Measurement Matrix Created By Python");

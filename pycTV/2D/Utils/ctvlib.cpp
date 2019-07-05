@@ -221,6 +221,13 @@ void ctvlib::ART2(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf>
     }
 }
 
+void ctvlib::SIRT(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> b, double beta)
+{
+    VectorXf a;
+    a = A.transpose() * ( b - A * recon );
+    recon += a * beta;
+}
+
 
 float ctvlib::rmepsilon(float input)
 {
@@ -266,6 +273,7 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("parallelRay", &ctvlib::parallelRay, "Construct Measurement Matrix");
     ctvlib.def("ART", &ctvlib::ART, "ART Tomography");
     ctvlib.def("ART2", &ctvlib::ART2, "Dynamic ART Tomography");
+    ctvlib.def("SIRT", &ctvlib::SIRT, "SIRT Tomography");
     ctvlib.def("rowInnerProduct", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
 }
 

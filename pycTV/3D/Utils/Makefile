@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -O3 -Wno-div-by-zero -shared -std=c++11 -undefined dynamic_lookup 
+CXXFLAGS = -O3 -Wno-div-by-zero -shared -std=c++11 -undefined dynamic_lookup -DNDEBUG
 EIGEN = -I /opt/local/include/eigen3 
 PYBIND11 = `python3 -m pybind11 --includes` 
 PYCONFIG = ctvlib`python3-config --extension-suffix`
