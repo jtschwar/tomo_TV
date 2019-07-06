@@ -11,10 +11,10 @@ import time
 ########################################
 
 # Number of Iterations (Main Loop)
-Niter = 200
+Niter = 50
 
 # Parameter in ART Reconstruction.
-beta = 1.0
+beta = 0.0001
 
 # ART Reduction.
 beta_red = 0.995
@@ -56,31 +56,30 @@ counter = 1
 #Main Loop
 for i in range(Niter): 
 
-    print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
+    if (i%25 == 0):
+        print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
 
 
     for s in range(Nslice):
         recon[s,:,:] = obj.SIRT(recon[s,:,:].flatten(), beta, s) 
 
-    # for s in range(Nslice):
-    #     g[s,:] = obj.forwardProjection(recon[s,:,:].ravel(), -1)
+    for s in range(Nslice):
+        g[s,:] = obj.forwardProjection(recon[s,:,:].ravel(), -1)
 
-    # dd_vec[i] = np.linalg.norm(g - b) / g.size
+    dd_vec[i] = np.linalg.norm(g - b) / g.size
 
     #Positivity constraint 
     recon[recon < 0] = 0  
-
-    #ART-Beta Reduction
-    beta = beta*beta_red 
-
-    timer(t0, counter, Niter)
+    
+    if (i%25 == 0):
+        timer(t0, counter, Niter)
     counter += 1
 
-np.save('FePt_Recon.npy', recon)
+np.save('Results/FePt_Recon.npy', recon)
 
-# x = np.arange(dd_vec.shape[0]) + 1 
-# plt.plot(x,dd_vec,color='black', linewidth=2.0)
-# plt.title('Last dd: ' +str(dd_vec[i]), loc='right', fontsize=10)
-# plt.title('DD', loc='center', fontweight='bold')
-# plt.xlabel('Number of Iterations', fontweight='bold')
-# plt.show()
+x = np.arange(dd_vec.shape[0]) + 1 
+plt.plot(x,dd_vec,color='black', linewidth=2.0)
+plt.title('Last dd: ' +str(dd_vec[i]), loc='right', fontsize=10)
+plt.title('DD', loc='center', fontweight='bold')
+plt.xlabel('Number of Iterations', fontweight='bold')
+plt.show()
