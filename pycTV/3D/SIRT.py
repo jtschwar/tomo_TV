@@ -13,8 +13,11 @@ import time
 # Number of Iterations (Main Loop)
 Niter = 50
 
-# Parameter in ART Reconstruction.
+# Parameter in SIRT Reconstruction.
 beta = 0.0001
+
+# SIRT Reduction Parameter
+beta_red = 0.995
 
 # ART Reduction.
 beta_red = 0.995
@@ -48,7 +51,6 @@ A = None
 obj.rowInnerProduct()
 
 recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F')
-dd_vec = np.zeros(Niter)
 
 t0 = time.time()
 counter = 1
@@ -63,23 +65,14 @@ for i in range(Niter):
     for s in range(Nslice):
         recon[s,:,:] = obj.SIRT(recon[s,:,:].flatten(), beta, s) 
 
-    for s in range(Nslice):
-        g[s,:] = obj.forwardProjection(recon[s,:,:].ravel(), -1)
-
-    dd_vec[i] = np.linalg.norm(g - b) / g.size
-
     #Positivity constraint 
     recon[recon < 0] = 0  
+
+    #SIRT-Beta Reduction
+    beta *= beta_red
     
     if (i%25 == 0):
         timer(t0, counter, Niter)
     counter += 1
 
 np.save('Results/FePt_Recon.npy', recon)
-
-x = np.arange(dd_vec.shape[0]) + 1 
-plt.plot(x,dd_vec,color='black', linewidth=2.0)
-plt.title('Last dd: ' +str(dd_vec[i]), loc='right', fontsize=10)
-plt.title('DD', loc='center', fontweight='bold')
-plt.xlabel('Number of Iterations', fontweight='bold')
-plt.show()

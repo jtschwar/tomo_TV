@@ -223,9 +223,7 @@ void ctvlib::ART2(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf>
 
 void ctvlib::SIRT(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> b, double beta)
 {
-    VectorXf a;
-    a = A.transpose() * ( b - A * recon );
-    recon += a * beta;
+    recon += A.transpose() * ( b - A * recon ) * beta;
 }
 
 

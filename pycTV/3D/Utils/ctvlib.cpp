@@ -218,9 +218,9 @@ Mat ctvlib::ART(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s, int dyn_i
         a = ( b(s,j) - A.row(j).dot(recon) ) / innerProduct(j);
         recon += A.row(j).transpose() * a * beta;
     }
-    Mat foo = recon;
-    foo.resize(Nx, Nx);
-    return foo;
+    Mat mat_recon = recon;
+    mat_recon.resize(Nx, Nx);
+    return mat_recon;
 }
 
 Mat ctvlib::ART2(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> beta, int s, int dyn_ind)
@@ -237,19 +237,17 @@ Mat ctvlib::ART2(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> 
         a = ( b(s,j) - A.row(j).dot(recon) ) / innerProduct(j);
         recon += A.row(j).transpose() * a * beta(j);
     }
-    Mat foo = recon;
-    foo.resize(Nx, Nx);
-    return foo;
+    Mat mat_recon = recon;
+    mat_recon.resize(Nx, Nx);
+    return mat_recon;
 }
 
 Mat ctvlib::SIRT(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s)
 {
-    VectorXf a;
-    a = A.transpose() * ( b.row(s).transpose() - A * recon );
-    recon += a * beta;
-    Mat foo = recon;
-    foo.resize(Nx, Nx);
-    return foo;
+    recon += A.transpose() * ( b.row(s).transpose() - A * recon ) * beta;
+    Mat mat_recon = recon;
+    mat_recon.resize(Nx, Nx);
+    return mat_recon;
 }
 
 float ctvlib::rmepsilon(float input)

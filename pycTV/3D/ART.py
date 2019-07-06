@@ -71,7 +71,7 @@ for i in range(Niter):
     recon[recon < 0] = 0  
 
     #ART-Beta Reduction
-    beta = beta*beta_red 
+    beta *= beta_red 
 
     timer(t0, counter, Niter)
     counter += 1
@@ -79,6 +79,6 @@ for i in range(Niter):
 x = np.arange(dd_vec.shape[0]) + 1 
 plt.plot(x,dd_vec,color='black', linewidth=2.0)
 plt.title('Last dd: ' +str(dd_vec[i]), loc='right', fontsize=10)
-plt.title('DD', loc='center', fontweight='bold')
+plt.title('DD', loc='left', fontweight='bold')
 plt.xlabel('Number of Iterations', fontweight='bold')
 plt.show()
