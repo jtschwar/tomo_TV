@@ -11,10 +11,10 @@ import ctvlib
 ########################################
 
 # Number of Iterations (Main Loop)
-Niter = 25
+Niter = 3000
 
 # Number of Iterations (TV Loop)
-ng = 5
+ng = 10
 
 # Step Size for Theta
 dTheta = 2
@@ -26,7 +26,7 @@ beta = 1.0
 beta_red = 0.995
 
 # Data Tolerance Parameter
-eps = 1.0
+eps = 7.5
 
 # Reduction Criteria
 r_max = 0.95
@@ -98,6 +98,9 @@ for i in range(Niter):
 
     tv_vec[i] = tv(recon)
     rmse_vec[i] = np.sqrt(((recon - img0)**2).mean())
+
+    if (i == 1000):
+        eps = 20.0
 
 x = np.arange(tv_vec.shape[0]) + 1
 
