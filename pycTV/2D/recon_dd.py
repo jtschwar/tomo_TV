@@ -7,10 +7,20 @@ from skimage import io
 import numpy as np
 import ctvlib 
 
-Niter = 100
+algo = 'ART'
+est = 'zeros'
+
 num_tilts = 30
-beta = 1.0
-beta_red = 0.95
+beta_red = 0.995
+
+if algo in 'ART':
+    print('ART is Selected')
+    Niter = 100
+    beta = 1.0
+else:
+    print('SIRT is Selected')
+    Niter = 300 
+    beta = 0.0001
 
 #Read Image. 
 tiltSeries = io.imread('Test_Image/Co2P_256.tif')
@@ -30,22 +40,37 @@ obj.rowInnerProduct()
 
 b = np.transpose(A.dot(tiltSeries))
 recon = np.zeros([Nx, Ny], dtype=np.float32)
+# recon = np.random.rand(Nx,Ny).astype(np.float32)
+dd_vec = np.zeros(Niter)
+recon_gif = np.zeros([Nx,Ny,Niter], dtype = np.float32)
 
 #Main Loop
 for i in range(Niter): 
 
     if (i % 10 == 0):
         print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
- 
-    obj.ART(recon.ravel(), b, beta)
+  
+    if algo in 'ART':
+        obj.ART(recon.ravel(), b, beta)
+        beta *= beta_red
+    else: 
+        obj.SIRT(recon.ravel(), b, beta)
 
     #Positivity constraint 
     recon[recon < 0] = 0  
 
-    #ART-Beta Reduction
-    beta = beta*beta_red 
+    recon_gif[:,:,i] = recon
 
-# Display the Reconstruction. 
-plt.imshow(recon,cmap='gray')
-plt.axis('off')
-plt.show()
+    # DD Measurement
+    g = A.dot(np.ravel(recon))
+    dd_vec[i] = np.linalg.norm(g - b) / g.size
+
+np.save(algo + '_' + est + '.npy', recon_gif)
+
+x = np.arange(dd_vec.shape[0]) + 1
+
+plt.figure(figsize=(5,4))
+plt.plot(x,dd_vec,color='black', linewidth=2.0)
+plt.title('DD', loc='left', fontweight='bold')
+plt.title('Final DD: ' +str(dd_vec[-1]), loc='right')
+plt.savefig(algo + '_' + est + '.png')

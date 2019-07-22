@@ -38,10 +38,10 @@ for i in range(Niter):
 
     obj.SIRT(recon.ravel(), b, beta)
 
-    beta *= 0.99
+    beta *= 0.995
 
     #Positivity constraint 
-    # recon[recon < 0] = 0  
+    recon[recon < 0] = 0  
 
 # Display the Reconstruction. 
 plt.imshow(recon,cmap='gray')
