@@ -11,10 +11,10 @@ import ctvlib
 ########################################
 
 # Number of Iterations (Main Loop)
-Niter = 25
+Niter = 500
 
 # Number of Iterations (TV Loop)
-ng = 5
+ng = 10
 
 # Step Size for Theta
 dTheta = 2
@@ -26,7 +26,7 @@ beta = 1.0
 beta_red = 0.995
 
 # Data Tolerance Parameter
-eps = 1.0
+eps = 5
 
 # Reduction Criteria
 r_max = 0.95

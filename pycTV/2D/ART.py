@@ -7,7 +7,7 @@ from skimage import io
 import numpy as np
 import ctvlib 
 
-Niter = 100
+Niter = 300
 num_tilts = 30
 beta = 1.0
 beta_red = 0.95
@@ -30,6 +30,7 @@ obj.rowInnerProduct()
 
 b = np.transpose(A.dot(tiltSeries))
 recon = np.zeros([Nx, Ny], dtype=np.float32)
+dd_vec = np.zeros(Niter)
 
 #Main Loop
 for i in range(Niter): 
@@ -40,12 +41,19 @@ for i in range(Niter):
     obj.ART(recon.ravel(), b, beta)
 
     #Positivity constraint 
-    recon[recon < 0] = 0  
+    recon[recon < 0] = 0 
+
+    g = A.dot(np.ravel(recon))
+    dd_vec[i] = np.linalg.norm(g - b) / g.size 
 
     #ART-Beta Reduction
     beta = beta*beta_red 
 
+x = np.arange(dd_vec.shape[0]) + 1
+
+plt.plot(x,dd_vec)
+
 # Display the Reconstruction. 
-plt.imshow(recon,cmap='gray')
-plt.axis('off')
+# plt.imshow(recon,cmap='gray')
+# plt.axis('off')
 plt.show()
