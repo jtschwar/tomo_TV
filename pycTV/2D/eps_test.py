@@ -8,7 +8,7 @@ from skimage import io
 import numpy as np
 import ctvlib 
 import time
-########################################
+############ Parameters ################
 
 # Number of Iterations (Main Loop)
 Niter = 100
@@ -36,7 +36,7 @@ alpha = 0.5
 min_eps = 0.1
 max_eps = 3.1
 
-##########################################
+#########################################
 
 #Read Image. 
 tiltSeries = io.imread('Test_Image/Co2P_256.tif')

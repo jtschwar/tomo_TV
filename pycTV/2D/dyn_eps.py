@@ -4,7 +4,6 @@ import sys, os
 sys.path.append('./Utils')
 from pytvlib import tv, tv_derivative
 from matplotlib import pyplot as plt
-from skimage import io
 import seaborn as sns
 import numpy as np
 import itertools
@@ -16,7 +15,7 @@ import cv2
 file_name = 'Co2P.tif'
 
 # Number of Iterations (Main Loop)
-Niter = 300
+Niter = 1200
 
 # Number of Iterations (TV Loop)
 ng = 20
@@ -38,10 +37,12 @@ r_max = 0.95
 alpha_red = 0.95
 alpha = 0.2
 
+save = True
+
 ##########################################
 
 #Read Image. 
-tiltSeries = io.imread('Test_Image/' + file_name)
+tiltSeries = cv2.imread('Test_Image/' + file_name)
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
 tv0 = tv(tiltSeries)
 img0 = tiltSeries.copy()
@@ -112,19 +113,19 @@ for i in range(Niter):
     rmse_vec[i] = np.sqrt( ((recon - img0)**2).mean() )
 
     if ((i+1) % 300 == 0 ):
-        recon[recon<0] = 0
-        cv2.imwrite('eps_' + str(eps) + '_' + file_name, np.uint16(recon))
+
+        if save: #save image
+            recon[recon<0] = 0
+            cv2.imwrite('eps_' + str(round(eps,2)) + '_' + file_name, np.uint16(recon))
+
+        # add new epsilon parameters
         eps_vec[eps_ind,:] = (eps, i)
         eps_ind += 1
         eps -= 5
         beta = 0.3
         recalc_l2 = True
 
-np.save('dyn_eps.npy', eps_vec)
-np.save('dyn_tv.npy', tv_vec)
-np.save('dyn_dd.npy', dd_vec)
-np.save('dyn_rmse.npy', rmse_vec)
-
+file_name = file_name.replace('.tif', '')
 x = np.arange(tv_vec.shape[0]) + 1
 
 fig, (ax1, ax2, ax3) = plt.subplots(3,1, figsize=(7,6))
@@ -147,7 +148,6 @@ ax3.plot(x, rmse_vec, color='m', linewidth=2.0)
 ax3.set_title('Final RMSE: ' +str(rmse_vec[-1]), loc='right', fontsize=10)
 ax3.set_title('RMSE', loc='left', fontweight='bold')
 ax3.set_xlabel('Number of Iterations', fontweight='bold')
-ax3.set_ylim(bottom=rmse_vec[-1]-50, top=rmse_vec[-1]*3)
 
 colors = itertools.cycle(sns.color_palette())
 ax2.hlines(y=eps_vec[0,0], xmin=0, xmax=eps_vec[0,1], color=next(colors))
@@ -160,7 +160,12 @@ for i in range(1,eps_vec.shape[0]):
     ax2.axvline(x=eps_vec[i,1], color='y', linestyle='dashed')
     ax3.axvline(x=eps_vec[i,1], color='y', linestyle='dashed')
 
-file_name = file_name.replace('.tif', '')
-plt.savefig('dyn_eps_plot_' + file_name +'.png')
+if save:
+    np.save('dyn_eps.npy', eps_vec)
+    np.save('dyn_tv.npy', tv_vec)
+    np.save('dyn_dd.npy', dd_vec)
+    np.save('dyn_rmse.npy', rmse_vec)
+    plt.savefig('dyn_eps_plot_' + file_name +'.png')
+
 plt.show()
 

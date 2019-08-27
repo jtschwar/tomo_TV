@@ -3,17 +3,21 @@
 import sys, os
 sys.path.append('./Utils')
 from matplotlib import pyplot as plt
-from skimage import io
 import numpy as np
 import ctvlib 
+import cv2
+
+###### Parameters ########
 
 Niter = 300
 num_tilts = 30
 beta = 1.0
 beta_red = 0.95
 
+#########################
+
 #Read Image. 
-tiltSeries = io.imread('Test_Image/Co2P_256.tif')
+tiltSeries = cv.imread('Test_Image/Co2P_256.tif')
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
 (Nx, Ny) = tiltSeries.shape
 tiltSeries = tiltSeries.flatten()
