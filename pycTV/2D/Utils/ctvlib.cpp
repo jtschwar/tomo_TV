@@ -30,6 +30,15 @@ ctvlib::ctvlib(int Nx, int Ny)
     innerProduct.resize(Nrow);
 }
 
+void ctvlib::loadA(Eigen::Ref<Mat> pyA)
+{
+    for (int i=0; i <pyA.cols(); i++)
+    {
+        A.insert(pyA(0,i), pyA(1,i)) = pyA(2,i);
+    }
+    A.makeCompressed();
+}
+
 SpMat ctvlib::parallelRay(int Nray, Eigen::VectorXf angles)
 {
 
@@ -262,6 +271,93 @@ void ctvlib::normalization()
     }
 }
 
+Eigen::MatrixXf ctvlib::tv_loop(Eigen::MatrixXf& recon, float dPOCS, int ng)
+{
+    MatrixXf v;
+    for (int i = 0; i < ng; i++)
+    {
+        v = tv2Dderivative(recon);
+        v /= v.norm();
+        recon.array() -= dPOCS * v.array();
+    }
+    return recon;
+}
+
+Eigen::MatrixXf ctvlib::tv2Dderivative(Eigen::MatrixXf recon)
+{
+    int padX = recon.rows() + 2;
+    int padY = recon.cols() + 2;
+    
+    MatrixXf v1n, v1d, v2n, v2d, v3n, v3d, v;
+    MatrixXf r(padX, padY), rXp(padX, padY), rYp(padX, padY);
+    r.setZero(), rXp.setZero(), rYp.setZero();
+    circshift(recon, r, 0, 0), circshift(recon, rXp, 1, 0), circshift(recon, rYp, 0, 1);
+    v1n = 4 * r.array() - 2 * rXp.array() - 2 * rYp.array();
+    v1d = sqrt( 1e-8 + (r - rXp).array().square() + (r - rYp).array().square() );
+    rXp.resize(0,0), rYp.resize(0,0);
+    
+    MatrixXf rXn(padX, padY), rXnYp(padX, padY);
+    rXn.setZero(), rXnYp.setZero();
+    circshift(recon, rXn, -1, 0), circshift(recon, rXnYp, -1, 1);
+    v2n = 2 * (r - rXn).array();
+    v2d = sqrt( 1e-8 + (rXn - r).array().square() + (rXn - rXnYp).array().square() );
+    rXn.resize(0,0), rYp.resize(0,0);
+    
+    MatrixXf rYn(padX, padY), rXpYn(padX, padY);
+    rYn.setZero(), rXpYn.setZero();
+    circshift(recon, rYn, 0, -1), circshift(recon, rXpYn, 1, -1);
+    v3n = 2 * (r - rYn).array();
+    v3d = sqrt( 1e-8 + (rYn - r).array().square() + (rYn - rXpYn).array().square() );
+    rYn.resize(0,0), rXpYn.resize(0,0);
+    
+    v = v1n.array() / v1d.array() + v2n.array() / v2d.array() + v3n.array() / v3d.array();
+    MatrixXf v2(recon.rows(), recon.cols());
+    v2 = v.block(1, 1, recon.rows(), recon.cols());
+    v.resize(0,0), v1n.resize(0,0), v1d.resize(0,0), v2n.resize(0,0), v2d.resize(0,0), v3n.resize(0,0), v3d.resize(0,0);
+    return v2;
+}
+
+void ctvlib::circshift(Eigen::MatrixXf input, Eigen::MatrixXf& output, int i, int j)
+{
+    // i == shift in the x - direction.
+    // j == shift in the y - direction.
+    output.block(1+i, 1+j, input.rows(), input.rows()) = input;
+}
+
+float ctvlib::CosAlpha(Eigen::MatrixXf& recon,  Eigen::VectorXf& b, Eigen::VectorXf& g, int max_row)
+{
+    float cosA, Nx, Ny, norm;
+    int Ncol;
+    Eigen::MatrixXf tv_derivative;
+    
+    tv_derivative = tv2Dderivative(recon);
+    
+    Nx = recon.rows();
+    Ny = recon.cols();
+    
+    MatrixXf d_tv(Ncol,1), d_data(Ncol,1);
+    d_tv.setZero(), d_data.setZero();
+
+    //Vectorize.
+    recon.resize(Ncol,1), tv_derivative.resize(Ncol,1);
+
+    VectorXf nabla_h(Ncol);
+    nabla_h = 2 * A.topRows(max_row).transpose() * ( g - b.topRows(max_row) );
+    
+    for(int i=0; i < recon.size(); i++ )
+    {
+        if( abs(recon(i)) > 1e-10 )
+        {
+            d_tv(i) = tv_derivative(i);
+            d_data(i) = nabla_h(i);
+            cosA += d_data(i) * d_tv(i);
+        }
+    }
+    recon.resize(Nx, Ny);
+    norm = d_data.norm() * d_tv.norm();
+    cosA /= norm;
+    return cosA;
+}
 
 PYBIND11_MODULE(ctvlib, m)
 {
@@ -269,10 +365,13 @@ PYBIND11_MODULE(ctvlib, m)
     py::class_<ctvlib> ctvlib(m, "ctvlib");
     ctvlib.def(py::init<int,int>());
     ctvlib.def("parallelRay", &ctvlib::parallelRay, "Construct Measurement Matrix");
+    ctvlib.def("create_measurement_matrix", &ctvlib::loadA, "Load Measurement Matrix Created By Python");
     ctvlib.def("ART", &ctvlib::ART, "ART Tomography");
     ctvlib.def("ART2", &ctvlib::ART2, "Dynamic ART Tomography");
     ctvlib.def("SIRT", &ctvlib::SIRT, "SIRT Tomography");
     ctvlib.def("rowInnerProduct", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
+    ctvlib.def("tv_loop", &ctvlib::tv_loop, "TV Gradient Descent Loop");
+    ctvlib.def("CosAlpha", &ctvlib::CosAlpha, "Measure Cosine-Alpha");
 }
 
 

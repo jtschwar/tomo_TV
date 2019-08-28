@@ -3,9 +3,9 @@
 import sys, os
 sys.path.append('./Utils')
 from matplotlib import pyplot as plt
+from skimage import io
 import numpy as np
 import ctvlib 
-import cv2
 
 ###### Parameters ########
 
@@ -13,10 +13,11 @@ Niter = 1000
 num_tilts = 50
 beta = 0.0001
 
+show = True
 #########################
 
 #Read Image. 
-tiltSeries = cv2.imread('Test_Image/phantom.tif')
+tiltSeries = io.imread('Test_Image/phantom.tif')
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
 (Nx, Ny) = tiltSeries.shape
 tiltSeries = tiltSeries.flatten()
@@ -47,7 +48,13 @@ for i in range(Niter):
     #Positivity constraint 
     recon[recon < 0] = 0  
 
-# Display the Reconstruction. 
-plt.imshow(recon,cmap='gray')
-plt.axis('off')
+
+ # # Display the Reconstruction. 
+fig, (ax1, ax2) = plt.subplots(1,2, figsize=(7,3))
+ax1.imshow(tiltSeries.reshape(Nx,Ny),cmap='gray')
+ax1.axis('off')
+ax1.set_title('Original Image')
+ax2.imshow(recon,cmap='gray')
+ax2.axis('off')
+ax2.set_title('Reconstruction')
 plt.show()

@@ -53,11 +53,18 @@ for i in range(Niter):
     #ART-Beta Reduction
     beta = beta*beta_red 
 
+
 x = np.arange(dd_vec.shape[0]) + 1
-
 plt.plot(x,dd_vec)
+plt.xlabel('Number of Iterations')
+plt.title('DD', fontweight='bold')
 
-# Display the Reconstruction. 
-# plt.imshow(recon,cmap='gray')
-# plt.axis('off')
+# # Display the Reconstruction. 
+fig, (ax1, ax2) = plt.subplots(1,2, figsize=(7,3))
+ax1.imshow(tiltSeries.reshape(Nx,Ny),cmap='gray')
+ax1.axis('off')
+ax1.set_title('Original Image')
+ax2.imshow(recon,cmap='gray')
+ax2.axis('off')
+ax2.set_title('Reconstruction')
 plt.show()

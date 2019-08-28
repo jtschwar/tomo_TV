@@ -28,9 +28,10 @@ public:
 
 	// Constructs Measurement Matrix. 
 	SpMat parallelRay(int Nray, Eigen::VectorXf angles);
+    void loadA(Eigen::Ref<Mat> pyA);
 	void normalization();
 
-	// 2D ART Reconstruction 
+	// 2D Reconstruction Algorithms
 	void ART(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> b, double beta);
     void ART2(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> b, double beta, int max_row);
     void SIRT(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> b, double beta);
@@ -39,6 +40,14 @@ public:
 	float rmepsilon(float input);
 	void removeBadElements(Eigen::VectorXf& xx, Eigen::VectorXf& yy, Eigen::VectorXf I);
 
+    // Functions for TV
+    Eigen::MatrixXf tv_loop(Eigen::MatrixXf&, float dPOCS, int ng);
+    Eigen::MatrixXf tv2Dderivative(Eigen::MatrixXf recon);
+    void circshift(Eigen::MatrixXf input, Eigen::MatrixXf& output, int i, int j);
+    
+    // Analysis Algorithms
+    float CosAlpha(Eigen::MatrixXf& recon,  Eigen::VectorXf& b, Eigen::VectorXf& g, int max_row);
+    
 	// Member Variables. 
 	SpMat A;
 	int Nrow, Ncol;
