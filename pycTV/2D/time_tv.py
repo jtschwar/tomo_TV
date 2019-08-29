@@ -6,7 +6,6 @@ sys.path.append('./Utils')
 from pytvlib import tv, tv_derivative, parallelRay
 from skimage.io import imread, imsave
 from matplotlib import pyplot as plt
-import scipy.sparse as ss
 import numpy as np
 import ctvlib
 import time
@@ -29,7 +28,7 @@ beta0 = 1.0
 beta_red = 0.995
 
 # Data Tolerance Parameter
-eps = 5
+eps = 0
 
 # Reduction Criteria
 r_max = 0.95
@@ -37,8 +36,7 @@ alpha_red = 0.95
 alpha = 0.2
 
 #Amount of time before next projection is collected (Seconds).
-time_limit = 180 # Seconds
-Ncores = 1
+time_limit = 15 # Seconds
 
 # Save and show reconstruction. 
 save = True
@@ -50,6 +48,7 @@ show = False
 tiltSeries = imread('Test_Image/' + file_name)
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
 tv0 = tv(tiltSeries)
+print(tv0)
 img0 = tiltSeries.copy()
 (Nx, Ny) = tiltSeries.shape
 tiltSeries = tiltSeries.flatten()
@@ -62,42 +61,41 @@ tiltAngles = np.linspace(0, 180, int(Nproj), dtype=np.float32)
 obj = ctvlib.ctvlib(int(Ny*Nproj), Ny*Ny)
 
 # Generate measurement matrix
-pyA = parallelRay(Ny, tiltAngles)
+pyA, A = parallelRay(Ny, tiltAngles)
 obj.create_measurement_matrix(pyA)
-A = ss.coo_matrix((pyA[0,:], (pyA[1,:],pyA[2,:])), shape = (Ny*Nproj, Ny**2), dtype = np.float32  )
 obj.rowInnerProduct()
+b = np.transpose(A.dot(tiltSeries))
+A = None
+pyA = None
 
 #Generate Reconstruction. 
-b = np.transpose(A.dot(tiltSeries))
 recon = np.zeros([Nx, Ny], dtype=np.float32)
 Niter = np.zeros(int(Nproj), dtype=np.int32)
 
 #Final vectors for dd, tv, and rmse. 
-results = np.array([], dtype=np.float32)
 fdd_vec = np.array([])
 ftv_vec = np.array([])
 frmse_vec = np.array([])
+fcos_alph_vec = np.array([])
 Niter_est = 10000
-
-# time_limit  = time_limit / Nslice * Ncores
 
 #Dynamic Tilt Series Loop. 
 for i in range(int(Nproj)):
 
-    print('Reconstructing Tilt Angles: 0 -> ' + str(i+1) + '/' + str(int(Nproj)))
+    print('Reconstructing Tilt Angles: ' + str(i+1) + '/' + str(int(Nproj)))
 
-    dd_vec = np.zeros(Niter_est, dtype=np.float32)
-    tv_vec = np.zeros(Niter_est, dtype=np.float32)
-    rmse_vec = np.zeros(Niter_est, dtype=np.float32)
-    cos_alph_vec = np.zeros(Niter_est, dtype=np.float32)
+    dd_vec = np.zeros(Niter_est*2, dtype=np.float32)
+    tv_vec = np.zeros(Niter_est*2, dtype=np.float32)
+    rmse_vec = np.zeros(Niter_est*2, dtype=np.float32)
+    cos_alph_vec = np.zeros(Niter_est*2, dtype=np.float32)
 
     # Reset Beta.
     beta = beta0
 
+    max_row = int(Nx * (i + 1))
+
     # Keep track of time. 
     t0 = time.time()
-
-    max_row = int(Nx * (i + 1))
  
     #Main Reconstruction Loop
     while True: 
@@ -105,24 +103,33 @@ for i in range(int(Nproj)):
         temp_recon = recon.copy()
 
         #ART Reconstruction. 
-        obj.ART2(np.ravel(recon), b, beta, int(Nx*(i+1))) 
+        obj.ART2(np.ravel(recon), b, beta, max_row) 
 
         #Positivity constraint 
         recon[recon < 0] = 0 
 
+        #Forward Projection
+        g = obj.forwardProjection(np.ravel(recon), max_row)
+
+        # Measure TV, RMSE, DD and Cosine Alpha.
+        tv_vec[Niter[i]] = tv(recon)
+        rmse_vec[Niter[i]] = np.sqrt(((recon - img0)**2).mean())
+        dd_vec[Niter[i]] = np.linalg.norm(g - b[:max_row]) / g.size
+        # cos_alph_vec[Niter[i]] = obj.CosAlpha(recon, b, g, max_row)
+        cos_alph_vec[Niter[i]] = 0
+
+        #Calculate current time. 
+        ctime = ( time.time() - t0 ) 
+
+        if ctime > time_limit:
+            break
+
         #ART-Beta Reduction.
         beta *= beta_red
-
-        #Forward Projection
-        g = A[:Nx*(i+1)].dot(np.ravel(recon))
-
-        # #Measure cosine-alpha
-        cos_alph_vec[Niter[i]] = obj.CosAlpha(recon, b, g, max_row)
 
         if (i == 0):
             dPOCS = np.linalg.norm(recon - temp_recon) * alpha
 
-        dd_vec[Niter[i]] = np.linalg.norm(g - b[:max_row]) / g.size
         dp = np.linalg.norm(recon - temp_recon)   
         temp_recon = recon.copy()
 
@@ -133,61 +140,53 @@ for i in range(int(Nproj)):
         if (dg > dp * r_max and dd_vec[Niter[i]] > eps):
             dPOCS *= alpha_red
 
-        tv_vec[Niter[i]] = tv(recon)
         Niter[i] += 1
-
-        #Calculate current time. 
-        ctime = ( time.time() - t0 ) 
-
-        if ctime > time_limit:
-            break
 
     Niter_est = Niter[i]
     print('Number of Iterations: ' + str(Niter[i]) + '\n')
 
-    #Remove Excess elements
+    #Remove Excess elements and append to final vector
     tv_vec = tv_vec[:Niter[i]+1]
     ftv_vec = np.append(ftv_vec, tv_vec)
     dd_vec = dd_vec[:Niter[i]+1]
     fdd_vec = np.append(fdd_vec, dd_vec)
     rmse_vec = rmse_vec[:Niter[i]+1]
     frmse_vec = np.append(frmse_vec, rmse_vec) 
+    cos_alph_vec = cos_alph_vec[:Niter[i]+1]
+    fcos_alph_vec = np.append(fcos_alph_vec, cos_alph_vec)
 
     if save:
-        recon[ recon < 0] = 0
-        imsave('Results/Time/Proj_' + str(i) + '.tif', np.uint16(recon))
+        imsave('Results/Time/Recon/' + str(i) + '.tif', np.uint16(recon))
 
+results = np.array([ftv_vec, fdd_vec, frmse_vec, fcos_alph_vec])
 
 if save:
     # Save Data. 
-    os.makedirs('Results/Time/' + str(i+1), exist_ok=True)
-    np.save('Results/Time/tv.npy', ftv_vec)
-    np.save('Results/Time/dd.npy', fdd_vec)
-    np.save('Results/Time/rmse.npy', frmse_vec)
+    np.save('Results/Time/results.npy', results)
     np.save('Results/Time/Niter.npy', Niter)
-    imsave('Final_Recon.tif', recon)
+    imsave('Results/Time/Recon/Final_Recon.tif', np.uint16(recon))
 
 if show:
 
-    x = np.arange(tv_vec.shape[0]) + 1
+    x = np.arange(ftv_vec.shape[0]) + 1
 
     fig, (ax1, ax2, ax3) = plt.subplots(3,1, figsize=(7,6))
     fig.subplots_adjust(hspace=0.4)
 
-    ax1.plot(x, tv_vec,color='blue', linewidth=2.0)
-    ax1.set_title('Min TV: ' +str(np.amin(tv_vec)), loc='right', fontsize=10)
+    ax1.plot(x, ftv_vec,color='blue', linewidth=2.0)
+    ax1.set_title('Min TV: ' +str(np.amin(ftv_vec)), loc='right', fontsize=10)
     ax1.set_title('TV', loc='center', fontweight='bold')
     ax1.axhline(y=tv0, color='r')
     ax1.set_xticklabels([])
 
-    ax2.plot(x,dd_vec,color='black', linewidth=2.0)
+    ax2.plot(x,fdd_vec,color='black', linewidth=2.0)
     ax2.axhline(y=eps, color='r')
-    ax2.set_title('Min dd: ' +str(dd_vec[-1]), loc='right', fontsize=10)
+    ax2.set_title('Min dd: ' +str(fdd_vec[-1]), loc='right', fontsize=10)
     ax2.set_title('DD', loc='left', fontweight='bold')
     ax2.set_xticklabels([])
 
-    ax3.plot(x, rmse_vec, color='m', linewidth=2.0)
-    ax3.set_title('Min RMSE: ' +str(rmse_vec[-1]), loc='right', fontsize=10)
+    ax3.plot(x, frmse_vec, color='m', linewidth=2.0)
+    ax3.set_title('Min RMSE: ' +str(frmse_vec[-1]), loc='right', fontsize=10)
     ax2.set_title('RMSE', loc='left', fontweight='bold')
     ax3.set_xlabel('Number of Iterations', fontweight='bold')
 

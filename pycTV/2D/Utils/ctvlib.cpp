@@ -324,6 +324,21 @@ void ctvlib::circshift(Eigen::MatrixXf input, Eigen::MatrixXf& output, int i, in
     output.block(1+i, 1+j, input.rows(), input.rows()) = input;
 }
 
+Eigen::VectorXf ctvlib::forwardProjection(Eigen::Ref<Eigen::VectorXf> recon, int max_row)
+{
+    Eigen::VectorXf g;
+
+    if (max_row == Nrow)
+    {
+        g = A * recon;
+    }
+    else
+    {
+        g = A.topRows(max_row) * recon;
+    }
+    return g;
+}
+
 float ctvlib::CosAlpha(Eigen::MatrixXf& recon,  Eigen::VectorXf& b, Eigen::VectorXf& g, int max_row)
 {
     float cosA, Nx, Ny, norm;
@@ -369,6 +384,7 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("ART", &ctvlib::ART, "ART Tomography");
     ctvlib.def("ART2", &ctvlib::ART2, "Dynamic ART Tomography");
     ctvlib.def("SIRT", &ctvlib::SIRT, "SIRT Tomography");
+    ctvlib.def("forwardProjection", &ctvlib::forwardProjection, "Forward Projection");
     ctvlib.def("rowInnerProduct", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
     ctvlib.def("tv_loop", &ctvlib::tv_loop, "TV Gradient Descent Loop");
     ctvlib.def("CosAlpha", &ctvlib::CosAlpha, "Measure Cosine-Alpha");

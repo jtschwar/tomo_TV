@@ -1,3 +1,4 @@
+import scipy.sparse as ss
 import numpy as np
 import time
 
@@ -151,8 +152,11 @@ def parallelRay(Nside, angles):
     rows = rows[:idxend]
     cols = cols[:idxend]
     vals = vals[:idxend]
-    A = np.array([rows, cols, vals], dtype=np.float32, order='C')
-    return A
+    pyA = np.array([rows, cols, vals], dtype=np.float32, order='C')
+    A = ss.coo_matrix((vals, (rows, cols)), shape=(Nray * Nproj, Nside**2),
+                      dtype=np.float32)
+    A.tocsr()
+    return pyA, A
 
 
 def rmepsilon(input):
