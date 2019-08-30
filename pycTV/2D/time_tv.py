@@ -9,11 +9,12 @@ from matplotlib import pyplot as plt
 import numpy as np
 import ctvlib
 import time
+import os
 
 ########################################
 
 # Name of input file. 
-file_name = 'Co2P.tif'
+file_name = 'phantom.tif'
 
 # Number of Iterations (TV Loop)
 ng = 20
@@ -48,7 +49,6 @@ show = False
 tiltSeries = imread('Test_Image/' + file_name)
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
 tv0 = tv(tiltSeries)
-print(tv0)
 img0 = tiltSeries.copy()
 (Nx, Ny) = tiltSeries.shape
 tiltSeries = tiltSeries.flatten()
@@ -115,8 +115,7 @@ for i in range(int(Nproj)):
         tv_vec[Niter[i]] = tv(recon)
         rmse_vec[Niter[i]] = np.sqrt(((recon - img0)**2).mean())
         dd_vec[Niter[i]] = np.linalg.norm(g - b[:max_row]) / g.size
-        # cos_alph_vec[Niter[i]] = obj.CosAlpha(recon, b, g, max_row)
-        cos_alph_vec[Niter[i]] = 0
+        cos_alph_vec[Niter[i]] = obj.CosAlpha(recon, b, g, max_row)
 
         #Calculate current time. 
         ctime = ( time.time() - t0 ) 
@@ -143,28 +142,36 @@ for i in range(int(Nproj)):
         Niter[i] += 1
 
     Niter_est = Niter[i]
-    print('Number of Iterations: ' + str(Niter[i]) + '\n')
+    print('Number of Iterations: ' + str(Niter[i]))
+    print('Cosine Alpha: ' + str(cos_alph_vec[Niter[i]]) + '\n') #For debugging. 
 
-    #Remove Excess elements and append to final vector
+    #Remove Excess elements.
     tv_vec = tv_vec[:Niter[i]+1]
-    ftv_vec = np.append(ftv_vec, tv_vec)
     dd_vec = dd_vec[:Niter[i]+1]
-    fdd_vec = np.append(fdd_vec, dd_vec)
-    rmse_vec = rmse_vec[:Niter[i]+1]
-    frmse_vec = np.append(frmse_vec, rmse_vec) 
+    rmse_vec = rmse_vec[:Niter[i]+1] 
     cos_alph_vec = cos_alph_vec[:Niter[i]+1]
+    
+    # Append to main vector. 
+    ftv_vec = np.append(ftv_vec, tv_vec)
+    fdd_vec = np.append(fdd_vec, dd_vec)
+    frmse_vec = np.append(frmse_vec, rmse_vec)
     fcos_alph_vec = np.append(fcos_alph_vec, cos_alph_vec)
 
+    #Save intermediate image if desired. 
     if save:
-        imsave('Results/Time/Recon/' + str(i) + '.tif', np.uint16(recon))
-
-results = np.array([ftv_vec, fdd_vec, frmse_vec, fcos_alph_vec])
+        if not os.path.exists('/Results/Time/Recon/'):
+            os.makedirs('Results/Time/Recon/')
+        imsave('Results/Time/Recon/' + str(i) + '.tif', np.uint16(recon*255))
 
 if save:
+
+    #Save all the results to single matrix.
+    results = np.array([ftv_vec, fdd_vec, frmse_vec, fcos_alph_vec])
+    
     # Save Data. 
     np.save('Results/Time/results.npy', results)
     np.save('Results/Time/Niter.npy', Niter)
-    imsave('Results/Time/Recon/Final_Recon.tif', np.uint16(recon))
+    imsave('Results/Time/Recon/Final_Recon.tif', np.uint16(recon*255))
 
 if show:
 

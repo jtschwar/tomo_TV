@@ -1,5 +1,6 @@
 .DS_Store
-__pycache__
+pycTV/2D/Utils/__pycache__/
+pycTV/3D/Utils/__pycache__/
 pycTV/2D/Results/
 pycTV/3D/Results/
 *.pyc

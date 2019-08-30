@@ -341,10 +341,9 @@ Eigen::VectorXf ctvlib::forwardProjection(Eigen::Ref<Eigen::VectorXf> recon, int
 
 float ctvlib::CosAlpha(Eigen::MatrixXf& recon,  Eigen::VectorXf& b, Eigen::VectorXf& g, int max_row)
 {
-    float cosA, Nx, Ny, norm;
-    int Ncol;
+    float cosA, norm;
+    int Nx, Ny;
     Eigen::MatrixXf tv_derivative;
-    
     tv_derivative = tv2Dderivative(recon);
     
     Nx = recon.rows();
@@ -354,11 +353,10 @@ float ctvlib::CosAlpha(Eigen::MatrixXf& recon,  Eigen::VectorXf& b, Eigen::Vecto
     d_tv.setZero(), d_data.setZero();
 
     //Vectorize.
-    recon.resize(Ncol,1), tv_derivative.resize(Ncol,1);
+    tv_derivative.resize(Ncol,1);
 
     VectorXf nabla_h(Ncol);
     nabla_h = 2 * A.topRows(max_row).transpose() * ( g - b.topRows(max_row) );
-    
     for(int i=0; i < recon.size(); i++ )
     {
         if( abs(recon(i)) > 1e-10 )
