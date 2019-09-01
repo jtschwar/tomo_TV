@@ -34,7 +34,7 @@ eps = 0
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
-alpha = 0.2
+alpha = 0.5
 
 #Amount of time before next projection is collected (Seconds).
 time_limit = 15 # Seconds
@@ -48,6 +48,7 @@ show = False
 #Read Image. 
 tiltSeries = imread('Test_Image/' + file_name)
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
+tiltSeries /= np.amax(tiltSeries)
 tv0 = tv(tiltSeries)
 img0 = tiltSeries.copy()
 (Nx, Ny) = tiltSeries.shape
@@ -159,7 +160,7 @@ for i in range(int(Nproj)):
 
     #Save intermediate image if desired. 
     if save:
-        if not os.path.exists('/Results/Time/Recon/'):
+        if not os.path.exists('Results/Time/Recon/'):
             os.makedirs('Results/Time/Recon/')
         imsave('Results/Time/Recon/' + str(i) + '.tif', np.uint16(recon*255))
 

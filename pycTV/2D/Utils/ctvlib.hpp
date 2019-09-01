@@ -48,6 +48,7 @@ public:
     
     // Analysis Algorithms
     float CosAlpha(Eigen::MatrixXf& recon,  Eigen::VectorXf& b, Eigen::VectorXf& g, int max_row);
+    void poissonNoise(Eigen::VectorXf& b, int Nc);
     
 	// Member Variables. 
 	SpMat A;

@@ -15,37 +15,38 @@ import cv2
 file_name = 'Co2P.tif'
 
 # Number of Iterations (Main Loop)
-Niter = 100
+Niter = 1000
 
 # Number of Iterations (TV Loop)
 ng = 20
 
 # Step Size for Theta
-dTheta = 2
+dTheta = 1
 
 # ART Parameter.
-beta = 0.25
+beta = 1.0
 
 # ART Reduction.
 beta_red = 0.995
 
 # Data Tolerance Parameter
-eps = 200
+eps = 0
 
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
-alpha = 0.2
+alpha = 1.0
 
 # Save and show reconstruction. 
-save = True
-show = False
+save = False
+show = True
 
 ##########################################
 
 #Read Image. 
-tiltSeries = io.imread('Test_Image/Co2P.tif')
+tiltSeries = io.imread('Test_Image/'  + file_name)
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
+tiltSeries /= np.amax(tiltSeries)
 tv0 = tv(tiltSeries)
 img0 = tiltSeries.copy()
 (Nx, Ny) = tiltSeries.shape
@@ -67,6 +68,7 @@ recon = np.zeros([Nx, Ny], dtype=np.float32)
 dd_vec = np.zeros(Niter)
 tv_vec = np.zeros(Niter)
 rmse_vec = np.zeros(Niter)
+cos_alph_vec = np.zeros(Niter)
 
 #Main Loop
 for i in range(Niter): 
@@ -102,13 +104,16 @@ for i in range(Niter):
 
     tv_vec[i] = tv(recon)
     rmse_vec[i] = np.sqrt(((recon - img0)**2).mean())
+    cos_alph_vec[i] = obj.CosAlpha(recon, b, g, int(Ny*Nproj))
 
 if save:
-    np.save('Results/tv_vec.npy', tv_vec)
-    np.save('Results/dd_vec.npy', dd_vec)
-    np.save('Results/rmse_vec.npy', rmse_vec)
+    #Save all the results to single matrix.
+    results = np.array([tv_vec, dd_vec, rmse_vec, cos_alph_vec])
+    np.save('Results/results.npy', results)
+
+    # Save Image.
     recon[ recon < 0] = 0
-    io.imsave('Results/TV_Recon_' + file_name, np.uint16(recon))
+    io.imsave('Results/TV_Recon_' + file_name, np.uint16(recon*255))
     
 
 if show:
@@ -118,21 +123,25 @@ if show:
     fig.subplots_adjust(hspace=0.4)
 
     ax1.plot(x, tv_vec,color='blue', linewidth=2.0)
-    ax1.set_title('Min TV: ' +str(np.amin(tv_vec)), loc='right', fontsize=10)
+    ax1.set_title('Final TV: ' +str(np.amin(tv_vec)), loc='right', fontsize=10)
     ax1.set_title('TV', loc='center', fontweight='bold')
     ax1.axhline(y=tv0, color='r')
     ax1.set_xticklabels([])
 
     ax2.plot(x,dd_vec,color='black', linewidth=2.0)
     ax2.axhline(y=eps, color='r')
-    ax2.set_title('Min dd: ' +str(dd_vec[-1]), loc='right', fontsize=10)
+    ax2.set_title('Final dd: ' +str(dd_vec[-1]), loc='right', fontsize=10)
     ax2.set_title('DD', loc='left', fontweight='bold')
     ax2.set_xticklabels([])
 
     ax3.plot(x, rmse_vec, color='m', linewidth=2.0)
-    ax3.set_title('Min RMSE: ' +str(rmse_vec[-1]), loc='right', fontsize=10)
-    ax2.set_title('RMSE', loc='left', fontweight='bold')
+    ax3.set_title('Final RMSE: ' +str(rmse_vec[-1]), loc='right', fontsize=10)
+    ax3.set_title('RMSE', loc='left', fontweight='bold')
     ax3.set_xlabel('Number of Iterations', fontweight='bold')
+
+    if save: 
+        file_name = file_name.replace('.tif', '')
+        plt.savefig('time_plot_' + file_name + '.png')
 
     # # Display the Reconstruction. 
     fig, (ax1, ax2) = plt.subplots(1,2, figsize=(7,3))
@@ -142,4 +151,9 @@ if show:
     ax2.imshow(recon,cmap='gray')
     ax2.axis('off')
     ax2.set_title('Reconstruction')
+
+    plt.figure()
+    plt.plot(x, cos_alph_vec)
+    plt.xlabel('Number of Iterations')
+    plt.label('Cosine-Alpha', loc='left', fontweight='bold')
     plt.show()

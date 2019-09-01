@@ -372,6 +372,27 @@ float ctvlib::CosAlpha(Eigen::MatrixXf& recon,  Eigen::VectorXf& b, Eigen::Vecto
     return cosA;
 }
 
+void ctvlib::poissonNoise(Eigen::VectorXf& b, int Nc)
+{
+    VectorXf temp_b(b.size());
+    temp_b = b;
+    float mean = b.mean();
+    float N = b.sum();
+    b  = b / ( b.sum() ) * Nc * b.size();
+    std::default_random_engine generator;
+    for(int i=0; i < b.size(); i++)
+    {
+        std::poisson_distribution<int> distribution(b(i));
+        b(i) = distribution(generator);
+        
+    }
+    b = b / ( Nc * b.size() ) * N;
+    temp_b = temp_b.array() - b.array();
+    float std = sqrt( ( temp_b.array() - temp_b.mean() ).square().sum() / (temp_b.size() - 1) );
+    float SNR = mean/std;
+    cout << SNR << endl;
+}
+
 PYBIND11_MODULE(ctvlib, m)
 {
     m.doc() = "C++ Scripts for TV-Tomography Reconstructions";
@@ -386,6 +407,5 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("rowInnerProduct", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
     ctvlib.def("tv_loop", &ctvlib::tv_loop, "TV Gradient Descent Loop");
     ctvlib.def("CosAlpha", &ctvlib::CosAlpha, "Measure Cosine-Alpha");
+    ctvlib.def("poissonNoise", &ctvlib::poissonNoise, "Add Poisson Noise to Projections");
 }
-
-
