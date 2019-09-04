@@ -126,7 +126,6 @@ PYBIND11_MODULE(ctvlib, m)
     py::class_<ctvlib> ctvlib(m, "ctvlib");
     ctvlib.def(py::init<int,int, int>());
     ctvlib.def("setTiltSeries", &ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
-    ctvlib.def("parallelRay", &ctvlib::parallelRay, "Construct Measurement Matrix");
     ctvlib.def("ART", &ctvlib::ART, "ART Reconstruction");
     ctvlib.def("ART2", &ctvlib::ART2, "Dynamic ART Reconstruction");
     ctvlib.def("SIRT", &ctvlib::SIRT, "SIRT Reconstruction");

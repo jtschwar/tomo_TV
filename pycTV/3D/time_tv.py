@@ -10,6 +10,8 @@ import ctvlib
 import time
 ########################################
 
+Npix = str(512)
+
 # Number of Iterations (TV Loop)
 ng = 10
 
@@ -33,7 +35,7 @@ time_limit = 180
 ##########################################
 
 #Read Image. 
-tiltSeries = imread('Tilt_Series/Co2P_tiltser.tiff')
+tiltSeries = imread('Tilt_Series/Co2P_tiltser_' + Npix + '.tif')
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
 tiltSeries = np.swapaxes(tiltSeries, 0, 2)
 (Nslice, Nray, Nproj) = tiltSeries.shape
@@ -63,13 +65,17 @@ obj.rowInnerProduct()
 recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32)
 Niter = np.zeros(Nproj)
 
+#Final vectors for dd, tv, and rmse. 
+fdd_vec = np.array([])
+ftv_vec = np.array([])
+
 #Dynamic Tilt Series Loop. 
 for i in range(Nproj):
 
     print('Reconstructing Tilt Angles: 0 -> ' + str(i+1) )
 
     # Reset Beta.
-    # beta = beta0
+    beta = beta0
 
     tv_vec = np.zeros(Nproj)
     dd_vec = np.zeros(Nproj)
@@ -82,18 +88,20 @@ for i in range(Nproj):
     #Main Reconstruction Loop
     while True: 
 
+        print('Iter: ' + str(k+1))
+
         temp_recon = recon.copy()
 
         #ART Reconstruction. 
         for s in range(Nslice):
-            recon[s,:,:] = obj.ART2(recon[s,:,:].ravel(), beta, s, i+1) 
+            recon[s,:,:] = obj.ART(recon[s,:,:].ravel(), beta, s, i+1) 
 
         #Positivity constraint 
         recon[recon < 0] = 0 
 
         #ART-Beta Reduction.
         beta *= beta_red
-        beta[:Nray*(i+1)] *= beta_red 
+        # beta[:Nray*(i+1)] *= beta_red 
 
         #Forward Projection/
         for s in range(Nslice):
@@ -108,6 +116,7 @@ for i in range(Nproj):
 
         #TV Loop
         for j in range(ng):
+            print('TV Iter: ' + str(j))
             v = tv_derivative(recon)
             v /= np.linalg.norm(v)
             recon -= dPOCS * v
@@ -129,18 +138,15 @@ for i in range(Nproj):
     Niter[i] = k
     print('Number of Iterations: ' + str(k) + '\n')
 
-
-    # Save Data. 
-    os.makedirs('Results/Time/' + str(i+1), exist_ok=True)
-    np.save('Results/Time/' + str(i+1) + '/tv.npy', tv_vec)
-    np.save('Results/Time/' + str(i+1) + '/dd.npy', dd_vec)
-
-    #Save Slice in Directory.
-    im = recon[:,134,:]/np.amax(recon[:,134,:])
-    imsave('Results/Time/' + str(i+1) + '/slice.tif', im)
+    ftv_vec = np.append(ftv_vec, tv_vec)
+    fdd_vec = np.append(fdd_vec, dd_vec)
 
     if (i % 10 == 0):
+        os.makedirs('Results/Time/' + str(i+1), exist_ok=True)
         np.save('Results/Time/' + str(i+1) + '/recon.npy', recon)
+
+#Save all the results to single matrix.
+results = np.array([ftv_vec, fdd_vec])
 
 # Save the Reconstruction.
 np.save('Results/Time/Co2P_recon.npy', recon)

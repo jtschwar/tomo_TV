@@ -14,7 +14,7 @@ import os
 ########################################
 
 # Name of input file. 
-file_name = 'phantom.tif'
+file_name = 'phantom_1024.tif'
 
 # Number of Iterations (TV Loop)
 ng = 20
@@ -37,7 +37,7 @@ alpha_red = 0.95
 alpha = 0.5
 
 #Amount of time before next projection is collected (Seconds).
-time_limit = 15 # Seconds
+time_limit = 180 # Seconds
 
 # Save and show reconstruction. 
 save = True
@@ -48,7 +48,6 @@ show = False
 #Read Image. 
 tiltSeries = imread('Test_Image/' + file_name)
 tiltSeries = np.array(tiltSeries, dtype=np.float32)
-tiltSeries /= np.amax(tiltSeries)
 tv0 = tv(tiltSeries)
 img0 = tiltSeries.copy()
 (Nx, Ny) = tiltSeries.shape
@@ -66,6 +65,7 @@ pyA, A = parallelRay(Ny, tiltAngles)
 obj.create_measurement_matrix(pyA)
 obj.rowInnerProduct()
 b = np.transpose(A.dot(tiltSeries))
+
 A = None
 pyA = None
 
@@ -77,7 +77,6 @@ Niter = np.zeros(int(Nproj), dtype=np.int32)
 fdd_vec = np.array([])
 ftv_vec = np.array([])
 frmse_vec = np.array([])
-fcos_alph_vec = np.array([])
 Niter_est = 10000
 
 #Dynamic Tilt Series Loop. 
@@ -88,7 +87,6 @@ for i in range(int(Nproj)):
     dd_vec = np.zeros(Niter_est*2, dtype=np.float32)
     tv_vec = np.zeros(Niter_est*2, dtype=np.float32)
     rmse_vec = np.zeros(Niter_est*2, dtype=np.float32)
-    cos_alph_vec = np.zeros(Niter_est*2, dtype=np.float32)
 
     # Reset Beta.
     beta = beta0
@@ -116,7 +114,6 @@ for i in range(int(Nproj)):
         tv_vec[Niter[i]] = tv(recon)
         rmse_vec[Niter[i]] = np.sqrt(((recon - img0)**2).mean())
         dd_vec[Niter[i]] = np.linalg.norm(g - b[:max_row]) / g.size
-        cos_alph_vec[Niter[i]] = obj.CosAlpha(recon, b, g, max_row)
 
         #Calculate current time. 
         ctime = ( time.time() - t0 ) 
@@ -127,13 +124,13 @@ for i in range(int(Nproj)):
         #ART-Beta Reduction.
         beta *= beta_red
 
-        if (i == 0):
+        if (Niter[i] == 0):
             dPOCS = np.linalg.norm(recon - temp_recon) * alpha
 
         dp = np.linalg.norm(recon - temp_recon)   
         temp_recon = recon.copy()
 
-        recon[:] = obj.tv_loop(recon, dPOCS, ng)
+        recon[:] = obj.tv_loop(recon, dPOCS, ng) 
 
         dg = np.linalg.norm(recon - temp_recon) 
 
@@ -144,35 +141,36 @@ for i in range(int(Nproj)):
 
     Niter_est = Niter[i]
     print('Number of Iterations: ' + str(Niter[i]))
-    print('Cosine Alpha: ' + str(cos_alph_vec[Niter[i]]) + '\n') #For debugging. 
 
     #Remove Excess elements.
     tv_vec = tv_vec[:Niter[i]+1]
     dd_vec = dd_vec[:Niter[i]+1]
     rmse_vec = rmse_vec[:Niter[i]+1] 
-    cos_alph_vec = cos_alph_vec[:Niter[i]+1]
     
     # Append to main vector. 
     ftv_vec = np.append(ftv_vec, tv_vec)
     fdd_vec = np.append(fdd_vec, dd_vec)
     frmse_vec = np.append(frmse_vec, rmse_vec)
-    fcos_alph_vec = np.append(fcos_alph_vec, cos_alph_vec)
 
     #Save intermediate image if desired. 
     if save:
-        if not os.path.exists('Results/Time/Recon/'):
-            os.makedirs('Results/Time/Recon/')
-        imsave('Results/Time/Recon/' + str(i) + '.tif', np.uint16(recon*255))
+        os.makedirs('Results/Time/Recon', exist_ok=True)
+        if np.amax(recon) > 255:
+            imsave('Results/Time/Recon/' + str(i) + '.tif', np.uint16(recon))
+        else:
+            imsave('Results/Time/Recon/' + str(i) + '.tif', np.uint16(recon*255))
 
 if save:
 
     #Save all the results to single matrix.
-    results = np.array([ftv_vec, fdd_vec, frmse_vec, fcos_alph_vec])
-    
-    # Save Data. 
+    results = np.array([ftv_vec, tv0, fdd_vec, eps, frmse_vec])
     np.save('Results/Time/results.npy', results)
     np.save('Results/Time/Niter.npy', Niter)
-    imsave('Results/Time/Recon/Final_Recon.tif', np.uint16(recon*255))
+    
+    if np.amax(recon) > 255:
+            imsave('Results/Time/Recon/Final_Recon.tif', np.uint16(recon))
+    else:
+        imsave('Results/Time/Recon/Final_Recon.tif', np.uint16(recon*255))
 
 if show:
 
