@@ -23,6 +23,13 @@ typedef Eigen::SparseMatrix<float, Eigen::RowMajor> SpMat;
 
 public: 
 
+    // Member Variables.
+    Mat *recon, *temp_recon, *tv_recon;
+    SpMat A;
+    int Nrow, Ncol, Ny, Nslice;
+    Eigen::VectorXf innerProduct;
+    Mat b, g;
+    
 	// Initializes Measurement Matrix. 
 	ctvlib(int Nslice, int Nray, int Nproj);
 
@@ -33,20 +40,31 @@ public:
     void loadA(Eigen::Ref<Mat> pyA);
 	void normalization();
 
-	// 2D ART Reconstruction 
-	Mat ART(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s, int dyn_ind);
-    Mat ART2(Eigen::Ref<Eigen::VectorXf> recon, Eigen::Ref<Eigen::VectorXf> beta, int s, int dyn_ind);
-    Mat SIRT(Eigen::Ref<Eigen::VectorXf> recon, double beta, int s);
+	// 2D Reconstructions
+	void ART(double beta, int dyn_ind);
+    void SIRT(double beta, int dyn_ind);
+    void positivity();
 
 	//Forward Project Reconstruction for Data Tolerance Parameter. 
-	Eigen::VectorXf forwardProjection(Eigen::Ref<Eigen::VectorXf> recon, int dyn_ind);
-
-	// Member Variables. 
-	SpMat A;
-	int Nrow, Ncol, Nx;
-	Eigen::VectorXf innerProduct;
-	Mat b;
+	void forwardProjection(int dyn_ind);
     
+    // Acquire local copy of reconstruction.
+    void copy_recon();
+    
+    // Measure 2-norm of projections and reconstruction.
+    float matrix_2norm();
+    float vector_2norm();
+    float dyn_vector_2norm(int dyn_ind);
+    
+    // Total variation
+    float tv_3D();
+    void tv_gd_3D(int ng, float dPOCS);
+    
+    // Delete tempory copy and tv derivative (for during handoff).
+    void release_memory();
+    
+    // Return reconstruction to python.
+    Mat getRecon(int i);
 };
 
 #endif /* tlib_hpp */

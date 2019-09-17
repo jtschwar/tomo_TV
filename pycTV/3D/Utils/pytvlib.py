@@ -1,23 +1,24 @@
-import numpy as np
+from skimage import io
 import scipy.ndimage
+import numpy as np
 import time
 
 def tv_derivative(recon):
     r = np.lib.pad(recon, ((1, 1), (1, 1), (1, 1)), 'edge')
-    v = 3 * r - np.roll(r, 1, axis=0) - \
-                          np.roll(r, 1, axis=1) - np.roll(r, 1, axis=2) / \
+    v = (3 * r - np.roll(r, 1, axis=0) - \
+                              np.roll(r, 1, axis=1) - np.roll(r, 1, axis=2)) / \
         np.sqrt(1e-8 + (r - np.roll(r, 1, axis=0))**2 + (r -
                   np.roll(r, 1, axis=1))**2 + (r - np.roll(r, 1, axis=2))**2)
-    v += r - np.roll(r, -1, axis=0) / \
+    v += (r - np.roll(r, -1, axis=0)) / \
          np.sqrt( 1e-8 + ( np.roll(r, -1, axis=0) - r )**2 +
             ( np.roll(r, -1, axis=0) - np.roll(r, [-1,1], axis=(0,1)) )**2 +
             ( np.roll(r, -1, axis=0) - np.roll(r, [-1,1], axis=(0,2)) )**2 )
-    v += r - np.roll(r, -1, axis=1) / \
+    v += (r - np.roll(r, -1, axis=1)) / \
          np.sqrt( 1e-8 + 
                  (np.roll(r, -1, axis=1) - np.roll(r, [-1,1], axis=(1,0)))**2 +
                  (np.roll(r, -1, axis=1) - r)**2 + 
                  ( np.roll(r, -1, axis=1) - np.roll(r, [-1,1], axis=(1,2)))**2) 
-    v += r - np.roll(r, -1, axis=2) / \
+    v += (r - np.roll(r, -1, axis=2)) / \
          np.sqrt(1e-8 + 
                  (np.roll(r, -1, axis=2) - np.roll(r, [-1,1], axis=(2,0)))**2 +
                  (np.roll(r, -1, axis=2) - np.roll(r, [-1,1], axis=(2,1)))**2 +
@@ -191,3 +192,28 @@ def rmepsilon(input):
         if np.abs(input) < 1e-10:
             input = 0
     return input
+
+def load_data(file_name):
+
+    #sk-image loads tilt series as (z,y,x) so the axes need to be
+    #swapped to return to (x,y,z)
+
+    if file_name.endswith('.tiff'):
+        tiltSeries = io.imread('Tilt_Series/'+ file_name)
+        tiltSeries = np.array(tiltSeries, dtype=np.float32)
+        tiltSeries = np.swapaxes(tiltSeries, 0, 2)
+        file_name = file_name.replace('_tiltser.tiff', '')
+    elif file_name.endswith('.tif'):
+        tiltSeries = io.imread('Tilt_Series/'+ file_name)
+        tiltSeries = np.array(tiltSeries, dtype=np.float32)
+        tiltSeries = np.swapaxes(tiltSeries, 0, 2)
+        file_name = file_name.replace('_tiltser.tif', '')
+    elif file_name.endswith('.npy'):
+        tiltSeries = np.load('Tilt_Series/' + file_name)
+        file_name = file_name.replace('_tiltser.npy', '')
+
+    return (file_name, tiltSeries)
+
+
+def live_plot(dd, tv, rmse):
+    return -1

@@ -1,8 +1,8 @@
-# General 3D - ART Reconstruction with Positivity Constraint. 
+# General 3D - SIRT Reconstruction with Positivity Constraint. 
 
 import sys
 sys.path.append('./Utils')
-from pytvlib import parallelRay, timer
+from pytvlib import parallelRay, timer, load_data
 from matplotlib import pyplot as plt
 from skimage import io
 import numpy as np
@@ -10,47 +10,45 @@ import ctvlib
 import time
 ########################################
 
+file_name = 'Co2P'
+
 # Number of Iterations (Main Loop)
-Niter = 50
+Niter = 100
 
 # Parameter in SIRT Reconstruction.
 beta = 0.0001
 
-# SIRT Reduction Parameter
-beta_red = 0.995
-
 # ART Reduction.
 beta_red = 0.995
+
+# Save Final Reconstruction. 
+save = True
 
 ##########################################
 
 # #Read Image. 
-# tiltSeries = io.imread('Tilt_Series/Co2P_tiltser.tiff')
-tiltSeries = np.load('Tilt_Series/FePt_projections.npy')
-tiltSeries = np.array(tiltSeries, dtype=np.float32)
-# tiltSeries = np.swapaxes(tiltSeries, 0, 2)
+(file_name, tiltSeries) = load_data(file_name)
 (Nslice, Nray, Nproj) = tiltSeries.shape
-b = np.zeros([Nslice, Nray*Nproj], dtype=np.float32)
-g = np.zeros([Nslice, Nray*Nproj], dtype=np.float32)
+b = np.zeros([Nslice, Nray*Nproj])
 
 # Initialize C++ Object.. 
-obj = ctvlib.ctvlib(Nslice, Nray, Nproj)
+tomo_obj = ctvlib.ctvlib(Nslice, Nray, Nproj)
 
 for s in range(Nslice):
     b[s,:] = tiltSeries[s,:,:].transpose().ravel()
-obj.setTiltSeries(b)
+tomo_obj.setTiltSeries(b)
 tiltSeries = None
 
 # Generate Tilt Angles.
-tiltAngles = np.load('Tilt_Series/FePt_tiltAngles.npy')
+tiltAngles = np.load('Tilt_Series/'+ file_name +'_tiltAngles.npy')
 
 # Generate measurement matrix
 A = parallelRay(Nray, tiltAngles)
-obj.create_measurement_matrix(A)
+tomo_obj.load_A(A)
 A = None
-obj.rowInnerProduct()
+tomo_obj.rowInnerProduct()
 
-recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F')
+dd_vec = np.zeros(Niter)
 
 t0 = time.time()
 counter = 1
@@ -58,21 +56,24 @@ counter = 1
 #Main Loop
 for i in range(Niter): 
 
-    if (i%25 == 0):
+    if (i%10 ==0):
         print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
 
-
-    for s in range(Nslice):
-        recon[s,:,:] = obj.SIRT(recon[s,:,:].flatten(), beta, s) 
+    tomo_obj.SIRT(beta, -1)
 
     #Positivity constraint 
-    recon[recon < 0] = 0  
+    tomo_obj.positivity()
 
-    #SIRT-Beta Reduction
-    beta *= beta_red
-    
-    if (i%25 == 0):
+    #ART-Beta Reduction
+    beta *= beta_red 
+
+    if (i%10 ==0):
         timer(t0, counter, Niter)
     counter += 1
 
-np.save('Results/FePt_Recon.npy', recon)
+recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
+for s in range(Nslice):
+    recon[s,:,:] = tomo_obj.getRecon(s)
+
+if save:
+    np.save('Results/SIRT_'+file_name+'_recon.npy', recon)
