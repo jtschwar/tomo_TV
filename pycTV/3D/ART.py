@@ -19,7 +19,7 @@ Niter = 100
 beta = 1.0
 
 # ART Reduction.
-beta_red = 0.975
+beta_red = 0.995
 
 #Save Final Reconstruction
 save = True

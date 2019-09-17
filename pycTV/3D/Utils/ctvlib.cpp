@@ -60,13 +60,13 @@ void ctvlib::ART(double beta, int dyn_ind)
     else { dyn_ind *= Ny; }
     
     #pragma omp parallel for
-    for (int s=0; s < dyn_ind; s++)
+    for (int s=0; s < Nslice; s++)
     {
         Mat& mat_slice = recon[s];
         mat_slice.resize(mat_slice.size(),1);
         VectorXf vec_recon = mat_slice;
         float a;
-        for(int j=0; j < Nrow; j++)
+        for(int j=0; j < dyn_ind; j++)
         {
             a = ( b(s,j) - A.row(j).dot(vec_recon) ) / innerProduct(j);
             vec_recon += A.row(j).transpose() * a * beta;
@@ -76,6 +76,7 @@ void ctvlib::ART(double beta, int dyn_ind)
     }
 }
 
+// TODO: Make SIRT into dynamic algorithm (only fully sampled situation is correct).
 void ctvlib::SIRT(double beta, int dyn_ind)
 {
     //No dynamic reconstruction, assume fully sampled batch.
@@ -84,7 +85,7 @@ void ctvlib::SIRT(double beta, int dyn_ind)
     else { dyn_ind *= Ny; }
     
     #pragma omp parallel for
-    for (int s=0; s < dyn_ind; s++)
+    for (int s=0; s < Nslice; s++)
     {
         Mat& mat_slice = recon[s];
         mat_slice.resize(mat_slice.size(),1);
@@ -150,12 +151,12 @@ void ctvlib::forwardProjection(int dyn_ind)
     else { dyn_ind *= Ny; }
     
     #pragma omp parallel for
-    for (int s = 0; s < dyn_ind; s++)
+    for (int s = 0; s < Nslice; s++)
     {
         Mat& mat_slice = recon[s];
         mat_slice.resize(mat_slice.size(),1);
         VectorXf vec_recon = mat_slice;
-        for (int i=0; i < Nrow; i++)
+        for (int i=0; i < dyn_ind; i++)
         {
             g(s,i) = A.row(i).dot(vec_recon);
         }
