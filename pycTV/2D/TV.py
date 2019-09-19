@@ -123,7 +123,7 @@ if show:
     fig.subplots_adjust(hspace=0.4)
 
     ax1.plot(x, tv_vec,color='blue', linewidth=2.0)
-    ax1.set_title('Final TV: ' +str(np.amin(tv_vec)), loc='right', fontsize=10)
+    ax1.set_title('Final TV: ' +str(tv_vec[-1]), loc='right', fontsize=10)
     ax1.set_title('TV', loc='center', fontweight='bold')
     ax1.axhline(y=tv0, color='r')
     ax1.set_xticklabels([])

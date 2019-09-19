@@ -213,7 +213,3 @@ def load_data(file_name):
         file_name = file_name.replace('_tiltser.npy', '')
 
     return (file_name, tiltSeries)
-
-
-def live_plot(dd, tv, rmse):
-    return -1

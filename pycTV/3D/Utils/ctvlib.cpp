@@ -117,7 +117,6 @@ void ctvlib::normalization()
 
 void ctvlib::copy_recon()
 {
-//    temp_recon = recon;
     memcpy(temp_recon, recon, sizeof(recon));
 }
 
@@ -140,7 +139,7 @@ float ctvlib::vector_2norm()
 float ctvlib::dyn_vector_2norm(int dyn_ind)
 {
     dyn_ind *= Ny;
-    return ( g - b.topRows(dyn_ind) ).norm() / g.size();
+    return ( g.leftCols(dyn_ind) - b.leftCols(dyn_ind) ).norm() / g.size();
 }
 
 void ctvlib::forwardProjection(int dyn_ind)
@@ -187,7 +186,7 @@ float ctvlib::tv_3D()
         for (int j = 0; j < ny; j++)
         {
             int jp = (j+1)%ny;
-            for (int k = 0; k < ny; ny++)
+            for (int k = 0; k < ny; k++)
             {
                 int kp = (k+1)%ny;
                 tv_recon[i](j,k) = sqrt(eps + pow( recon[i](j,k) - recon[ip](j,k) , 2)
@@ -296,6 +295,7 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("matrix_2norm", &ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");
     ctvlib.def("vector_2norm", &ctvlib::vector_2norm, "Calculate L2-Norm of Projection (aka Vectors)");
     ctvlib.def("dyn_vector_2norm", &ctvlib::dyn_vector_2norm, "Calculate L2-Norm of Partially Sampled Projections (aka Vectors)");
+    ctvlib.def("tv", &ctvlib::tv_3D, "Measure 3D TV");
     ctvlib.def("tv_gd", &ctvlib::tv_gd_3D, "3D TV Gradient Descent");
     ctvlib.def("release_memory", &ctvlib::release_memory, "Release extra copies");
 }

@@ -4,13 +4,13 @@
 import sys, os
 sys.path.append('./Utils')
 from pytvlib import parallelRay, load_data
-from skimage.io import imread, imsave
+import plot_results as pr
 import numpy as np
 import ctvlib
 import time
 ########################################
 
-file_name = 'Co2P_tiltser.tif'
+file_name = '512_Co2P_tiltser.tif'
 
 # Number of Iterations (TV Loop)
 ng = 10
@@ -22,7 +22,7 @@ beta0 = 1.0
 beta_red = 0.995
 
 # Data Tolerance Parameter
-eps = 0.5
+eps = 0.25
 
 # Reduction Criteria
 r_max = 0.95
@@ -30,7 +30,11 @@ alpha_red = 0.95
 alpha = 0.2
 
 #Amount of time before next projection is collected (Seconds).
-time_limit = 180
+time_limit = 30
+
+save = True
+show_final_plot = False
+show_live_plot = False
 
 ##########################################
 
@@ -45,7 +49,7 @@ tomo_obj = ctvlib.ctvlib(Nslice, Nray, Nproj)
 #Transfer Tilt Series to C++ Object. 
 for s in range(Nslice):
     b[s,:] = tiltSeries[s,:,:].transpose().ravel()
-obj.setTiltSeries(b)
+tomo_obj.setTiltSeries(b)
 tiltSeries = None
 
 # Generate Tilt Angles.
@@ -58,22 +62,22 @@ A = None
 tomo_obj.rowInnerProduct()
 
 #Final vectors for dd, tv, and Niter. 
-Niter = np.zeros(Nproj)
+recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
+Niter = np.zeros(Nproj, dtype=np.int32)
 fdd_vec = np.array([])
-# ftv_vec = np.array([])
-# frmse_vec = np.array([])
-Niter_est = 500
+ftv_vec = np.array([])
+Niter_est = 50
 
 #Dynamic Tilt Series Loop. 
 for i in range(Nproj):
 
-    print('Reconstructing Tilt Angles: 0 -> ' + str(i+1) )
+    print('Reconstructing Tilt Angles: 0 -> ' + str(i+1) + ' / ' + str(Nproj))
 
     # Reset Beta.
     beta = beta0
 
-    dd_vec = np.zeros(Niter_est*2)
-    # tv_vec = np.zeros(Niter_est)
+    dd_vec = np.zeros(Niter_est*2, dtype=np.float32)
+    tv_vec = np.zeros(Niter_est*2, dtype=np.float32)
 
     t0 = time.time()
  
@@ -103,6 +107,10 @@ for i in range(Nproj):
 
         # Measure difference between exp/sim projections.
         dd_vec[Niter[i]] = tomo_obj.dyn_vector_2norm(i+1)
+
+        #Measure TV. 
+        tv_vec[Niter[i]] = tomo_obj.tv()
+
         tomo_obj.copy_recon() 
 
         #TV Minimization. 
@@ -125,18 +133,28 @@ for i in range(Nproj):
 
     #Remove Excess elements.
     dd_vec = dd_vec[:Niter[i]+1]
+    tv_vec = tv_vec[:Niter[i]+1]
 
     #Append to final vector. 
     fdd_vec = np.append(fdd_vec, dd_vec)
-    # ftv_vec = np.append(ftv_vec, tv_vec)
+    ftv_vec = np.append(ftv_vec, tv_vec)
 
-    if (i % 10 == 0):
-        os.makedirs('Results/Time/', exist_ok=True)
-        np.save('Results/Time/' + str(i+1) + '_recon.npy', recon)
+    if save and (i+1)%5 == 0 :
+        os.makedirs('Results/'+ file_name +'Time/', exist_ok=True)
+        recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
+        for s in range(Nslice):
+            recon[s,:,:] = tomo_obj.getRecon(s)
+        np.save('Results/'+ file_name +'_Time/proj_' + str(i+1) + '_recon.npy', recon)
+
+    if show_live_plot and (i+1) % 10 == 0:
+        pr.time_live_plot(dd_vec,eps,tv_vec,i)
 
 #Save all the results to single matrix.
-results = np.array([Niter, fdd_vec, eps])
+results = np.array([Niter, fdd_vec, eps, ftv_vec])
 
 # Save the Reconstruction.
-np.save('Results/Time/final_recon.npy', recon)
-np.save('Results/Time/results.npy', results)
+np.save('Results/'+ file_name +'_Time/final_recon.npy', recon)
+np.save('Results/'+ file_name +'_Time/results.npy', results)
+
+if show_final_plot:
+    pr.time_results(fdd_vec, eps, ftv_vec)

@@ -3,14 +3,13 @@
 import sys
 sys.path.append('./Utils')
 from pytvlib import parallelRay, timer, load_data
-from matplotlib import pyplot as plt
-from skimage import io
+import plot_results as pr
 import numpy as np
 import ctvlib 
 import time
 ########################################
 
-file_name = 'Co2P_tiltser.tif'
+file_name = '256_Co2P_tiltser.tif'
 
 # Number of Iterations (Main Loop)
 Niter = 100
@@ -21,8 +20,9 @@ beta = 1.0
 # ART Reduction.
 beta_red = 0.995
 
-#Save Final Reconstruction
-save = True
+save = True #Save Final Reconstruction
+show_fplot = True #Calculate dd and show final plot.
+show_live_plot = True #Calculate dd and show intermediate plots.
 
 ##########################################
 
@@ -56,9 +56,6 @@ counter = 1
 #Main Loop
 for i in range(Niter): 
 
-    if (i%10 ==0):
-        print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
-
     tomo_obj.ART(beta, -1)
 
     #Positivity constraint 
@@ -67,8 +64,16 @@ for i in range(Niter):
     #ART-Beta Reduction
     beta *= beta_red 
 
-    if (i%10 ==0):
+    if show_plot or show_live_plot:
+        tomo_obj.forwardProjection(-1)
+        dd_vec[i] = tomo_obj.vector_2norm()
+
+    if (i+1)%10 ==0:
+        print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
         timer(t0, counter, Niter)
+    if 
+        pr.live_ART_results(dd_vec,i)
+
     counter += 1
 
 recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
@@ -77,3 +82,6 @@ for s in range(Nslice):
 
 if save:
     np.save('Results/ART_'+file_name+'_recon.npy', recon)
+
+if show_plot:
+    pr.ART_results(dd_vec)

@@ -47,7 +47,7 @@ public:
 
 	//Forward Project Reconstruction for Data Tolerance Parameter. 
 	void forwardProjection(int dyn_ind);
-    
+
     // Acquire local copy of reconstruction.
     void copy_recon();
     

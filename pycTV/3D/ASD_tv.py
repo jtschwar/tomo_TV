@@ -96,12 +96,12 @@ for i in range(Niter):
         dp = tomo_obj.matrix_2norm() 
 
     # Measure difference between exp/sim projections.
-    dd_vec[i] = tomo_obj.vector_l2norm()
+    dd_vec[i] = tomo_obj.vector_2norm()
     tomo_obj.copy_recon() 
 
     #TV Minimization. 
     tomo_obj.tv_gd(ng, dPOCS)
-    dg = tomo_obj.matrix_l2norm()
+    dg = tomo_obj.matrix_2norm()
 
     if(dg > dp * r_max and dd_vec[i] > eps):
         dPOCS *= alpha_red
