@@ -146,8 +146,8 @@ for i in range(Nproj):
             recon[s,:,:] = tomo_obj.getRecon(s)
         np.save('Results/'+ file_name +'_Time/proj_' + str(i+1) + '_recon.npy', recon)
 
-    if show_live_plot and (i+1) % 10 == 0:
-        pr.time_live_plot(dd_vec,eps,tv_vec,i)
+    if show_live_plot and (i+1) % 5 == 0:
+        pr.time_live_plot(dd_vec,eps,tv_vec,Niter,i)
 
 #Save all the results to single matrix.
 results = np.array([Niter, fdd_vec, eps, ftv_vec])
@@ -157,4 +157,4 @@ np.save('Results/'+ file_name +'_Time/final_recon.npy', recon)
 np.save('Results/'+ file_name +'_Time/results.npy', results)
 
 if show_final_plot:
-    pr.time_results(fdd_vec, eps, ftv_vec)
+    pr.time_results(fdd_vec, eps, ftv_vec, Niter)

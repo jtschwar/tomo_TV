@@ -21,7 +21,7 @@ beta = 1.0
 beta_red = 0.995
 
 save = True #Save Final Reconstruction
-show_fplot = True #Calculate dd and show final plot.
+show_final_plot = True #Calculate dd and show final plot.
 show_live_plot = True #Calculate dd and show intermediate plots.
 
 ##########################################
@@ -64,18 +64,19 @@ for i in range(Niter):
     #ART-Beta Reduction
     beta *= beta_red 
 
-    if show_plot or show_live_plot:
+    if show_final_plot or show_live_plot:
         tomo_obj.forwardProjection(-1)
         dd_vec[i] = tomo_obj.vector_2norm()
 
-    if (i+1)%10 ==0:
+    if (i+1) % 25 ==0:
         print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
         timer(t0, counter, Niter)
-    if 
-        pr.live_ART_results(dd_vec,i)
+        if show_live_plot:
+            pr.live_ART_results(dd_vec,i)
 
     counter += 1
 
+#Get final reconstruction. 
 recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
 for s in range(Nslice):
     recon[s,:,:] = tomo_obj.getRecon(s)
@@ -83,5 +84,5 @@ for s in range(Nslice):
 if save:
     np.save('Results/ART_'+file_name+'_recon.npy', recon)
 
-if show_plot:
+if show_final_plot:
     pr.ART_results(dd_vec)

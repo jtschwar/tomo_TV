@@ -3,8 +3,6 @@
 import sys
 sys.path.append('./Utils')
 from pytvlib import parallelRay, timer, load_data
-from matplotlib import pyplot as plt
-from skimage import io
 import numpy as np
 import ctvlib 
 import time

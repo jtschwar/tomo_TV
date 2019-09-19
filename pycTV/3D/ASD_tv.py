@@ -3,14 +3,13 @@
 import sys
 sys.path.append('./Utils')
 from pytvlib import parallelRay, timer, load_data
-from matplotlib import pyplot as plt
-from skimage import io
+import plot_results as pr
 import numpy as np
 import ctvlib 
 import time
 ########################################
 
-file_name = 'Co2P_tiltser.tif'
+file_name = '256_Co2P_tiltser.tif'
 
 # Number of Iterations (Main Loop)
 Niter = 100
@@ -25,19 +24,17 @@ beta = 1.0
 beta_red = 0.975
 
 # Data Tolerance Parameter
-eps = 0.6
+eps = 0.5
 
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
 alpha = 0.5
 
-#Show final results (i.e. tv and dd)
-show = True
-
-# Save final Reconstruction. 
-save = True
-
+#Outcomes:
+save = True                 # Save final Reconstruction. 
+show_live_plot = False      # Show intermediate results.
+show_final_plot = False     # Show final results (i.e. tv and dd) 
 ##########################################
 
 # #Read Image. 
@@ -63,15 +60,16 @@ A = None
 tomo_obj.rowInnerProduct()
 
 dd_vec = np.zeros(Niter)
-# tv_vec = np.zeros(Niter)
+tv_vec = np.zeros(Niter)
+
+counter = 1 
 
 t0 = time.time()
-counter = 1
 
 #Main Loop
 for i in range(Niter): 
 
-    if (i%10 ==0):
+    if ( i % 25 ==0):
         print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
 
     tomo_obj.copy_recon()
@@ -89,7 +87,7 @@ for i in range(Niter):
     tomo_obj.forwardProjection(-1)
 
     #Measure Magnitude for TV - GD.
-    if (Niter[i] == 0):
+    if (i == 0):
         dPOCS = tomo_obj.matrix_2norm() * alpha
         dp = dPOCS / alpha
     else: # Measure change from ART.
@@ -97,6 +95,10 @@ for i in range(Niter):
 
     # Measure difference between exp/sim projections.
     dd_vec[i] = tomo_obj.vector_2norm()
+
+    #Measure TV. 
+    tv_vec[i] = tomo_obj.tv()
+
     tomo_obj.copy_recon() 
 
     #TV Minimization. 
@@ -106,8 +108,11 @@ for i in range(Niter):
     if(dg > dp * r_max and dd_vec[i] > eps):
         dPOCS *= alpha_red
 
-    if (i%10 ==0):
+    if ((i+1) % 25 ==0):
         timer(t0, counter, Niter)
+        if show_live_plot:
+            pr.ASD_live_plot(dd_vec, eps, tv_vec, i)
+
     counter += 1
 
 #Garbage collector (gc)
@@ -118,8 +123,8 @@ recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F')
 for s in range(Nslice):
     recon[s,:,:] = tomo_obj.getRecon(s)
 
-if show:
-    #Create function for plotting data. 
+if show_final_plot:
+    pr.ASD_results(dd_vec, eps, tv_vec) 
 
 if save:
     np.save('Results/TV_'+ file_name + '_recon.npy', recon)
