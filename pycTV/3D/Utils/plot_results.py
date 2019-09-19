@@ -92,7 +92,8 @@ def time_tv_results(dd, eps, tv, Niter):
     plt.show()
 
 def time_tv_live_plot(dd, eps, tv, Niter, i):
-    
+    #Plot DD and TV vs Total Number of Projections.
+
     xiter = np.arange(i) + 1
 
     dd_proj = np.zeros(i)
@@ -103,13 +104,13 @@ def time_tv_live_plot(dd, eps, tv, Niter, i):
         tv_proj[i] = tv[np.sum(Niter[:i])]
 
     ax1 = plt.subplot(211, frameon=True)
-    ax1.plot(x, tv_proj,color='blue', linewidth=2.0)
+    ax1.plot(xiter, tv_proj,color='blue', linewidth=2.0)
     ax1.set_title('Final TV: ' +str(round(tv_proj[i],2)), loc='right', fontsize=10)
     ax1.set_title('TV', loc='center', fontweight='bold')
     ax1.set_xticklabels([])
 
     ax2 = plt.subplot(212, frameon=True)
-    ax2.plot(x,dd_proj,color='black', linewidth=2.0)
+    ax2.plot(xiter,dd_proj,color='black', linewidth=2.0)
     ax2.axhline(y=eps, color='r')
     ax2.set_title('Final dd: ' +str(round(dd_proj[i],2)), loc='right', fontsize=10)
     ax2.set_title('DD', loc='left', fontweight='bold')
@@ -118,3 +119,28 @@ def time_tv_live_plot(dd, eps, tv, Niter, i):
     plt.draw()
     plt.pause(0.001)
     plt.clf()
+
+# def time_tv_live_plot(dd, eps, tv, Niter, i):
+#     #Plot DD and TV vs Total Number of Iterations.
+
+#     x = np.arange(tv.shape[0]) + 1
+
+#     fig = plt.gcf()
+#     fig.subplots_adjust(hspace=0.4)
+
+#     ax1 = plt.subplot(211, frameon=True)
+#     ax1.plot(x, tv,color='blue', linewidth=2.0)
+#     ax1.set_title('Final TV: ' +str(tv[-1]), loc='right', fontsize=10)
+#     ax1.set_title('TV', loc='center', fontweight='bold')
+#     ax1.set_xticklabels([])
+
+#     ax2 = plt.subplot(212, frameon=True)
+#     ax2.plot(x,dd,color='black', linewidth=2.0)
+#     ax2.axhline(y=eps, color='r')
+#     ax2.set_title('Final dd: ' +str(dd[-1]), loc='right', fontsize=10)
+#     ax2.set_title('DD', loc='center', fontweight='bold')
+#     ax2.set_xlabel('Number of Iterations', fontweight='bold')
+
+#     plt.draw()
+#     plt.pause(0.001)
+#     plt.clf()

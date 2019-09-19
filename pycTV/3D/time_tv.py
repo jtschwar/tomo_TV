@@ -30,11 +30,11 @@ alpha_red = 0.95
 alpha = 0.2
 
 #Amount of time before next projection is collected (Seconds).
-time_limit = 180
+time_limit = 15
 
 save = True
 show_final_plot = False
-show_live_plot = False
+show_live_plot = True
 
 ##########################################
 
@@ -132,22 +132,22 @@ for i in range(Nproj):
     print('Number of Iterations: ' + str(Niter[i]) + '\n')
 
     #Remove Excess elements.
-    dd_vec = dd_vec[:Niter[i]+1]
-    tv_vec = tv_vec[:Niter[i]+1]
+    dd_vec = dd_vec[:Niter[i]]
+    tv_vec = tv_vec[:Niter[i]]
 
     #Append to final vector. 
     fdd_vec = np.append(fdd_vec, dd_vec)
     ftv_vec = np.append(ftv_vec, tv_vec)
 
     if save and (i+1)%5 == 0 :
-        os.makedirs('Results/'+ file_name +'Time/', exist_ok=True)
+        os.makedirs('Results/'+ file_name +'_Time/', exist_ok=True)
         recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
         for s in range(Nslice):
             recon[s,:,:] = tomo_obj.getRecon(s)
         np.save('Results/'+ file_name +'_Time/proj_' + str(i+1) + '_recon.npy', recon)
 
     if show_live_plot and (i+1) % 5 == 0:
-        pr.time_live_plot(dd_vec,eps,tv_vec,Niter,i)
+        pr.time_tv_live_plot(fdd_vec,eps,ftv_vec,Niter,i)
 
 #Save all the results to single matrix.
 results = np.array([Niter, fdd_vec, eps, ftv_vec])
