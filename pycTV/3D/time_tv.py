@@ -30,7 +30,7 @@ alpha_red = 0.95
 alpha = 0.2
 
 #Amount of time before next projection is collected (Seconds).
-time_limit = 30
+time_limit = 180
 
 save = True
 show_final_plot = False
