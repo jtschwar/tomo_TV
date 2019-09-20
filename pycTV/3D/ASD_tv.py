@@ -12,7 +12,7 @@ import time
 file_name = '256_Co2P_tiltser.tif'
 
 # Number of Iterations (Main Loop)
-Niter = 100
+Niter = 15
 
 # Number of Iterations (TV Loop)
 ng = 10
@@ -108,15 +108,12 @@ for i in range(Niter):
     if(dg > dp * r_max and dd_vec[i] > eps):
         dPOCS *= alpha_red
 
-    if ((i+1) % 25 ==0):
+    if ((i+1) % 15 ==0):
         timer(t0, counter, Niter)
         if show_live_plot:
             pr.ASD_live_plot(dd_vec, eps, tv_vec, i)
 
     counter += 1
-
-#Garbage collector (gc)
-tomo_obj.release_memory()
 
 #Get the final reconstruction. 
 recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 

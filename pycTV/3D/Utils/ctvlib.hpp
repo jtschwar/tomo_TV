@@ -24,9 +24,9 @@ typedef Eigen::SparseMatrix<float, Eigen::RowMajor> SpMat;
 public: 
 
     // Member Variables.
-    Mat *recon, *temp_recon, *tv_recon;
+    Mat *recon, *temp_recon, *tv_recon, *original_volume;
     SpMat A;
-    int Nrow, Ncol, Ny, Nslice;
+    int Nrow, Ncol, Nslice, Ny, Nz;
     Eigen::VectorXf innerProduct;
     Mat b, g;
     
@@ -35,6 +35,8 @@ public:
 
 	// Initialize Experimental Projections. 
 	void setTiltSeries(Mat in);
+    void setOriginalVolume(Mat in, int slice);
+    void create_projections();
 
 	// Constructs Measurement Matrix.
     void loadA(Eigen::Ref<Mat> pyA);
@@ -55,9 +57,11 @@ public:
     float matrix_2norm();
     float vector_2norm();
     float dyn_vector_2norm(int dyn_ind);
+    float rmse();
     
     // Total variation
     float tv_3D();
+    float original_tv_3D();
     void tv_gd_3D(int ng, float dPOCS);
     
     // Delete tempory copy and tv derivative (for during handoff).
@@ -65,6 +69,8 @@ public:
     
     // Return reconstruction to python.
     Mat getRecon(int i);
+    
+    Mat check_projections();
 };
 
 #endif /* tlib_hpp */

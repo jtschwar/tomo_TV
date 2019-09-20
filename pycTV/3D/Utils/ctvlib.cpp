@@ -27,9 +27,10 @@ ctvlib::ctvlib(int Ns, int Nray, int Nproj)
 {
     //Intialize all the Member variables.
     Nslice = Ns;
-    Ny = Nray; // (Ny = Nz)
+    Ny = Nray;
+    Nz = Nray;
     Nrow = Nray*Nproj;
-    Ncol = Nray*Nray;
+    Ncol = Ny*Nz;
     A.resize(Nrow,Ncol);
     innerProduct.resize(Nrow);
     b.resize(Ny, Nrow);
@@ -39,6 +40,7 @@ ctvlib::ctvlib(int Ns, int Nray, int Nproj)
     recon = new Mat[Nslice];
     temp_recon = new Mat[Nslice];
     tv_recon = new Mat[Nslice];
+    original_volume = new Mat[Nslice];
     for (int i=0; i < Nslice; i++)
     {
         recon[i] = Mat::Zero(Ny, Ny);
@@ -50,6 +52,32 @@ ctvlib::ctvlib(int Ns, int Nray, int Nproj)
 void ctvlib::setTiltSeries(Mat in)
 {
     b = in;
+}
+
+void ctvlib::setOriginalVolume(Mat in, int slice)
+{
+    original_volume[slice] = in;
+}
+
+void ctvlib::create_projections()
+{
+    #pragma omp parallel for
+    for (int s = 0; s < Nslice; s++)
+    {
+        Mat& mat_slice = original_volume[s];
+        mat_slice.resize(mat_slice.size(),1);
+        VectorXf vec_recon = mat_slice;
+        for (int i=0; i < Nrow; i++)
+        {
+            b(s,i) = A.row(i).dot(vec_recon);
+        }
+        mat_slice.resize(Ny,Ny);
+    }
+}
+
+Mat ctvlib::check_projections()
+{
+    return b;
 }
 
 void ctvlib::ART(double beta, int dyn_ind)
@@ -163,6 +191,18 @@ void ctvlib::forwardProjection(int dyn_ind)
     }
 }
 
+float ctvlib::rmse()
+{
+    float rmse;
+    #pragma omp parallel for reduction(+:rmse)
+    for (int s = 0; s < Nslice; s++)
+    {
+        rmse += ( recon[s].array() - original_volume[s].array() ).square().sum();
+    }
+    rmse = sqrt( rmse / (Nslice * Ny * Nz ) );
+    return rmse;
+}
+
 void ctvlib::loadA(Eigen::Ref<Mat> pyA)
 {
     for (int i=0; i <pyA.cols(); i++)
@@ -177,7 +217,8 @@ float ctvlib::tv_3D()
     float tv;
     float eps = 1e-8;
     int nx = Nslice;
-    int ny = Ny; // (ny = nz)
+    int ny = Ny;
+    int nz = Nz;
     
     #pragma omp parallel for
     for (int i = 0; i < Nslice; i++)
@@ -186,7 +227,7 @@ float ctvlib::tv_3D()
         for (int j = 0; j < ny; j++)
         {
             int jp = (j+1)%ny;
-            for (int k = 0; k < ny; k++)
+            for (int k = 0; k < nz; k++)
             {
                 int kp = (k+1)%ny;
                 tv_recon[i](j,k) = sqrt(eps + pow( recon[i](j,k) - recon[ip](j,k) , 2)
@@ -199,7 +240,40 @@ float ctvlib::tv_3D()
     #pragma omp parallel for reduction(+:tv)
     for (int i = 0; i < Nslice; i++)
     {
-        tv += recon[i].sum();
+        tv += tv_recon[i].sum();
+    }
+    return tv;
+}
+
+float ctvlib::original_tv_3D()
+{
+    float tv;
+    float eps = 1e-8;
+    int nx = Nslice;
+    int ny = Ny;
+    int nz = Nz;
+    
+    #pragma omp parallel for
+    for (int i = 0; i < Nslice; i++)
+    {
+        int ip = (i+1)%nx;
+        for (int j = 0; j < ny; j++)
+        {
+            int jp = (j+1)%ny;
+            for (int k = 0; k < nz; k++)
+            {
+                int kp = (k+1)%ny;
+                tv_recon[i](j,k) = sqrt(eps + pow( original_volume[i](j,k) - original_volume[ip](j,k) , 2)
+                                        + pow( original_volume[i](j,k) - original_volume[i](jp,k) , 2)
+                                        + pow( original_volume[i](j,k) - original_volume[ip](j,kp) , 2));
+            }
+        }
+    }
+    
+    #pragma omp parallel for reduction(+:tv)
+    for (int i = 0; i < Nslice; i++)
+    {
+        tv += tv_recon[i].sum();
     }
     return tv;
 }
@@ -208,7 +282,8 @@ void ctvlib::tv_gd_3D(int ng, float dPOCS)
 {
     float eps = 1e-8;
     int nx = Nslice;
-    int ny = Ny; // (ny = nz)
+    int ny = Ny;
+    int nz = Nz;
     
     //Calculate TV Derivative Tensor.
     for(int g=0; g < ng; g++)
@@ -284,6 +359,8 @@ PYBIND11_MODULE(ctvlib, m)
     py::class_<ctvlib> ctvlib(m, "ctvlib");
     ctvlib.def(py::init<int,int, int>());
     ctvlib.def("setTiltSeries", &ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
+    ctvlib.def("setOriginalVolume", &ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
+    ctvlib.def("create_projections", &ctvlib::create_projections, "Create Projections from Volume");
     ctvlib.def("getRecon", &ctvlib::getRecon, "Return the Reconstruction to Python");
     ctvlib.def("ART", &ctvlib::ART, "ART Reconstruction");
     ctvlib.def("SIRT", &ctvlib::SIRT, "SIRT Reconstruction");
@@ -295,7 +372,10 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("matrix_2norm", &ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");
     ctvlib.def("vector_2norm", &ctvlib::vector_2norm, "Calculate L2-Norm of Projection (aka Vectors)");
     ctvlib.def("dyn_vector_2norm", &ctvlib::dyn_vector_2norm, "Calculate L2-Norm of Partially Sampled Projections (aka Vectors)");
+    ctvlib.def("rmse", &ctvlib::rmse, "Calculate reconstruction's RMSE");
     ctvlib.def("tv", &ctvlib::tv_3D, "Measure 3D TV");
+    ctvlib.def("original_tv", &ctvlib::original_tv_3D, "Measure original TV");
     ctvlib.def("tv_gd", &ctvlib::tv_gd_3D, "3D TV Gradient Descent");
     ctvlib.def("release_memory", &ctvlib::release_memory, "Release extra copies");
+    ctvlib.def("check_projections", &ctvlib::check_projections, "Test");
 }
