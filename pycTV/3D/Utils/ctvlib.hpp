@@ -70,7 +70,8 @@ public:
     // Return reconstruction to python.
     Mat getRecon(int i);
     
-    Mat check_projections();
+    // Return projections to python. 
+    Mat get_projections();
 };
 
 #endif /* tlib_hpp */

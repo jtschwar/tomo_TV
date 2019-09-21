@@ -1,6 +1,6 @@
 .DS_Store
-pycTV/2D/Utils/__pycache__/
-pycTV/3D/Utils/__pycache__/
-pycTV/2D/Results/
-pycTV/3D/Results/
+**/__pycache__
+**/Results
 *.pyc
+pycTV/3D/Tilt_Series/au_sto_tiltser.npy
+pycTV/3D/Tilt_Series/au_sto_tiltAngles.npy

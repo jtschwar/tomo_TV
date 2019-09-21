@@ -37,10 +37,12 @@ ctvlib::ctvlib(int Ns, int Nray, int Nproj)
     g.resize(Ny, Nrow);
     
     //Initialize all the Slices in Recon as Zero.
-    recon = new Mat[Nslice];
-    temp_recon = new Mat[Nslice];
-    tv_recon = new Mat[Nslice];
-    original_volume = new Mat[Nslice];
+    recon = new Mat[Nslice]; //Final Reconstruction.
+    temp_recon = new Mat[Nslice]; // Temporary copy for measuring changes in TV and ART.
+    tv_recon = new Mat[Nslice]; // Temporary copy for measuring 3D TV - Derivative. 
+    original_volume = new Mat[Nslice]; // Original Volume for Simulation Studies.
+    
+    // Initialize the 3D Matrices as zeros. 
     for (int i=0; i < Nslice; i++)
     {
         recon[i] = Mat::Zero(Ny, Ny);
@@ -59,6 +61,7 @@ void ctvlib::setOriginalVolume(Mat in, int slice)
     original_volume[slice] = in;
 }
 
+// Create projections from Volume (for simulation studies)
 void ctvlib::create_projections()
 {
     #pragma omp parallel for
@@ -75,11 +78,13 @@ void ctvlib::create_projections()
     }
 }
 
-Mat ctvlib::check_projections()
+//Return the projections.
+Mat ctvlib::get_projections()
 {
     return b;
 }
 
+// ART Reconstruction.
 void ctvlib::ART(double beta, int dyn_ind)
 {
     //No dynamic reconstruction, assume fully sampled batch.
@@ -104,7 +109,7 @@ void ctvlib::ART(double beta, int dyn_ind)
     }
 }
 
-// TODO: Make SIRT into dynamic algorithm (only fully sampled situation is correct).
+// SIRT Reconstruction.
 void ctvlib::SIRT(double beta, int dyn_ind)
 {
     //No dynamic reconstruction, assume fully sampled batch.
@@ -124,6 +129,7 @@ void ctvlib::SIRT(double beta, int dyn_ind)
     }
 }
 
+// Remove Negative Voxels.
 void ctvlib::positivity()
 {
     #pragma omp parallel for
@@ -133,9 +139,9 @@ void ctvlib::positivity()
     }
 }
 
+// Row Inner Product of Measurement Matrix.
 void ctvlib::normalization()
 {
-    // Row Inner Product
     #pragma omp parallel for
     for (int i = 0; i < Nrow; i++)
     {
@@ -143,6 +149,7 @@ void ctvlib::normalization()
     }
 }
 
+// Create Local Copy of Reconstruction. 
 void ctvlib::copy_recon()
 {
     memcpy(temp_recon, recon, sizeof(recon));
@@ -170,6 +177,7 @@ float ctvlib::dyn_vector_2norm(int dyn_ind)
     return ( g.leftCols(dyn_ind) - b.leftCols(dyn_ind) ).norm() / g.size();
 }
 
+// Foward project the data.
 void ctvlib::forwardProjection(int dyn_ind)
 {
     //No dynamic reconstruction, assume fully sampled batch.
@@ -191,6 +199,7 @@ void ctvlib::forwardProjection(int dyn_ind)
     }
 }
 
+// Measure the RMSE (simulation studies)
 float ctvlib::rmse()
 {
     float rmse;
@@ -203,6 +212,7 @@ float ctvlib::rmse()
     return rmse;
 }
 
+// Load Measurement Matrix from Python.
 void ctvlib::loadA(Eigen::Ref<Mat> pyA)
 {
     for (int i=0; i <pyA.cols(); i++)
@@ -212,6 +222,7 @@ void ctvlib::loadA(Eigen::Ref<Mat> pyA)
     A.makeCompressed();
 }
 
+//Measure Reconstruction's TV.
 float ctvlib::tv_3D()
 {
     float tv;
@@ -245,6 +256,7 @@ float ctvlib::tv_3D()
     return tv;
 }
 
+//Measure Original Volume's TV.
 float ctvlib::original_tv_3D()
 {
     float tv;
@@ -278,6 +290,7 @@ float ctvlib::original_tv_3D()
     return tv;
 }
 
+// TV Minimization (Gradient Descent)
 void ctvlib::tv_gd_3D(int ng, float dPOCS)
 {
     float eps = 1e-8;
@@ -342,11 +355,13 @@ void ctvlib::tv_gd_3D(int ng, float dPOCS)
     positivity();
 }
 
+// Return Reconstruction to Python.
 Mat ctvlib::getRecon(int s)
 {
     return recon[s];
 }
 
+// Garbage Collection. 
 void ctvlib::release_memory()
 {
     delete [] temp_recon;
@@ -377,5 +392,5 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("original_tv", &ctvlib::original_tv_3D, "Measure original TV");
     ctvlib.def("tv_gd", &ctvlib::tv_gd_3D, "3D TV Gradient Descent");
     ctvlib.def("release_memory", &ctvlib::release_memory, "Release extra copies");
-    ctvlib.def("check_projections", &ctvlib::check_projections, "Test");
+    ctvlib.def("get_projections", &ctvlib::get_projections, "Return the projection matrix to python");
 }

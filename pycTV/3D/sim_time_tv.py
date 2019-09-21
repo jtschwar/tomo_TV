@@ -28,14 +28,13 @@ eps = 0.01
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
-alpha = 0.2
+alpha = 1.0
 
 #Amount of time before next projection is collected (Seconds).
-time_limit = 30
+time_limit = 60
 
 save = True
-show_final_plot = False
-show_live_plot = 0
+show_live_plot = True
 
 ##########################################
 
@@ -115,6 +114,7 @@ for i in range(Nproj):
         #Measure TV. 
         tv_vec[Niter[i]] = tomo_obj.tv()
 
+        #Measure RMSE.
         rmse_vec[Niter[i]] = tomo_obj.rmse()
 
         tomo_obj.copy_recon() 
@@ -163,6 +163,3 @@ results = np.array([Niter, fdd_vec, eps, ftv_vec, tv0, frmse_vec])
 # Save the Reconstruction.
 np.save('Results/'+ file_name +'_Time/final_recon.npy', recon)
 np.save('Results/'+ file_name +'_Time/results.npy', results)
-
-if show_final_plot:
-    pr.time_results(fdd_vec, eps, ftv_vec, tv0, frmse_vec, Niter)

@@ -65,32 +65,6 @@ def ASD_live_plot(dd, eps, tv, i):
     plt.pause(0.001)
     plt.clf()
 
-def time_tv_results(dd, eps, tv, Niter):
-    
-    xiter = np.arange(Niter.shape[0]) + 1
-
-    dd_proj = np.zeros(Niter.shape[0])
-    tv_proj = np.zeros(Niter.shape[0])
-
-    for i in range(xiter.shape[0]):
-        dd_proj[i] = dd[np.sum(Niter[:i])]
-        tv_proj[i] = tv[np.sum(Niter[:i])]
-
-    ax1 = plt.subplot(211, frameon=True)
-    ax1.plot(x, tv[:i],color='blue', linewidth=2.0)
-    ax1.set_title('Final TV: ' +str(round(tv[i],2)), loc='right', fontsize=10)
-    ax1.set_title('TV', loc='center', fontweight='bold')
-    ax1.set_xticklabels([])
-
-    ax2 = plt.subplot(212, frameon=True)
-    ax2.plot(x,dd[:i],color='black', linewidth=2.0)
-    ax2.axhline(y=eps, color='r')
-    ax2.set_title('Final dd: ' +str(round(dd[i],2)), loc='right', fontsize=10)
-    ax2.set_title('DD', loc='left', fontweight='bold')
-    ax2.set_xlabel('Number of Projections', fontweight='bold')
-
-    plt.show()
-
 def exp_time_tv_live_plot(dd, eps, tv, Niter, i):
     
     #Plot DD and TV vs Total Number of Projections.
@@ -125,7 +99,16 @@ def sim_time_tv_live_plot(dd,eps, tv, tv0, rmse, Niter, i):
 
     #Plot DD and TV vs Total Number of Projections.
 
-    x = np.arange(tv.shape[0]) + 1
+    xiter = np.arange(Niter.shape[0]) + 1
+
+    dd_proj =  np.zeros(Niter.shape[0]) + 1
+    tv_proj =  np.zeros(Niter.shape[0]) + 1
+    rmse_proj = np.zeros(Niter.shape[0]) + 1
+
+    for i in range(xiter.shape[0]):
+        dd_proj[i] = dd[np.sum(Niter[:i])]
+        tv_proj[i] = tv[np.sum(Niter[:i])]
+        rmse_proj[i] = rmse[np.sum(Niter[:i])]
 
     # fig.subplots_adjust(hspace=0.7)
 
@@ -152,28 +135,3 @@ def sim_time_tv_live_plot(dd,eps, tv, tv0, rmse, Niter, i):
     plt.draw()
     plt.pause(0.001)
     plt.clf()
-
-# def time_tv_live_plot(dd, eps, tv, Niter, i):
-#     #Plot DD and TV vs Total Number of Iterations.
-
-#     x = np.arange(tv.shape[0]) + 1
-
-#     fig = plt.gcf()
-#     fig.subplots_adjust(hspace=0.4)
-
-#     ax1 = plt.subplot(211, frameon=True)
-#     ax1.plot(x, tv,color='blue', linewidth=2.0)
-#     ax1.set_title('Final TV: ' +str(tv[-1]), loc='right', fontsize=10)
-#     ax1.set_title('TV', loc='center', fontweight='bold')
-#     ax1.set_xticklabels([])
-
-#     ax2 = plt.subplot(212, frameon=True)
-#     ax2.plot(x,dd,color='black', linewidth=2.0)
-#     ax2.axhline(y=eps, color='r')
-#     ax2.set_title('Final dd: ' +str(dd[-1]), loc='right', fontsize=10)
-#     ax2.set_title('DD', loc='center', fontweight='bold')
-#     ax2.set_xlabel('Number of Iterations', fontweight='bold')
-
-#     plt.draw()
-#     plt.pause(0.001)
-#     plt.clf()
