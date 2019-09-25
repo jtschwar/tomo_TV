@@ -37,6 +37,7 @@ public:
 	void setTiltSeries(Mat in);
     void setOriginalVolume(Mat in, int slice);
     void create_projections();
+    void poissonNoise(int SNR);
 
 	// Constructs Measurement Matrix.
     void loadA(Eigen::Ref<Mat> pyA);
@@ -46,7 +47,7 @@ public:
 	void ART(double beta, int dyn_ind);
     void SIRT(double beta, int dyn_ind);
     void positivity();
-
+    
 	//Forward Project Reconstruction for Data Tolerance Parameter. 
 	void forwardProjection(int dyn_ind);
 

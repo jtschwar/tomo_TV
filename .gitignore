@@ -3,4 +3,5 @@
 **/Results
 *.pyc
 pycTV/3D/Tilt_Series/au_sto_tiltser.npy
+pycTV/3D/Tilt_Series/au_sto_background.npy
 pycTV/3D/Tilt_Series/au_sto_tiltAngles.npy

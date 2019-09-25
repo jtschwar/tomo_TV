@@ -11,7 +11,7 @@ import ctvlib
 import time
 ########################################
 
-file_name = '512_Co2P_tiltser.tif'
+file_name = '256_Co2P_tiltser.tif'
 
 # Number of Iterations (TV Loop)
 ng = 10

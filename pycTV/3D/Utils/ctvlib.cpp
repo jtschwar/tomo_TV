@@ -13,6 +13,7 @@
 #include <pybind11/eigen.h>
 #include <iostream>
 #include <cmath>
+#include <random>
 
 #define PI 3.14159265359
 
@@ -78,10 +79,23 @@ void ctvlib::create_projections()
     }
 }
 
-//Return the projections.
-Mat ctvlib::get_projections()
+void ctvlib::poissonNoise(int Nc)
 {
-    return b;
+    Mat temp_b = b;
+    float mean = b.mean();
+    float N = b.sum();
+    b  = b / ( b.sum() ) * Nc * b.size();
+    std::default_random_engine generator;
+    for(int i=0; i < b.size(); i++)
+    {
+       std::poisson_distribution<int> distribution(b(i));
+       b(i) = distribution(generator);
+       
+    }
+    b = b / ( Nc * b.size() ) * N;
+    temp_b.array() -= b.array();
+    float std = sqrt( ( temp_b.array() - temp_b.mean() ).square().sum() / (temp_b.size() - 1) );
+    float SNR = mean/std;
 }
 
 // ART Reconstruction.
@@ -174,7 +188,7 @@ float ctvlib::vector_2norm()
 float ctvlib::dyn_vector_2norm(int dyn_ind)
 {
     dyn_ind *= Ny;
-    return ( g.leftCols(dyn_ind) - b.leftCols(dyn_ind) ).norm() / g.size();
+    return ( g.leftCols(dyn_ind) - b.leftCols(dyn_ind) ).norm() / g.leftCols(dyn_ind).size();
 }
 
 // Foward project the data.
@@ -361,6 +375,12 @@ Mat ctvlib::getRecon(int s)
     return recon[s];
 }
 
+//Return the projections.
+Mat ctvlib::get_projections()
+{
+    return b;
+}
+
 // Garbage Collection. 
 void ctvlib::release_memory()
 {
@@ -393,4 +413,5 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("tv_gd", &ctvlib::tv_gd_3D, "3D TV Gradient Descent");
     ctvlib.def("release_memory", &ctvlib::release_memory, "Release extra copies");
     ctvlib.def("get_projections", &ctvlib::get_projections, "Return the projection matrix to python");
+    ctvlib.def("poissonNoise", &ctvlib::poissonNoise, "Add Poisson Noise to Projections");
 }

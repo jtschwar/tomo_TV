@@ -23,18 +23,19 @@ beta0 = 1.0
 beta_red = 0.995
 
 # Data Tolerance Parameter
-eps = 0.01
+eps = 0.05
 
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
-alpha = 1.0
+alpha = 0.5
 
 #Amount of time before next projection is collected (Seconds).
-time_limit = 60
+time_limit = 180
 
+noise = True
 save = True
-show_live_plot = True
+show_live_plot = 0
 
 ##########################################
 
@@ -60,6 +61,10 @@ tomo_obj.rowInnerProduct()
 for s in range(Nslice):
     tomo_obj.setOriginalVolume(original_volume[s,:,:],s)
 tomo_obj.create_projections()
+
+if noise:
+    tomo_obj.poissonNoise(100)
+
 tv0 = tomo_obj.original_tv()
 
 #Final vectors for dd, tv, and Niter. 
@@ -74,6 +79,8 @@ Niter_est = 100
 for i in range(Nproj):
 
     print('Reconstructing Tilt Angles: 0 -> ' + str(i+1) + ' / ' + str(Nproj))
+
+    beta0 *= beta_red
 
     # Reset Beta.
     beta = beta0
@@ -148,11 +155,11 @@ for i in range(Nproj):
     frmse_vec = np.append(frmse_vec, rmse_vec)
 
     if save and (i+1)%10 == 0 :
-        os.makedirs('Results/'+ file_name +'_Time/', exist_ok=True)
+        os.makedirs('Results/'+ file_name +'_Time_noise/', exist_ok=True)
         recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
         for s in range(Nslice):
             recon[s,:,:] = tomo_obj.getRecon(s)
-        np.save('Results/'+ file_name +'_Time/proj_' + str(i+1) + '_recon.npy', recon)
+        np.save('Results/'+ file_name +'_Time_noise/proj_' + str(i+1) + '_recon.npy', recon)
 
     if show_live_plot and (i+1) % 15 == 0:
         pr.sim_time_tv_live_plot(fdd_vec,eps,ftv_vec, tv0, frmse_vec, Niter,i)
@@ -161,5 +168,5 @@ for i in range(Nproj):
 results = np.array([Niter, fdd_vec, eps, ftv_vec, tv0, frmse_vec])
 
 # Save the Reconstruction.
-np.save('Results/'+ file_name +'_Time/final_recon.npy', recon)
-np.save('Results/'+ file_name +'_Time/results.npy', results)
+np.save('Results/'+ file_name +'_Time_noise/final_recon.npy', recon)
+np.save('Results/'+ file_name +'_Time_noise/results.npy', results)
