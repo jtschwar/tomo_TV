@@ -31,10 +31,10 @@ alpha_red = 0.95
 alpha = 0.5
 
 #Amount of time before next projection is collected (Seconds).
-time_limit = 180
+time_limit = 60
 
-noise = True
-save = True
+noise = False
+save = False
 show_live_plot = 0
 
 ##########################################
@@ -57,13 +57,18 @@ tomo_obj.load_A(A)
 A = None
 tomo_obj.rowInnerProduct()
 
+# If creating simulation with noise, set background value to 1.
+if noise:
+    original_volume[original_volume == 0] = 1
+
 # Load Volume and Collect Projections. 
 for s in range(Nslice):
     tomo_obj.setOriginalVolume(original_volume[s,:,:],s)
 tomo_obj.create_projections()
 
+# Apply poisson noise to volume.
 if noise:
-    tomo_obj.poissonNoise(100)
+    tomo_obj.poissonNoise(50)
 
 tv0 = tomo_obj.original_tv()
 
@@ -154,12 +159,12 @@ for i in range(Nproj):
     ftv_vec = np.append(ftv_vec, tv_vec)
     frmse_vec = np.append(frmse_vec, rmse_vec)
 
-    if save and (i+1)%10 == 0 :
-        os.makedirs('Results/'+ file_name +'_Time_noise/', exist_ok=True)
+    if save and (i+1)%15 == 0 :
+        os.makedirs('Results/'+ file_name +'_Time/', exist_ok=True)
         recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
         for s in range(Nslice):
             recon[s,:,:] = tomo_obj.getRecon(s)
-        np.save('Results/'+ file_name +'_Time_noise/proj_' + str(i+1) + '_recon.npy', recon)
+        np.save('Results/'+ file_name +'_Time/proj_' + str(i+1) + '_recon.npy', recon)
 
     if show_live_plot and (i+1) % 15 == 0:
         pr.sim_time_tv_live_plot(fdd_vec,eps,ftv_vec, tv0, frmse_vec, Niter,i)
@@ -168,5 +173,5 @@ for i in range(Nproj):
 results = np.array([Niter, fdd_vec, eps, ftv_vec, tv0, frmse_vec])
 
 # Save the Reconstruction.
-np.save('Results/'+ file_name +'_Time_noise/final_recon.npy', recon)
-np.save('Results/'+ file_name +'_Time_noise/results.npy', results)
+np.save('Results/'+ file_name +'_Time/final_recon.npy', recon)
+np.save('Results/'+ file_name +'_Time/results.npy', results)
