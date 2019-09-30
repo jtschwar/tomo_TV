@@ -313,6 +313,7 @@ float ctvlib::original_tv_3D()
 void ctvlib::tv_gd_3D(int ng, float dPOCS)
 {
     float eps = 1e-8;
+    float tv_norm;
     int nx = Nslice;
     int ny = Ny;
     int nz = Nz;
@@ -320,7 +321,7 @@ void ctvlib::tv_gd_3D(int ng, float dPOCS)
     //Calculate TV Derivative Tensor.
     for(int g=0; g < ng; g++)
     {
-        #pragma omp parallel for
+        #pragma omp parallel for reduction(+:tv_norm)
         for (int i = 0; i < Nslice; i++)
         {
             int ip = (i+1) % nx;
@@ -335,32 +336,25 @@ void ctvlib::tv_gd_3D(int ng, float dPOCS)
                     int km = (k-1+ny)%ny;
                     
                     float v1n = 3.0*recon[i](j, k) - recon[ip](j, k) - recon[i](jp, k) - recon[i](j, kp);
-                    float v1d = sqrt(eps + pow( recon[i](j, k) - recon[ip](j, k) , 2)
-                                      +  pow( recon[i](j, k) - recon[i](jp, k) , 2)
-                                      +  pow( recon[i](j, k) - recon[i](j, kp) , 2));
+                    float v1d = sqrt(eps + ( recon[i](j, k) - recon[ip](j, k) ) * ( recon[i](j, k) - recon[ip](j, k) )
+                                      +  ( recon[i](j, k) - recon[i](jp, k) ) * ( recon[i](j, k) - recon[i](jp, k) )
+                                      +  ( recon[i](j, k) - recon[i](j, kp) ) * ( recon[i](j, k) - recon[i](j, kp) ));
                     float v2n = recon[i](j, k) - recon[im](j, k);
-                    float v2d = sqrt(eps + pow( recon[im](j, k) - recon[i](j, k) , 2)
-                                      +  pow( recon[im](j, k) - recon[im](jp, k) , 2)
-                                      +  pow( recon[im](j, k) - recon[im](j, kp) , 2));
+                    float v2d = sqrt(eps + ( recon[im](j, k) - recon[i](j, k) ) * ( recon[im](j, k) - recon[i](j, k) )
+                                      +  ( recon[im](j, k) - recon[im](jp, k) ) * ( recon[im](j, k) - recon[im](jp, k) )
+                                      +  ( recon[im](j, k) - recon[im](j, kp)) * ( recon[im](j, k) - recon[im](j, kp)));
                     float v3n = recon[i](j, k) - recon[i](jm, k);
-                    float v3d = sqrt(eps + pow( recon[i](jm, k) - recon[ip](jm, k) , 2)
-                                      +  pow( recon[i](jm, k) - recon[i](j, k) , 2)
-                                      +  pow( recon[i](jm, k) - recon[i](jm, kp) , 2));
+                    float v3d = sqrt(eps + ( recon[i](jm, k) - recon[ip](jm, k) ) * ( recon[i](jm, k) - recon[ip](jm, k) )
+                                      +  ( recon[i](jm, k) - recon[i](j, k) ) * ( recon[i](jm, k) - recon[i](j, k) )
+                                      +  ( recon[i](jm, k) - recon[i](jm, kp) ) * ( recon[i](jm, k) - recon[i](jm, kp) ) );
                     float v4n = recon[i](j, k) - recon[i](j, km);
-                    float v4d = sqrt(eps + pow( recon[i](j, km) - recon[ip](j, km) , 2)
-                                      + pow( recon[i](j, km) - recon[i](jp, km) , 2)
-                                      + pow( recon[i](j, km) - recon[i](j, k) , 2));
+                    float v4d = sqrt(eps + ( recon[i](j, km) - recon[ip](j, km)) * ( recon[i](j, km) - recon[ip](j, km))
+                                      + ( recon[i](j, km) - recon[i](jp, km)) * ( recon[i](j, km) - recon[i](jp, km))
+                                      + ( recon[i](j, km) - recon[i](j, k) ) * ( recon[i](j, km) - recon[i](j, k) ) );
                     tv_recon[i](j,k) = v1n/v1d + v2n/v2d + v3n/v3d + v4n/v4d;
+                    tv_norm += tv_recon[i](j,k) * tv_recon[i](j,k);
                 }
             }
-        }
-        
-        // Normalize TV Gradient Tensor.
-        float tv_norm;
-        #pragma omp parallel for reduction(+:tv_norm)
-        for (int s =0; s < Nslice; s++)
-        {
-            tv_norm += tv_recon[s].array().square().sum();
         }
         tv_norm = sqrt(tv_norm);
         
