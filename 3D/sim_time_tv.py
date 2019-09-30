@@ -17,25 +17,26 @@ file_name = 'au_sto_tiltser.npy'
 ng = 10
 
 # ART Parameter.
-beta0 = 1.0
+beta0 = 0.1
 
 # ART Reduction.
-beta_red = 0.995
+beta_red = 0.9
 
 # Data Tolerance Parameter
-eps = 0.05
+eps = 0.02
 
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
-alpha = 0.5
+alpha = 0.2
 
 #Amount of time before next projection is collected (Seconds).
-time_limit = 60
+time_limit = 120
 
-noise = False
+SNR = 100
+noise = True
 save = False
-show_live_plot = 0
+show_live_plot = 1
 
 ##########################################
 
@@ -68,9 +69,11 @@ tomo_obj.create_projections()
 
 # Apply poisson noise to volume.
 if noise:
-    tomo_obj.poissonNoise(50)
+    tomo_obj.poissonNoise(SNR)
 
 tv0 = tomo_obj.original_tv()
+
+# gif = np.zeros([Nray, Nray, Niter], dtype=np.float32)
 
 #Final vectors for dd, tv, and Niter. 
 recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
@@ -85,14 +88,14 @@ for i in range(Nproj):
 
     print('Reconstructing Tilt Angles: 0 -> ' + str(i+1) + ' / ' + str(Nproj))
 
-    beta0 *= beta_red
+    #beta0 *= beta_red
 
     # Reset Beta.
     beta = beta0
 
-    dd_vec = np.zeros(Niter_est*2, dtype=np.float32)
-    tv_vec = np.zeros(Niter_est*2, dtype=np.float32)
-    rmse_vec = np.zeros(Niter_est*2, dtype=np.float32)
+    dd_vec = np.zeros(Niter_est*3, dtype=np.float32)
+    tv_vec = np.zeros(Niter_est*3, dtype=np.float32)
+    rmse_vec = np.zeros(Niter_est*3, dtype=np.float32)
 
     t0 = time.time()
  
@@ -114,11 +117,14 @@ for i in range(Nproj):
         tomo_obj.forwardProjection(i+1)
 
         #Measure Magnitude for TV - GD.
-        if (Niter[i] == 0):
-            dPOCS = tomo_obj.matrix_2norm() * alpha
-            dp = dPOCS / alpha
+        if (Niter[0] == 0):
+            dPOCS0 = tomo_obj.matrix_2norm() * alpha
+            dp = dPOCS0 / alpha
         else: # Measure change from ART.
             dp = tomo_obj.matrix_2norm() 
+
+        if (Niter[i] == 0):
+    	    dPOCS = dPOCS0
 
         # Measure difference between exp/sim projections.
         dd_vec[Niter[i]] = tomo_obj.dyn_vector_2norm(i+1)
@@ -149,6 +155,9 @@ for i in range(Nproj):
     Niter_est = Niter[i]
     print('Number of Iterations: ' + str(Niter[i]) + '\n')
 
+    # #Get slice 252. 
+    # gif[:,:,i] = tomo_obj.get_slice(230)
+
     #Remove Excess elements.
     dd_vec = dd_vec[:Niter[i]]
     tv_vec = tv_vec[:Niter[i]]
@@ -171,7 +180,13 @@ for i in range(Nproj):
 
 #Save all the results to single matrix.
 results = np.array([Niter, fdd_vec, eps, ftv_vec, tv0, frmse_vec])
+os.makedirs('Results/'+ file_name +'_Time/', exist_ok=True)
+np.save('Results/'+ file_name +'_Time/results.npy', results)
 
 # Save the Reconstruction.
+recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
+for s in range(Nslice):
+    recon[s,:,:] = tomo_obj.getRecon(s)
 np.save('Results/'+ file_name +'_Time/final_recon.npy', recon)
-np.save('Results/'+ file_name +'_Time/results.npy', results)
+
+# np.save('Results/'+ file_name +'_Time/gif.npy', gif)

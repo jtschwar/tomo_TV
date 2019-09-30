@@ -388,6 +388,72 @@ void ctvlib::release_memory()
     delete [] tv_recon;
 }
 
+int ctvlib::l0_norm()
+{
+    int l0 = 0;
+    float eps = 1e-8;
+    int nx = Nslice;
+    int ny = Ny;
+    int nz = Nz;
+    
+    #pragma omp parallel for
+    for (int i = 0; i < Nslice; i++)
+    {
+        int ip = (i+1)%nx;
+        for (int j = 0; j < ny; j++)
+        {
+            int jp = (j+1)%ny;
+            for (int k = 0; k < nz; k++)
+            {
+                int kp = (k+1)%ny;
+                tv_recon[i](j,k) = sqrt(eps + pow( original_volume[i](j,k) - original_volume[ip](j,k) , 2)
+                                        + pow( original_volume[i](j,k) - original_volume[i](jp,k) , 2)
+                                        + pow( original_volume[i](j,k) - original_volume[ip](j,kp) , 2));
+            }
+        }
+    }
+    
+    #pragma omp parallel for reduction(+:l0)
+    for (int i = 0; i < Nslice; i++)
+    {
+        for (int j=0; j < ny; j++)
+        {
+            for (int k=0; k < nz; k++)
+            {
+                if( tv_recon[i](j,k) != 0)
+                {
+                    l0 += 1;
+                }
+            }
+        }
+    }
+    return l0;
+}
+
+int ctvlib::nonZero_projection()
+{
+    int nonZero = 0;
+    int nx = b.rows();
+    int ny = b.cols();
+    for (int i =0; i < nx; i++)
+    {
+        for (int j=0; j < ny; j++)
+        {
+            if (b(i,j) != 0)
+            {
+                nonZero += 1;
+            }
+        }
+    }
+    return nonZero;
+    
+}
+
+Mat ctvlib::get_slice(int s)
+{
+    return recon[s];
+}
+
 PYBIND11_MODULE(ctvlib, m)
 {
     m.doc() = "C++ Scripts for TV-Tomography Reconstructions";
@@ -414,4 +480,7 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("release_memory", &ctvlib::release_memory, "Release extra copies");
     ctvlib.def("get_projections", &ctvlib::get_projections, "Return the projection matrix to python");
     ctvlib.def("poissonNoise", &ctvlib::poissonNoise, "Add Poisson Noise to Projections");
+    ctvlib.def("l0_norm", &ctvlib::l0_norm, "Check Volume's L0-Norm");
+    ctvlib.def("nonZero_projection", &ctvlib::nonZero_projection, "Check Non-zero elements in projection");
+    ctvlib.def("get_slice", &ctvlib::get_slice, "Get Slice of Recon");
 }

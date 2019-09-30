@@ -9,10 +9,10 @@ import ctvlib
 import time
 ########################################
 
-file_name = '256_Co2P_tiltser.tif'
+file_name = 'au_sto_tiltser.npy'
 
 # Number of Iterations (Main Loop)
-Niter = 15
+Niter = 150
 
 # Number of Iterations (TV Loop)
 ng = 10
@@ -21,7 +21,7 @@ ng = 10
 beta = 1.0
 
 # ART Reduction.
-beta_red = 0.975
+beta_red = 0.995
 
 # Data Tolerance Parameter
 eps = 0.5
@@ -32,6 +32,7 @@ alpha_red = 0.95
 alpha = 0.5
 
 #Outcomes:
+noise = True
 save = True                 # Save final Reconstruction. 
 show_live_plot = False      # Show intermediate results.
 show_final_plot = False     # Show final results (i.e. tv and dd) 

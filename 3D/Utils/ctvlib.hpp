@@ -73,6 +73,11 @@ public:
     
     // Return projections to python. 
     Mat get_projections();
+    
+    int l0_norm();
+    int nonZero_projection();
+    
+    Mat get_slice(int s);
 };
 
 #endif /* tlib_hpp */
