@@ -52,11 +52,13 @@ ctvlib::ctvlib(int Ns, int Nray, int Nproj)
     }
 }
 
+//Import tilt series (projections) from Python.
 void ctvlib::setTiltSeries(Mat in)
 {
     b = in;
 }
 
+// Import the original volume from python.
 void ctvlib::setOriginalVolume(Mat in, int slice)
 {
     original_volume[slice] = in;
@@ -79,6 +81,7 @@ void ctvlib::create_projections()
     }
 }
 
+// Add poisson noise to projections.
 void ctvlib::poissonNoise(int Nc)
 {
     Mat temp_b = b;
@@ -95,7 +98,6 @@ void ctvlib::poissonNoise(int Nc)
     b = b / ( Nc * b.size() ) * N;
     temp_b.array() -= b.array();
     float std = sqrt( ( temp_b.array() - temp_b.mean() ).square().sum() / (temp_b.size() - 1) );
-    float SNR = mean/std;
 }
 
 // ART Reconstruction.
@@ -169,6 +171,7 @@ void ctvlib::copy_recon()
     memcpy(temp_recon, recon, sizeof(recon));
 }
 
+// Measure the 2 norm between temporary and current reconstruction.
 float ctvlib::matrix_2norm()
 {
     float L2;
@@ -180,11 +183,13 @@ float ctvlib::matrix_2norm()
     return sqrt(L2);
 }
 
+// Measure the 2 norm between experimental and reconstructed projections.
 float ctvlib::vector_2norm()
 {
     return (g - b).norm() / g.size();
 }
 
+// Measure the 2 norm for projections when data is 'dynamically' collected.
 float ctvlib::dyn_vector_2norm(int dyn_ind)
 {
     dyn_ind *= Ny;
@@ -381,79 +386,13 @@ Mat ctvlib::get_projections()
     return b;
 }
 
-// Garbage Collection. 
-void ctvlib::release_memory()
-{
-    delete [] temp_recon;
-    delete [] tv_recon;
-}
-
-int ctvlib::l0_norm()
-{
-    int l0 = 0;
-    float eps = 1e-8;
-    int nx = Nslice;
-    int ny = Ny;
-    int nz = Nz;
-    
-    #pragma omp parallel for
-    for (int i = 0; i < Nslice; i++)
-    {
-        int ip = (i+1)%nx;
-        for (int j = 0; j < ny; j++)
-        {
-            int jp = (j+1)%ny;
-            for (int k = 0; k < nz; k++)
-            {
-                int kp = (k+1)%ny;
-                tv_recon[i](j,k) = sqrt(eps + pow( original_volume[i](j,k) - original_volume[ip](j,k) , 2)
-                                        + pow( original_volume[i](j,k) - original_volume[i](jp,k) , 2)
-                                        + pow( original_volume[i](j,k) - original_volume[ip](j,kp) , 2));
-            }
-        }
-    }
-    
-    #pragma omp parallel for reduction(+:l0)
-    for (int i = 0; i < Nslice; i++)
-    {
-        for (int j=0; j < ny; j++)
-        {
-            for (int k=0; k < nz; k++)
-            {
-                if( tv_recon[i](j,k) != 0)
-                {
-                    l0 += 1;
-                }
-            }
-        }
-    }
-    return l0;
-}
-
-int ctvlib::nonZero_projection()
-{
-    int nonZero = 0;
-    int nx = b.rows();
-    int ny = b.cols();
-    for (int i =0; i < nx; i++)
-    {
-        for (int j=0; j < ny; j++)
-        {
-            if (b(i,j) != 0)
-            {
-                nonZero += 1;
-            }
-        }
-    }
-    return nonZero;
-    
-}
-
+// Return a 2D slice to python.
 Mat ctvlib::get_slice(int s)
 {
     return recon[s];
 }
 
+//Python functions for ctvlib module. 
 PYBIND11_MODULE(ctvlib, m)
 {
     m.doc() = "C++ Scripts for TV-Tomography Reconstructions";
@@ -477,10 +416,7 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("tv", &ctvlib::tv_3D, "Measure 3D TV");
     ctvlib.def("original_tv", &ctvlib::original_tv_3D, "Measure original TV");
     ctvlib.def("tv_gd", &ctvlib::tv_gd_3D, "3D TV Gradient Descent");
-    ctvlib.def("release_memory", &ctvlib::release_memory, "Release extra copies");
     ctvlib.def("get_projections", &ctvlib::get_projections, "Return the projection matrix to python");
     ctvlib.def("poissonNoise", &ctvlib::poissonNoise, "Add Poisson Noise to Projections");
-    ctvlib.def("l0_norm", &ctvlib::l0_norm, "Check Volume's L0-Norm");
-    ctvlib.def("nonZero_projection", &ctvlib::nonZero_projection, "Check Non-zero elements in projection");
     ctvlib.def("get_slice", &ctvlib::get_slice, "Get Slice of Recon");
 }

@@ -1,4 +1,6 @@
 # General 3D - ASD/TV Reconstruction with Positivity Constraint. 
+# Intended for experimental datasets.
+# RMSE and Volume's Original TV is unknown. 
 
 import sys
 sys.path.append('./Utils')

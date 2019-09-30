@@ -65,18 +65,13 @@ public:
     float original_tv_3D();
     void tv_gd_3D(int ng, float dPOCS);
     
-    // Delete tempory copy and tv derivative (for during handoff).
-    void release_memory();
-    
     // Return reconstruction to python.
     Mat getRecon(int i);
     
     // Return projections to python. 
     Mat get_projections();
     
-    int l0_norm();
-    int nonZero_projection();
-    
+    // Return Slice 'S'
     Mat get_slice(int s);
 };
 

@@ -1,6 +1,6 @@
 # Script to simulate tomography reconstructions when a new projection 
 # is added every three minutes.
-# Used for Experimental Datasets (projections are provided. )
+# Used for Experimental Datasets (projections are provided)
 
 import sys, os
 sys.path.append('./Utils')
