@@ -260,9 +260,9 @@ float ctvlib::tv_3D()
             for (int k = 0; k < nz; k++)
             {
                 int kp = (k+1)%ny;
-                tv_recon[i](j,k) = sqrt(eps + pow( recon[i](j,k) - recon[ip](j,k) , 2)
-                                        + pow( recon[i](j,k) - recon[i](jp,k) , 2)
-                                        + pow( recon[i](j,k) - recon[ip](j,kp) , 2));
+                tv_recon[i](j,k) = sqrt(eps + ( recon[i](j,k) - recon[ip](j,k) ) * ( recon[i](j,k) - recon[ip](j,k) )
+                                        + ( recon[i](j,k) - recon[i](jp,k) ) * ( recon[i](j,k) - recon[i](jp,k) )
+                                        + ( recon[i](j,k) - recon[i](j,kp) ) * ( recon[i](j,k) - recon[i](j,kp) ));
             }
         }
     }
@@ -296,7 +296,7 @@ float ctvlib::original_tv_3D()
                 int kp = (k+1)%ny;
                 tv_recon[i](j,k) = sqrt(eps + pow( original_volume[i](j,k) - original_volume[ip](j,k) , 2)
                                         + pow( original_volume[i](j,k) - original_volume[i](jp,k) , 2)
-                                        + pow( original_volume[i](j,k) - original_volume[ip](j,kp) , 2));
+                                        + pow( original_volume[i](j,k) - original_volume[i](j,kp) , 2));
             }
         }
     }
@@ -380,12 +380,6 @@ Mat ctvlib::get_projections()
     return b;
 }
 
-// Return a 2D slice to python.
-Mat ctvlib::get_slice(int s)
-{
-    return recon[s];
-}
-
 //Python functions for ctvlib module. 
 PYBIND11_MODULE(ctvlib, m)
 {
@@ -412,5 +406,4 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("tv_gd", &ctvlib::tv_gd_3D, "3D TV Gradient Descent");
     ctvlib.def("get_projections", &ctvlib::get_projections, "Return the projection matrix to python");
     ctvlib.def("poissonNoise", &ctvlib::poissonNoise, "Add Poisson Noise to Projections");
-    ctvlib.def("get_slice", &ctvlib::get_slice, "Get Slice of Recon");
 }

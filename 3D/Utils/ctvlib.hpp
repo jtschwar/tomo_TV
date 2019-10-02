@@ -70,9 +70,6 @@ public:
     
     // Return projections to python. 
     Mat get_projections();
-    
-    // Return Slice 'S'
-    Mat get_slice(int s);
 };
 
 #endif /* tlib_hpp */

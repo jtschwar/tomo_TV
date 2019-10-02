@@ -30,13 +30,13 @@ r_max = 0.95
 alpha_red = 0.95
 alpha = 0.2
 
-#Amount of time before next projection is collected (Seconds).
-time_limit = 120
+#Amount of Iterations before next projection is collected.
+Niter = 200
 
 SNR = 100
 noise = True
 save = False
-show_live_plot = 1
+show_live_plot = 0
 
 ##########################################
 
@@ -73,33 +73,21 @@ if noise:
 
 tv0 = tomo_obj.original_tv()
 
-# gif = np.zeros([Nray, Nray, Niter], dtype=np.float32)
-
 #Final vectors for dd, tv, and Niter. 
-Niter = np.zeros(Nproj, dtype=np.int32)
-fdd_vec = np.array([])
-ftv_vec = np.array([])
-frmse_vec = np.array([])
-Niter_est = 100
+dd_vec = np.zeros([Nproj, Niter], dtype=np.float32)
+tv_vec = np.zeros([Nproj, Niter], dtype=np.float32)
+rmse_vec = np.zeros([Nproj, Niter], dtype=np.float32)
 
 #Dynamic Tilt Series Loop. 
 for i in range(Nproj):
 
-    print('Reconstructing Tilt Angles: 0 -> ' + str(i+1) + ' / ' + str(Nproj))
-
-    beta0 *= 0.99
+    print('Reconstructing Tilt Angles: 1 -> ' + str(i+1) + ' / ' + str(Nproj))
 
     # Reset Beta.
     beta = beta0
-
-    dd_vec = np.zeros(Niter_est*3, dtype=np.float32)
-    tv_vec = np.zeros(Niter_est*3, dtype=np.float32)
-    rmse_vec = np.zeros(Niter_est*3, dtype=np.float32)
-
-    t0 = time.time()
  
     #Main Reconstruction Loop
-    while True: 
+    for j in range(Niter): 
 
         tomo_obj.copy_recon()
 
@@ -116,23 +104,23 @@ for i in range(Nproj):
         tomo_obj.forwardProjection(i+1)
 
         #Measure Magnitude for TV - GD.
-        if (Niter[0] == 0):
+        if (i == 0 and j == 0):
             dPOCS0 = tomo_obj.matrix_2norm() * alpha
             dp = dPOCS0 / alpha
         else: # Measure change from ART.
             dp = tomo_obj.matrix_2norm() 
 
-        if (Niter[i] == 0):
+        if (j == 0):
     	    dPOCS = dPOCS0
 
         # Measure difference between exp/sim projections.
-        dd_vec[Niter[i]] = tomo_obj.dyn_vector_2norm(i+1)
+        dd_vec[i,j] = tomo_obj.dyn_vector_2norm(i+1)
 
         #Measure TV. 
-        tv_vec[Niter[i]] = tomo_obj.tv()
+        tv_vec[i,j] = tomo_obj.tv()
 
         #Measure RMSE.
-        rmse_vec[Niter[i]] = tomo_obj.rmse()
+        rmse_vec[i,j] = tomo_obj.rmse()
 
         tomo_obj.copy_recon() 
 
@@ -140,32 +128,8 @@ for i in range(Nproj):
         tomo_obj.tv_gd(ng, dPOCS)
         dg = tomo_obj.matrix_2norm()
 
-        if (dg > dp * r_max and dd_vec[Niter[i]] > eps):
+        if (dg > dp * r_max and dd_vec[i,j] > eps):
             dPOCS *= alpha_red
-
-        Niter[i] += 1
-
-        #Calculate current time. 
-        ctime = ( time.time() - t0 ) 
-
-        if ctime > time_limit:
-            break
-
-    Niter_est = Niter[i]
-    print('Number of Iterations: ' + str(Niter[i]) + '\n')
-
-    # #Get slice 252. 
-    # gif[:,:,i] = tomo_obj.get_slice(230)
-
-    #Remove Excess elements.
-    dd_vec = dd_vec[:Niter[i]]
-    tv_vec = tv_vec[:Niter[i]]
-    rmse_vec = rmse_vec[:Niter[i]]
-
-    #Append to final vector. 
-    fdd_vec = np.append(fdd_vec, dd_vec)
-    ftv_vec = np.append(ftv_vec, tv_vec)
-    frmse_vec = np.append(frmse_vec, rmse_vec)
 
     if save and (i+1)%15 == 0 :
         os.makedirs('Results/'+ file_name +'_Time/', exist_ok=True)
@@ -175,17 +139,17 @@ for i in range(Nproj):
         np.save('Results/'+ file_name +'_Time/proj_' + str(i+1) + '_recon.npy', recon)
 
     if show_live_plot and (i+1) % 15 == 0:
-        pr.sim_time_tv_live_plot(fdd_vec,eps,ftv_vec, tv0, frmse_vec, Niter,i)
+        pr.sim_time_tv_live_plot(dd_vec,eps,tv_vec, tv0, rmse_vec, i)
 
 #Save all the results to single matrix.
-results = np.array([Niter, fdd_vec, eps, ftv_vec, tv0, frmse_vec])
-os.makedirs('Results/'+ file_name +'_Time/', exist_ok=True)
-np.save('Results/'+ file_name +'_Time/results.npy', results)
+results = np.array([Niter, dd_vec, eps, tv_vec, tv0, rmse_vec])
+os.makedirs('Results/'+ file_name +'_iter/', exist_ok=True)
+np.save('Results/'+ file_name +'_iter/results.npy', results)
 
 # Save the Reconstruction.
 recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
 for s in range(Nslice):
     recon[s,:,:] = tomo_obj.getRecon(s)
-np.save('Results/'+ file_name +'_Time/final_recon.npy', recon)
+np.save('Results/'+ file_name +'_iter/final_recon.npy', recon)
 
 # np.save('Results/'+ file_name +'_Time/gif.npy', gif)
