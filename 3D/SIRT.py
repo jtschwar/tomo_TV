@@ -8,10 +8,10 @@ import ctvlib
 import time
 ########################################
 
-file_name = 'Co2P'
+file_name = '256_Co2P_tiltser.tif'
 
 # Number of Iterations (Main Loop)
-Niter = 100
+Niter = 20
 
 # Parameter in SIRT Reconstruction.
 beta = 0.0001
@@ -45,6 +45,7 @@ A = parallelRay(Nray, tiltAngles)
 tomo_obj.load_A(A)
 A = None
 tomo_obj.rowInnerProduct()
+tomo_obj.initialize_SIRT()
 
 dd_vec = np.zeros(Niter)
 

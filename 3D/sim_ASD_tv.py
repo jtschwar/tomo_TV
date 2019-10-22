@@ -10,10 +10,10 @@ import ctvlib
 import time
 ########################################
 
-file_name = 'au_sto_tiltser.npy'
+file_name = '800_au_sto_tiltser.npy'
 
 # Number of Iterations (Main Loop)
-Niter = 150
+Niter = 200
 
 # Number of Iterations (TV Loop)
 ng = 10
@@ -25,7 +25,7 @@ beta = 0.25
 beta_red = 0.985
 
 # Data Tolerance Parameter
-eps = 0.005
+eps = 0.025
 
 # Reduction Criteria
 r_max = 0.95
@@ -35,7 +35,7 @@ alpha = 0.2
 SNR = 100
 
 #Outcomes:
-noise = False                # Add noise to the reconstruction.
+noise = True                # Add noise to the reconstruction.
 save_recon = False           # Save final Reconstruction. 
 show_live_plot = 0      # Show intermediate results.
 ##########################################
@@ -59,6 +59,8 @@ tomo_obj.load_A(A)
 A = None
 tomo_obj.rowInnerProduct()
 
+print('Measurement Matrix is Constructed!')
+
 # If creating simulation with noise, set background value to 1.
 if noise:
     original_volume[original_volume == 0] = 1
@@ -75,10 +77,12 @@ if noise:
 #Measure Volume's Original TV
 tv0 = tomo_obj.original_tv()
 
+gif = np.zeros([Nray, Nray, Niter], dtype=np.float32)
 
 dd_vec = np.zeros(Niter)
 tv_vec = np.zeros(Niter)
 rmse_vec = np.zeros(Niter)
+time_vec = np.zeros(Niter)
 
 counter = 1 
 
@@ -129,16 +133,21 @@ for i in range(Niter):
     if(dg > dp * r_max and dd_vec[i] > eps):
         dPOCS *= alpha_red
 
-    if ((i+1) % 5 ==0):
-        timer(t0, counter, Niter)
+    if ((i+1) % 25 ==0):
         if show_live_plot:
             pr.sim_ASD_live_plot(dd_vec, eps, tv_vec, tv0, rmse_vec, i)
 
+    timer(t0, counter, Niter)
     counter += 1
 
+    time_vec[i] = time.time() - t0
+
+    gif[:,:,i] = tomo_obj.getRecon(445)
+
 #Save all the results to single matrix.
-results = np.array([dd_vec, eps, tv_vec, tv0, rmse_vec])
-np.save('Results/' + file_name + '_sim_ASD_TV.npy', results)
+results = np.array([dd_vec, eps, tv_vec, tv0, rmse_vec, time_vec])
+np.save('Results/' + file_name + '_sim_ASD_TV_results.npy', results)
+np.save('Results/'+ file_name +'_sim_ASD_TV_gif.npy', gif)
 
 #Get and save the final reconstruction.
 if save_recon: 

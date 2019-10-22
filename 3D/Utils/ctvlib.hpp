@@ -29,6 +29,7 @@ public:
     int Nrow, Ncol, Nslice, Ny, Nz;
     Eigen::VectorXf innerProduct;
     Mat b, g;
+    SpMat M; // Diagonal Weight Matrix for SIRT;
     
 	// Initializes Measurement Matrix. 
 	ctvlib(int Nslice, int Nray, int Nproj);
@@ -47,6 +48,10 @@ public:
 	void ART(double beta, int dyn_ind);
     void SIRT(double beta, int dyn_ind);
     void positivity();
+    
+    // Stochastic Reconstruction
+    void sART(double beta, int dyn_ind);
+    std::vector<int> rand_perm(int n);
     
 	//Forward Project Reconstruction for Data Tolerance Parameter. 
 	void forwardProjection(int dyn_ind);

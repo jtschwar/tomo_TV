@@ -125,6 +125,48 @@ void ctvlib::ART(double beta, int dyn_ind)
     }
 }
 
+// Stochastic ART Reconstruction.
+void ctvlib::sART(double beta, int dyn_ind)
+{
+    //No dynamic reconstruction, assume fully sampled batch.
+    if (dyn_ind == -1) { dyn_ind = Nrow; }
+    //Calculate how many projections were sampled.
+    else { dyn_ind *= Ny; }
+    
+    // Create a random permutation of indices from [0,dyn_ind].
+    std::vector<int> r_ind = rand_perm(dyn_ind);
+    
+    #pragma omp parallel for
+    for (int s=0; s < Nslice; s++)
+    {
+        Mat& mat_slice = recon[s];
+        mat_slice.resize(mat_slice.size(),1);
+        VectorXf vec_recon = mat_slice;
+        float a;
+        for(int j=0; j < dyn_ind; j++)
+        {
+            j = r_ind[j];
+            a = ( b(s,j) - A.row(j).dot(vec_recon) ) / innerProduct(j);
+            vec_recon += A.row(j).transpose() * a * beta;
+        }
+        mat_slice = vec_recon;
+        mat_slice.resize(Ny, Ny);
+    }
+}
+
+std::vector<int> ctvlib::rand_perm(int n)
+{
+    std::vector<int> a(n);
+    for (int i=0; i < n; i++)
+    {
+        a[i] = i;
+    }
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(a.begin(), a.end(), g);
+    return a;
+}
+
 // SIRT Reconstruction.
 void ctvlib::SIRT(double beta, int dyn_ind)
 {
@@ -391,6 +433,7 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("create_projections", &ctvlib::create_projections, "Create Projections from Volume");
     ctvlib.def("getRecon", &ctvlib::getRecon, "Return the Reconstruction to Python");
     ctvlib.def("ART", &ctvlib::ART, "ART Reconstruction");
+    ctvlib.def("sART", &ctvlib::sART, "Stochastic ART Reconstruction");
     ctvlib.def("SIRT", &ctvlib::SIRT, "SIRT Reconstruction");
     ctvlib.def("rowInnerProduct", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
     ctvlib.def("positivity", &ctvlib::positivity, "Remove Negative Elements");

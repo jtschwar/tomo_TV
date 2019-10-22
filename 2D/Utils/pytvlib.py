@@ -25,11 +25,11 @@ def tv_derivative(recon):
     return v
 
 def tv(recon):
-    #r = np.lib.pad(recon, ((1, 1), (1, 1)), 'edge')
-    r = np.lib.pad(recon, ((1, 1), (1, 1)), 'constant', constant_values=0)
+    r = np.lib.pad(recon, ((1, 1), (1, 1)), 'edge')
+    # r = np.lib.pad(recon, ((1, 1), (1, 1)), 'constant', constant_values=0)
     tv = np.sqrt((r - np.roll(r, 1, axis=0))**2 +
                  (r - np.roll(r, 1, axis=1))**2 )
-    tv = np.sum(tv[1:-1, 1:-1])
+    # tv = np.sum(tv[1:-1, 1:-1])
     return tv
 
 
