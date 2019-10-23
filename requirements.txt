@@ -3,4 +3,4 @@ scipy
 matplotlib
 scikit-image
 Pillow
-
+pybind11

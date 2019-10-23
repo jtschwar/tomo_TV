@@ -11,7 +11,7 @@ import ctvlib
 import time
 ########################################
 
-file_name = '800_au_sto_tiltser.npy'
+file_name = 'au_sto_tiltser.npy'
 
 # Number of Iterations (TV Loop)
 ng = 10
