@@ -187,6 +187,17 @@ void ctvlib::SIRT(double beta, int dyn_ind)
     }
 }
 
+void ctvlib::lipschits()
+{
+//    SpMat test (Ncol, Ncol);
+    SpMat At(Ncol, Nrow);
+    
+    At = A.transpose();
+    
+    cout << At * A << endl;
+//    At * A;
+}
+
 // Remove Negative Voxels.
 void ctvlib::positivity()
 {
@@ -278,7 +289,7 @@ void ctvlib::loadA(Eigen::Ref<Mat> pyA)
 {
     for (int i=0; i <pyA.cols(); i++)
     {
-        A.insert(pyA(0,i), pyA(1,i)) = pyA(2,i);
+        A.coeffRef(pyA(0,i), pyA(1,i)) = pyA(2,i);
     }
     A.makeCompressed();
 }
@@ -449,4 +460,5 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("tv_gd", &ctvlib::tv_gd_3D, "3D TV Gradient Descent");
     ctvlib.def("get_projections", &ctvlib::get_projections, "Return the projection matrix to python");
     ctvlib.def("poissonNoise", &ctvlib::poissonNoise, "Add Poisson Noise to Projections");
+    ctvlib.def("lip", &ctvlib::lipschits, "Add Poisson Noise to Projections");
 }

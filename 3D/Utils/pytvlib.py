@@ -193,23 +193,25 @@ def rmepsilon(input):
             input = 0
     return input
 
-def load_data(file_name):
+def load_data(vol_size, file_name):
 
     #sk-image loads tilt series as (z,y,x) so the axes need to be
     #swapped to return to (x,y,z)
 
-    if file_name.endswith('.tiff'):
-        tiltSeries = io.imread('Tilt_Series/'+ file_name)
+    full_name = vol_size+file_name
+
+    if full_name.endswith('.tiff'):
+        tiltSeries = io.imread('Tilt_Series/'+ full_name)
         tiltSeries = np.array(tiltSeries, dtype=np.float32)
         tiltSeries = np.swapaxes(tiltSeries, 0, 2)
         file_name = file_name.replace('_tiltser.tiff', '')
-    elif file_name.endswith('.tif'):
-        tiltSeries = io.imread('Tilt_Series/'+ file_name)
+    elif full_name.endswith('.tif'):
+        tiltSeries = io.imread('Tilt_Series/'+ full_name)
         tiltSeries = np.array(tiltSeries, dtype=np.float32)
         tiltSeries = np.swapaxes(tiltSeries, 0, 2)
         file_name = file_name.replace('_tiltser.tif', '')
-    elif file_name.endswith('.npy'):
-        tiltSeries = np.load('Tilt_Series/' + file_name)
+    elif full_name.endswith('.npy'):
+        tiltSeries = np.load('Tilt_Series/' + full_name)
         file_name = file_name.replace('_tiltser.npy', '')
 
-    return (file_name, tiltSeries)
+    return (file_name,tiltSeries)

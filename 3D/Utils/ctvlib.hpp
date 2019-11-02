@@ -75,6 +75,8 @@ public:
     
     // Return projections to python. 
     Mat get_projections();
+    
+    void lipschits();
 };
 
 #endif /* tlib_hpp */
