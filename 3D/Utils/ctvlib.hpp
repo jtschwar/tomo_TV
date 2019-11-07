@@ -48,6 +48,7 @@ public:
 	void ART(double beta, int dyn_ind);
     void SIRT(double beta, int dyn_ind);
     void positivity();
+    void lipschits();
     
     // Stochastic Reconstruction
     void sART(double beta, int dyn_ind);
@@ -70,13 +71,15 @@ public:
     float original_tv_3D();
     void tv_gd_3D(int ng, float dPOCS);
     
+    // Set Slices to Zero.
+    void restart_recon();
+    
     // Return reconstruction to python.
     Mat getRecon(int i);
     
     // Return projections to python. 
     Mat get_projections();
     
-    void lipschits();
 };
 
 #endif /* tlib_hpp */

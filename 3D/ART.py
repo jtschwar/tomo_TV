@@ -9,7 +9,8 @@ import ctvlib
 import time
 ########################################
 
-file_name = '256_Co2P_tiltser.tif'
+vol_size = '256_'
+file_name = 'Co2P_tiltser.tif'
 
 # Number of Iterations (Main Loop)
 Niter = 100
@@ -27,7 +28,7 @@ show_live_plot = True #Calculate dd and show intermediate plots.
 ##########################################
 
 # #Read Image. 
-(file_name, tiltSeries) = load_data(file_name)
+(file_name, tiltSeries) = load_data(vol_size,file_name)
 (Nslice, Nray, Nproj) = tiltSeries.shape
 b = np.zeros([Nslice, Nray*Nproj])
 
@@ -40,7 +41,7 @@ tomo_obj.setTiltSeries(b)
 tiltSeries = None
 
 # Generate Tilt Angles.
-tiltAngles = np.load('Tilt_Series/'+ file_name +'_tiltAngles.npy')
+tiltAngles = np.load('Tilt_Series/'+file_name+'_tiltAngles.npy')
 
 # Generate measurement matrix
 A = parallelRay(Nray, tiltAngles)

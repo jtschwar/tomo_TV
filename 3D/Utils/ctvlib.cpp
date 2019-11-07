@@ -187,15 +187,12 @@ void ctvlib::SIRT(double beta, int dyn_ind)
     }
 }
 
+//Calculate Lipshits Gradient (for SIRT). 
 void ctvlib::lipschits()
 {
-//    SpMat test (Ncol, Ncol);
-    SpMat At(Ncol, Nrow);
-    
-    At = A.transpose();
-    
-    cout << At * A << endl;
-//    At * A;
+    VectorXf f(Ncol);
+    f.setOnes();
+    float L = (A.transpose() * (A * f)).maxCoeff();
 }
 
 // Remove Negative Voxels.
@@ -298,7 +295,6 @@ void ctvlib::loadA(Eigen::Ref<Mat> pyA)
 float ctvlib::tv_3D()
 {
     float tv;
-    float eps = 1e-8;
     int nx = Nslice;
     int ny = Ny;
     int nz = Nz;
@@ -332,7 +328,7 @@ float ctvlib::tv_3D()
 float ctvlib::original_tv_3D()
 {
     float tv;
-    float eps = 1e-8;
+    float eps = 1e-6;
     int nx = Nslice;
     int ny = Ny;
     int nz = Nz;
@@ -365,7 +361,7 @@ float ctvlib::original_tv_3D()
 // TV Minimization (Gradient Descent)
 void ctvlib::tv_gd_3D(int ng, float dPOCS)
 {
-    float eps = 1e-8;
+    float eps = 1e-6;
     float tv_norm;
     int nx = Nslice;
     int ny = Ny;
@@ -433,6 +429,14 @@ Mat ctvlib::get_projections()
     return b;
 }
 
+void ctvlib::restart_recon()
+{
+    for (int s = 0; s < Nslice; s++)
+    {
+        recon[s] = Mat::Zero(Ny,Ny);
+    }
+}
+
 //Python functions for ctvlib module. 
 PYBIND11_MODULE(ctvlib, m)
 {
@@ -461,4 +465,5 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("get_projections", &ctvlib::get_projections, "Return the projection matrix to python");
     ctvlib.def("poissonNoise", &ctvlib::poissonNoise, "Add Poisson Noise to Projections");
     ctvlib.def("lip", &ctvlib::lipschits, "Add Poisson Noise to Projections");
+    ctvlib.def("restart_recon", &ctvlib::restart_recon, "Set all the Slices Equal to Zero");
 }

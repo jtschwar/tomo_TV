@@ -2,7 +2,4 @@
 **/__pycache__
 **/Results
 *.pyc
-3D/Tilt_Series/au_sto_tiltser.npy
-3D/Tilt_Series/au_sto_background.npy
-3D/Tilt_Series/au_sto_tiltAngles.npy
-3D/Tilt_Series/800_au_sto_tiltser.npy
+3D/Tilt_Series/*

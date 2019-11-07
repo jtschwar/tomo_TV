@@ -1,7 +1,7 @@
 # General 3D - ASD/TV Reconstruction with Positivity Constraint. 
 # Intended for simulated datasets to measure RMSE and Volume's Original TV. 
 
-import sys
+import sys, os
 sys.path.append('./Utils')
 from pytvlib import parallelRay, timer, load_data
 import plot_results as pr
@@ -10,10 +10,11 @@ import ctvlib
 import time
 ########################################
 
+vol_size = '256_'
 file_name = 'au_sto_tiltser.npy'
 
 # Number of Iterations (Main Loop)
-Niter = 200
+Niter = 300
 
 # Number of Iterations (TV Loop)
 ng = 10
@@ -25,7 +26,7 @@ beta = 0.25
 beta_red = 0.985
 
 # Data Tolerance Parameter
-eps = 0.025
+eps = 0.019
 
 # Reduction Criteria
 r_max = 0.95
@@ -36,19 +37,18 @@ SNR = 100
 
 #Outcomes:
 noise = True                # Add noise to the reconstruction.
-save_recon = False           # Save final Reconstruction. 
-show_live_plot = 0      # Show intermediate results.
+show_live_plot = 0
+save_recon = 0           # Save final Reconstruction. 
 ##########################################
 
-# Generate Tilt Angles.
-tiltAngles = np.load('Tilt_Series/au_sto_tiltAngles.npy')
-#tiltAngles = np.arange(-75,76)
-Nproj = tiltAngles.shape[0]
-
 #Read Image. 
-(_, original_volume) = load_data(file_name)
+(file_name, original_volume) = load_data(vol_size,file_name)
 file_name = 'au_sto'
 (Nslice, Nray, _) = original_volume.shape
+
+# Generate Tilt Angles.
+tiltAngles = np.load('Tilt_Series/'+ file_name +'_tiltAngles.npy')
+Nproj = tiltAngles.shape[0]
 
 # Initialize C++ Object.. 
 tomo_obj = ctvlib.ctvlib(Nslice, Nray, Nproj)
@@ -78,6 +78,7 @@ if noise:
 tv0 = tomo_obj.original_tv()
 
 gif = np.zeros([Nray, Nray, Niter], dtype=np.float32)
+gif2 = np.zeros([Nray, Nray, Niter], dtype=np.float32)
 
 dd_vec = np.zeros(Niter)
 tv_vec = np.zeros(Niter)
@@ -97,7 +98,7 @@ for i in range(Niter):
     tomo_obj.copy_recon()
 
     #ART Reconstruction. 
-    tomo_obj.ART(beta, -1)
+    tomo_obj.sART(beta, -1)
 
     #Positivity constraint 
     tomo_obj.positivity()
@@ -133,21 +134,17 @@ for i in range(Niter):
     if(dg > dp * r_max and dd_vec[i] > eps):
         dPOCS *= alpha_red
 
-    if ((i+1) % 25 ==0):
+    if (i+1)% 25 == 0:
+        timer(t0, counter, Niter)
         if show_live_plot:
             pr.sim_ASD_live_plot(dd_vec, eps, tv_vec, tv0, rmse_vec, i)
-
-    timer(t0, counter, Niter)
     counter += 1
-
     time_vec[i] = time.time() - t0
-
-    gif[:,:,i] = tomo_obj.getRecon(445)
 
 #Save all the results to single matrix.
 results = np.array([dd_vec, eps, tv_vec, tv0, rmse_vec, time_vec])
-np.save('Results/' + file_name + '_sim_ASD_TV_results.npy', results)
-np.save('Results/'+ file_name +'_sim_ASD_TV_gif.npy', gif)
+os.makedirs('Results/'+ file_name +'_ASD/', exist_ok=True)
+np.save('Results/' + file_name + '_ASD/results5.npy', results)
 
 #Get and save the final reconstruction.
 if save_recon: 

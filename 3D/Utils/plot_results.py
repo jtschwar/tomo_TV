@@ -70,7 +70,6 @@ def sim_ASD_live_plot(dd,eps, tv, tv0, rmse, i):
 
 
     fig = plt.gcf()
-    # fig.set_size_inches(8,4)
     fig.subplots_adjust(hspace=0.7)
 
     x = np.arange(i) + 1

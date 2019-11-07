@@ -11,43 +11,44 @@ import ctvlib
 import time
 ########################################
 
-file_name = 'au_sto_tiltser.npy'
+vol_size = '256_'
+file_name = 'Co2P_tiltser.tif'
 
 # Number of Iterations (Main Loop)
-Niter = 150
+Niter = 100
 
 # Number of Iterations (TV Loop)
 ng = 10
 
 # Parameter in ART Reconstruction.
-beta = 1.0
+beta =  0.25
 
 # ART Reduction.
-beta_red = 0.995
+beta_red = 0.99
 
 # Data Tolerance Parameter
-eps = 0.5
+eps = 0.43
 
 # Reduction Criteria
 r_max = 0.95
 alpha_red = 0.95
-alpha = 0.5
+alpha = 0.2
 
 #Outcomes:
-noise = True
 save = True                 # Save final Reconstruction. 
-show_live_plot = False      # Show intermediate results.
-show_final_plot = False     # Show final results (i.e. tv and dd) 
+show_live_plot = True      # Show intermediate results.
+show_final_plot = True     # Show final results (i.e. tv and dd) 
 ##########################################
 
-# #Read Image. 
-(file_name, tiltSeries) = load_data(file_name)
+# Read Image. 
+(file_name, tiltSeries) = load_data(vol_size,file_name)
 (Nslice, Nray, Nproj) = tiltSeries.shape
 b = np.zeros([Nslice, Nray*Nproj])
 
 # Initialize C++ Object.. 
 tomo_obj = ctvlib.ctvlib(Nslice, Nray, Nproj)
 
+# Set Tilt Series. 
 for s in range(Nslice):
     b[s,:] = tiltSeries[s,:,:].transpose().ravel()
 tomo_obj.setTiltSeries(b)
@@ -62,8 +63,8 @@ tomo_obj.load_A(A)
 A = None
 tomo_obj.rowInnerProduct()
 
-dd_vec = np.zeros(Niter)
-tv_vec = np.zeros(Niter)
+# Initialize Vectors for DD, TV, and Time Elapsed. 
+dd_vec, tv_vec, time_vec = np.zeros(Niter), np.zeros(Niter), np.zeros(Niter)
 
 counter = 1 
 
@@ -78,7 +79,7 @@ for i in range(Niter):
     tomo_obj.copy_recon()
 
     #ART Reconstruction. 
-    tomo_obj.ART(beta, -1)
+    tomo_obj.sART(beta, -1)
 
     #Positivity constraint 
     tomo_obj.positivity()
@@ -114,17 +115,16 @@ for i in range(Niter):
     if ((i+1) % 15 ==0):
         timer(t0, counter, Niter)
         if show_live_plot:
-            pr.ASD_live_plot(dd_vec, eps, tv_vec, i)
+            pr.exp_ASD_live_plot(dd_vec, eps, tv_vec, i)
 
     counter += 1
-
-#Get the final reconstruction. 
-recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
-for s in range(Nslice):
-    recon[s,:,:] = tomo_obj.getRecon(s)
 
 if show_final_plot:
     pr.ASD_results(dd_vec, eps, tv_vec) 
 
+#Get the final reconstruction. 
 if save:
+    recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
+    for s in range(Nslice):
+        recon[s,:,:] = tomo_obj.getRecon(s)
     np.save('Results/TV_'+ file_name + '_recon.npy', recon)
