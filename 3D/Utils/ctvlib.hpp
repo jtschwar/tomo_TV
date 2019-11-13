@@ -48,7 +48,6 @@ public:
 	void ART(double beta, int dyn_ind);
     void SIRT(double beta, int dyn_ind);
     void positivity();
-    void lipschits();
     
     // Stochastic Reconstruction
     void sART(double beta, int dyn_ind);
