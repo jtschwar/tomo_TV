@@ -11,8 +11,10 @@ import ctvlib
 import time
 ########################################
 
-vol_size = '256_'
-file_name = 'Co2P_tiltser.tif'
+# vol_size = '256_'
+# file_name = '180_tiltser.tif'
+vol_size = ''
+file_name = 'FePt_tiltser.npy'
 
 # Number of Iterations (Main Loop)
 Niter = 100
@@ -27,7 +29,7 @@ beta =  0.25
 beta_red = 0.99
 
 # Data Tolerance Parameter
-eps = 0.43
+eps = 0.002
 
 # Reduction Criteria
 r_max = 0.95

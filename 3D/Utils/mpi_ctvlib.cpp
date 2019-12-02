@@ -6,7 +6,7 @@
 //  Copyright © 2019 Jonathan Schwartz. All rights reserved.
 //
 
-#include "ctvlib.hpp"
+#include "mpi_ctvlib.hpp"
 #include <Eigen/SparseCore>
 #include <Eigen/Core>
 #include <pybind11/pybind11.h>
@@ -14,6 +14,7 @@
 #include <iostream>
 #include <cmath>
 #include <random>
+#include <mpi.h>
 
 #define PI 3.14159265359
 
@@ -37,19 +38,44 @@ ctvlib::ctvlib(int Ns, int Nray, int Nproj)
     b.resize(Ny, Nrow);
     g.resize(Ny, Nrow);
     
-    //Initialize all the Slices in Recon as Zero.
-    recon = new Mat[Nslice]; //Final Reconstruction.
-    temp_recon = new Mat[Nslice]; // Temporary copy for measuring changes in TV and ART.
-    tv_recon = new Mat[Nslice]; // Temporary copy for measuring 3D TV - Derivative. 
-    original_volume = new Mat[Nslice]; // Original Volume for Simulation Studies.
+    MPI_Init(NULL,NULL);
+    MPI_Comm_size(MPI_COMM_WORLD, &nproc);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     
-    // Initialize the 3D Matrices as zeros. 
-    for (int i=0; i < Nslice; i++)
-    {
-        recon[i] = Mat::Zero(Ny, Nz);
-        temp_recon[i] = Mat::Zero(Ny, Nz);
-        tv_recon[i] = Mat::Zero(Ny,Nz);
+    //Calculate the number of slices for each rank.
+    Nslice_loc = Nslice/nproc;
+
+    //Initialize all the 3D-matrices.
+    if (rank == 0){
+        
+        //Final Reconstruction.
+        recon = new Mat[Nslice_loc];
+        
+        // Temporary copy for measuring changes in TV and ART.
+        temp_recon = new Mat[Nslice_loc];
+        
+        // Temporary copy for measuring 3D TV - Derivative.
+        tv_recon = new Mat[Nslice_loc];
+        
+        // Original Volume for Simulation Studies.
+        original_volume = new Mat[Nslice_loc];
+
+        // Initialize the 3D Matrices as zeros.
+        #pragma omp parallel for
+        for (int i=0; i < Nslice_loc; i++)
+        {
+            recon[i] = Mat::Zero(Ny, Nz);
+            temp_recon[i] = Mat::Zero(Ny, Nz);
+            tv_recon[i] = Mat::Zero(Ny,Nz);
+        }
     }
+    
+    //Pass the data to the ranks.
+    int total_elements = Nslice_loc*Ny*Nz;
+    MPI_Bcast(&recon, total_elements, MPI_FLOAT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&temp_recon, total_elements, MPI_FLOAT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&tv_recon, total_elements, MPI_FLOAT, 0, MPI_COMM_WORLD);
+
 }
 
 //Import tilt series (projections) from Python.
@@ -68,7 +94,7 @@ void ctvlib::setOriginalVolume(Mat in, int slice)
 void ctvlib::create_projections()
 {
     #pragma omp parallel for
-    for (int s = 0; s < Nslice; s++)
+    for (int s = 0; s < Nslice_loc; s++)
     {
         Mat& mat_slice = original_volume[s];
         mat_slice.resize(mat_slice.size(),1);
@@ -97,19 +123,20 @@ void ctvlib::poissonNoise(int Nc)
     }
     b = b / ( Nc * b.size() ) * N;
     temp_b.array() -= b.array();
-    float std = sqrt( ( temp_b.array() - temp_b.mean() ).square().sum() / (temp_b.size() - 1) );
+    float std = sqrt( ( temp_b.array() - temp_b.mean() ).square().sum() / (temp_b.size() - 1));
 }
 
 // ART Reconstruction.
 void ctvlib::ART(double beta, int dyn_ind)
 {
+//    
     //No dynamic reconstruction, assume fully sampled batch.
     if (dyn_ind == -1) { dyn_ind = Nrow; }
     //Calculate how many projections were sampled.
     else { dyn_ind *= Ny; }
     
     #pragma omp parallel for
-    for (int s=0; s < Nslice; s++)
+    for (int s=0; s < Nslice_loc; s++)
     {
         Mat& mat_slice = recon[s];
         mat_slice.resize(mat_slice.size(),1);
@@ -122,6 +149,26 @@ void ctvlib::ART(double beta, int dyn_ind)
         }
         mat_slice = vec_recon;
         mat_slice.resize(Ny, Nz);
+        MPI_Recv(&recon[s], Ny*Ny, MPI_FLOAT, dest, MPI_ANY_TAG, MPI_COMM_WORLD);
+    }
+    
+    MPI_Status status;
+    if (rank == 0 ) {
+        right_slice = recon[Nslice_loc];
+        MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD);
+        MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    } else if {
+        right_slice = recon[Nslice_loc];
+        MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD);
+        MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        
+        left_slice = recon[0];
+        MPI_Send(left_slice, Ny*Nz, 1, MPI_FLOAT, rank-1, MPI_ANY_TAG, MPI_COMM_WORLD);
+        MPI_Recv(left_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    } else {
+        left_slice = recon[0];
+        MPI_Send(left_slice, Ny*Nz, 1, MPI_FLOAT, rank-1, MPI_ANY_TAG, MPI_COMM_WORLD);
+        MPI_Recv(left_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
     }
 }
 
@@ -137,7 +184,7 @@ void ctvlib::sART(double beta, int dyn_ind)
     std::vector<int> r_ind = rand_perm(dyn_ind);
     
     #pragma omp parallel for
-    for (int s=0; s < Nslice; s++)
+    for (int s=0; s < Nslice_loc; s++)
     {
         Mat& mat_slice = recon[s];
         mat_slice.resize(mat_slice.size(),1);
@@ -151,6 +198,25 @@ void ctvlib::sART(double beta, int dyn_ind)
         }
         mat_slice = vec_recon;
         mat_slice.resize(Ny, Nz);
+    }
+    
+    MPI_Status status;
+    if (rank == 0 ) {
+        right_slice = recon[Nslice_loc];
+        MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD);
+        MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    } else if {
+        right_slice = recon[Nslice_loc];
+        MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD);
+        MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        
+        left_slice = recon[0];
+        MPI_Send(left_slice, Ny*Nz, 1, MPI_FLOAT, rank-1, MPI_ANY_TAG, MPI_COMM_WORLD);
+        MPI_Recv(left_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    } else {
+        left_slice = recon[0];
+        MPI_Send(left_slice, Ny*Nz, 1, MPI_FLOAT, rank-1, MPI_ANY_TAG, MPI_COMM_WORLD);
+        MPI_Recv(left_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
     }
 }
 
@@ -176,22 +242,48 @@ void ctvlib::SIRT(double beta, int dyn_ind)
     else { dyn_ind *= Ny; }
     
     #pragma omp parallel for
-    for (int s=0; s < Nslice; s++)
+    for (int s=0; s < Nslice_loc; s++)
     {
         Mat& mat_slice = recon[s];
         mat_slice.resize(mat_slice.size(),1);
         VectorXf vec_recon = mat_slice;
-        vec_recon += A.transpose() * ( b.row(s).transpose() - A * vec_recon ) * beta;
+        vec_recon += A.transpose() * ( b.row(s).transpose() - A * vec_recon ) * (1/L);
         mat_slice = vec_recon;
         mat_slice.resize(Ny, Nz);
     }
+    
+    MPI_Status status;
+    if (rank == 0 ) {
+        right_slice = recon[Nslice_loc];
+        MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD);
+        MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    } else if {
+        MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD);
+        MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        
+        left_slice = recon[0];
+        MPI_Send(left_slice, Ny*Nz, 1, MPI_FLOAT, rank-1, MPI_ANY_TAG, MPI_COMM_WORLD);
+        MPI_Recv(left_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    } else {
+        left_slice = recon[0];
+        MPI_Send(left_slice, Ny*Nz, 1, MPI_FLOAT, rank-1, MPI_ANY_TAG, MPI_COMM_WORLD);
+        MPI_Recv(left_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    }
+}
+
+//Calculate Lipshits Gradient (for SIRT). 
+void ctvlib::lipschits()
+{
+    VectorXf f(Ncol);
+    f.setOnes();
+    float L = (A.transpose() * (A * f)).maxCoeff();
 }
 
 // Remove Negative Voxels.
 void ctvlib::positivity()
 {
     #pragma omp parallel for
-    for(int i=0; i<Nslice; i++)
+    for(int i=0; i<Nslice_loc; i++)
     {
         recon[i] = (recon[i].array() < 0).select(0, recon[i]);
     }
@@ -216,12 +308,13 @@ void ctvlib::copy_recon()
 // Measure the 2 norm between temporary and current reconstruction.
 float ctvlib::matrix_2norm()
 {
-    float L2;
-    #pragma omp parallel for reduction(+:L2)
-    for (int s =0; s < Nslice; s++)
+    float L2, L2_loc;
+    #pragma omp parallel for reduction(+:L2_loc)
+    for (int s =0; s < Nslice_loc; s++)
     {
-        L2 += ( recon[s].array() - temp_recon[s].array() ).square().sum();
+        L2_loc += ( recon[s].array() - temp_recon[s].array() ).square().sum();
     }
+    MPI_Allreduce(&L2_loc, &L2, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
     return sqrt(L2);
 }
 
@@ -247,7 +340,7 @@ void ctvlib::forwardProjection(int dyn_ind)
     else { dyn_ind *= Ny; }
     
     #pragma omp parallel for
-    for (int s = 0; s < Nslice; s++)
+    for (int s = 0; s < Nslice_loc; s++)
     {
         Mat& mat_slice = recon[s];
         mat_slice.resize(mat_slice.size(),1);
@@ -258,17 +351,22 @@ void ctvlib::forwardProjection(int dyn_ind)
         }
         mat_slice.resize(Ny,Nz);
     }
+    
+    //TODO: Collect the data to merge into one reprojection vector (g).
 }
 
 // Measure the RMSE (simulation studies)
 float ctvlib::rmse()
 {
-    float rmse;
+    float rmse, rmse_loc;
     #pragma omp parallel for reduction(+:rmse)
-    for (int s = 0; s < Nslice; s++)
+    for (int s = 0; s < Nslice_loc; s++)
     {
-        rmse += ( recon[s].array() - original_volume[s].array() ).square().sum();
+        rmse_loc += ( recon[s].array() - original_volume[s].array() ).square().sum();
     }
+
+    //MPI_Reduce.
+    MPI_Allreduce(&rmse_loc, &rmse, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
     rmse = sqrt( rmse / (Nslice * Ny * Nz ) );
     return rmse;
 }
@@ -281,19 +379,20 @@ void ctvlib::loadA(Eigen::Ref<Mat> pyA)
         A.coeffRef(pyA(0,i), pyA(1,i)) = pyA(2,i);
     }
     A.makeCompressed();
+    MPI_Bcast(&A, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 }
 
 //Measure Reconstruction's TV.
 float ctvlib::tv_3D()
 {
-    float tv;
-    float eps = 1e-8;
+    float tv, tv_loc;
+    float eps = 1e-6;
     int nx = Nslice;
     int ny = Ny;
     int nz = Nz;
     
     #pragma omp parallel for
-    for (int i = 0; i < Nslice; i++)
+    for (int i = 0; i < Nslice_loc; i++)
     {
         int ip = (i+1)%nx;
         for (int j = 0; j < ny; j++)
@@ -309,23 +408,26 @@ float ctvlib::tv_3D()
         }
     }
 
-    #pragma omp parallel for reduction(+:tv)
+    #pragma omp parallel for reduction(+:tv_loc)
     for (int i = 0; i < Nslice; i++)
     {
-        tv += tv_recon[i].sum();
+        tv_loc += tv_recon[i].sum();
     }
+    
+    //MPI_Reduce.
+    MPI_Allreduce(&tv_loc, &tv, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
     return tv;
 }
 
 //Measure Original Volume's TV.
 float ctvlib::original_tv_3D()
 {
-    float tv;
-    float eps = 1e-8;
+    float tv, tv_loc;
+    float eps = 1e-6;
     int nx = Nslice;
     int ny = Ny;
     int nz = Nz;
-    
+     
     #pragma omp parallel for
     for (int i = 0; i < Nslice; i++)
     {
@@ -343,19 +445,22 @@ float ctvlib::original_tv_3D()
         }
     }
     
-    #pragma omp parallel for reduction(+:tv)
+    #pragma omp parallel for reduction(+:tv_loc)
     for (int i = 0; i < Nslice; i++)
     {
-        tv += tv_recon[i].sum();
+        tv_loc += tv_recon[i].sum();
     }
+
+    //MPI_Reduce.
+    MPI_Allreduce(&tv_loc, &tv, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
     return tv;
 }
 
 // TV Minimization (Gradient Descent)
 void ctvlib::tv_gd_3D(int ng, float dPOCS)
 {
-    float eps = 1e-8;
-    float tv_norm;
+    float eps = 1e-6;
+    float tv_norm, tv_norm_loc;
     int nx = Nslice;
     int ny = Ny;
     int nz = Nz;
@@ -363,15 +468,17 @@ void ctvlib::tv_gd_3D(int ng, float dPOCS)
     //Calculate TV Derivative Tensor.
     for(int g=0; g < ng; g++)
     {
-        #pragma omp parallel for reduction(+:tv_norm)
+        #pragma omp parallel for reduction(+:tv_norm_loc)
         for (int i = 0; i < Nslice; i++)
         {
             int ip = (i+1) % nx;
             int im = (i-1+nx) % nx;
+            
             for (int j = 0; j < ny; j++)
             {
                 int jp = (j+1) % ny;
                 int jm = (j-1+ny) % ny;
+                
                 for (int k = 0; k < ny; k++)
                 {
                     int kp = (k+1)%ny;
@@ -394,11 +501,15 @@ void ctvlib::tv_gd_3D(int ng, float dPOCS)
                                       + ( recon[i](j, km) - recon[i](jp, km)) * ( recon[i](j, km) - recon[i](jp, km))
                                       + ( recon[i](j, km) - recon[i](j, k) ) * ( recon[i](j, km) - recon[i](j, k) ) );
                     tv_recon[i](j,k) = v1n/v1d + v2n/v2d + v3n/v3d + v4n/v4d;
-                    tv_norm += tv_recon[i](j,k) * tv_recon[i](j,k);
+                    tv_norm_loc += tv_recon[i](j,k) * tv_recon[i](j,k);
                 }
             }
         }
+        
+        MPI_Allreduce(&tv_norm_loc, &tv_norm, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
         tv_norm = sqrt(tv_norm);
+        
+        //Broadcast tv_norm???
         
         // Gradient Descent.
         #pragma omp parallel for
@@ -422,20 +533,20 @@ Mat ctvlib::get_projections()
     return b;
 }
 
-// Restart the Reconstruction (Reset to Zero). 
 void ctvlib::restart_recon()
 {
+    #pragma omp parallel for
     for (int s = 0; s < Nslice; s++)
     {
-        recon[s] = Mat::Zero(Ny,Nz);
+        recon[s] = Mat::Zero(Ny,Ny);
     }
 }
 
 //Python functions for ctvlib module. 
-PYBIND11_MODULE(ctvlib, m)
+PYBIND11_MODULE(mpi_ctvlib, m)
 {
     m.doc() = "C++ Scripts for TV-Tomography Reconstructions";
-    py::class_<ctvlib> ctvlib(m, "ctvlib");
+    py::class_<ctvlib> ctvlib(m, "mpi_ctvlib");
     ctvlib.def(py::init<int,int, int>());
     ctvlib.def("setTiltSeries", &ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
     ctvlib.def("setOriginalVolume", &ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
@@ -458,5 +569,6 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("tv_gd", &ctvlib::tv_gd_3D, "3D TV Gradient Descent");
     ctvlib.def("get_projections", &ctvlib::get_projections, "Return the projection matrix to python");
     ctvlib.def("poissonNoise", &ctvlib::poissonNoise, "Add Poisson Noise to Projections");
-    ctvlib.def("restart_recon", &ctvlib::restart_recon, "Set all the Slices Equal to Zero");
+    ctvlib.def("lip", &ctvlib::lipschits, "Add Poisson Noise to Projections");
+    ctvlib.def("restart_recon", &ctvlib::restart_recon, "Set all the Slices Equal to Zero"); 
 }

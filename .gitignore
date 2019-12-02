@@ -3,3 +3,4 @@
 **/Results
 *.pyc
 3D/Tilt_Series/*
+*.so

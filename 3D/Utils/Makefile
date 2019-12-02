@@ -1,10 +1,13 @@
 CXX = g++-8
+MPXX = mpic++
 CXXFLAGS = -O3 -Wno-div-by-zero -fopenmp -shared -std=c++11 -undefined dynamic_lookup -ffast-math -march=native
 EIGEN = -I /opt/local/include/eigen3 
 PYBIND11 = `python3 -m pybind11 --includes` 
-ctvlib_config = ctvlib`python3-config --extension-suffix`
-
-all: ctvlib
+PYCONFIG = ctvlib`python3-config --extension-suffix`
+MPICONFIG = mpi_ctvlib`python3-config --extension-suffix`
 
 ctvlib: ctvlib.cpp  ctvlib.hpp
-	$(CXX) $(CXXFLAGS) $(EIGEN) $(PYBIND11) ctvlib.cpp -o $(ctvlib_config) 
+	$(CXX) $(CXXFLAGS) $(EIGEN) $(PYBIND) $(PYBIND11) ctvlib.cpp -o $(PYCONFIG) 
+
+mpiCtvlib: mpi_ctvlib.cpp mpi_ctvlib.hpp
+	$(MPXX) $(CXXFLAGS) $(EIGEN) $(PYBIND) $(PYBIND11) mpi_ctvlib.cpp -o $(MPICONFIG) 
