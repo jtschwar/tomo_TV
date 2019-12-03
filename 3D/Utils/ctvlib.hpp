@@ -45,12 +45,12 @@ public:
 	void normalization();
 
 	// 2D Reconstructions
-	void ART(double beta, int dyn_ind);
-    void SIRT(double beta, int dyn_ind);
+	void ART(float beta, int dyn_ind);
+    void SIRT(float beta, int dyn_ind);
     void positivity();
     
     // Stochastic Reconstruction
-    void sART(double beta, int dyn_ind);
+    void sART(float beta, int dyn_ind);
     std::vector<int> rand_perm(int n);
     
 	//Forward Project Reconstruction for Data Tolerance Parameter. 

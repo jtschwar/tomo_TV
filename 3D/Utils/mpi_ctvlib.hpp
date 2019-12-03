@@ -15,7 +15,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/eigen.h>
 
-class ctvlib
+class mpi_ctvlib
 {
 
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Mat;
@@ -27,12 +27,12 @@ public:
     Mat *recon, *temp_recon, *tv_recon, *original_volume;
     Mat& left_slice, right_slice;
     SpMat A;
-    int Nrow, Ncol, Nslice, Nslice_loc, Ny, Nz, nproc, rank;
+    int Nrow, Ncol, Nslice, Nslice_loc, Ny, Nz, nproc, rank, size;
     Eigen::VectorXf innerProduct;
     Mat b, g;
     
 	// Initializes Measurement Matrix. 
-	ctvlib(int Nslice, int Nray, int Nproj);
+	mpi_ctvlib(int Nslice, int Nray, int Nproj);
 
 	// Initialize Experimental Projections. 
 	void setTiltSeries(Mat in);
@@ -45,13 +45,13 @@ public:
 	void normalization();
 
 	// 2D Reconstructions
-	void ART(double beta, int dyn_ind);
-    void SIRT(double beta, int dyn_ind);
+	void ART(float beta, int dyn_ind);
+    void SIRT(float beta, int dyn_ind);
     void positivity();
     void lipschits();
     
     // Stochastic Reconstruction
-    void sART(double beta, int dyn_ind);
+    void sART(float beta, int dyn_ind);
     std::vector<int> rand_perm(int n);
     
 	//Forward Project Reconstruction for Data Tolerance Parameter. 

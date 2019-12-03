@@ -25,7 +25,7 @@ namespace py = pybind11;
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Mat;
 typedef Eigen::SparseMatrix<float, Eigen::RowMajor> SpMat;
 
-ctvlib::ctvlib(int Ns, int Nray, int Nproj)
+mpi_ctvlib::mpi_ctvlib(int Ns, int Nray, int Nproj)
 {
     //Intialize all the Member variables.
     Nslice = Ns;
@@ -41,6 +41,7 @@ ctvlib::ctvlib(int Ns, int Nray, int Nproj)
     MPI_Init(NULL,NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &nproc);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
     
     //Calculate the number of slices for each rank.
     Nslice_loc = Nslice/nproc;
@@ -72,26 +73,26 @@ ctvlib::ctvlib(int Ns, int Nray, int Nproj)
     
     //Pass the data to the ranks.
     int total_elements = Nslice_loc*Ny*Nz;
-    MPI_Bcast(&recon, total_elements, MPI_FLOAT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&temp_recon, total_elements, MPI_FLOAT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&tv_recon, total_elements, MPI_FLOAT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&recon, total_elements, MPI_FLOAT, MPI_COMM_WORLD);
+    MPI_Bcast(&temp_recon, total_elements, MPI_FLOAT, MPI_COMM_WORLD);
+    MPI_Bcast(&tv_recon, total_elements, MPI_FLOAT,MPI_COMM_WORLD);
 
 }
 
 //Import tilt series (projections) from Python.
-void ctvlib::setTiltSeries(Mat in)
+void mpi_ctvlib::setTiltSeries(Mat in)
 {
     b = in;
 }
 
 // Import the original volume from python.
-void ctvlib::setOriginalVolume(Mat in, int slice)
+void mpi_ctvlib::setOriginalVolume(Mat in, int slice)
 {
     original_volume[slice] = in;
 }
 
 // Create projections from Volume (for simulation studies)
-void ctvlib::create_projections()
+void mpi_ctvlib::create_projections()
 {
     #pragma omp parallel for
     for (int s = 0; s < Nslice_loc; s++)
@@ -108,7 +109,7 @@ void ctvlib::create_projections()
 }
 
 // Add poisson noise to projections.
-void ctvlib::poissonNoise(int Nc)
+void mpi_ctvlib::poissonNoise(int Nc)
 {
     Mat temp_b = b;
     float mean = b.mean();
@@ -127,7 +128,7 @@ void ctvlib::poissonNoise(int Nc)
 }
 
 // ART Reconstruction.
-void ctvlib::ART(double beta, int dyn_ind)
+void mpi_ctvlib::ART(float beta, int dyn_ind)
 {
 //    
     //No dynamic reconstruction, assume fully sampled batch.
@@ -149,7 +150,6 @@ void ctvlib::ART(double beta, int dyn_ind)
         }
         mat_slice = vec_recon;
         mat_slice.resize(Ny, Nz);
-        MPI_Recv(&recon[s], Ny*Ny, MPI_FLOAT, dest, MPI_ANY_TAG, MPI_COMM_WORLD);
     }
     
     MPI_Status status;
@@ -157,7 +157,7 @@ void ctvlib::ART(double beta, int dyn_ind)
         right_slice = recon[Nslice_loc];
         MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD);
         MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    } else if {
+    } else if (rank > 0 && rank < size - 1 ){
         right_slice = recon[Nslice_loc];
         MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD);
         MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
@@ -173,7 +173,7 @@ void ctvlib::ART(double beta, int dyn_ind)
 }
 
 // Stochastic ART Reconstruction.
-void ctvlib::sART(double beta, int dyn_ind)
+void mpi_ctvlib::sART(float beta, int dyn_ind)
 {
     //No dynamic reconstruction, assume fully sampled batch.
     if (dyn_ind == -1) { dyn_ind = Nrow; }
@@ -205,7 +205,7 @@ void ctvlib::sART(double beta, int dyn_ind)
         right_slice = recon[Nslice_loc];
         MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD);
         MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    } else if {
+    } else if (rank > 0 && rank < size - 1 ){
         right_slice = recon[Nslice_loc];
         MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD);
         MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
@@ -220,7 +220,7 @@ void ctvlib::sART(double beta, int dyn_ind)
     }
 }
 
-std::vector<int> ctvlib::rand_perm(int n)
+std::vector<int> mpi_ctvlib::rand_perm(int n)
 {
     std::vector<int> a(n);
     for (int i=0; i < n; i++)
@@ -234,7 +234,7 @@ std::vector<int> ctvlib::rand_perm(int n)
 }
 
 // SIRT Reconstruction.
-void ctvlib::SIRT(double beta, int dyn_ind)
+void mpi_ctvlib::SIRT(float beta, int dyn_ind)
 {
     //No dynamic reconstruction, assume fully sampled batch.
     if (dyn_ind == -1) { dyn_ind = Nrow; }
@@ -247,7 +247,7 @@ void ctvlib::SIRT(double beta, int dyn_ind)
         Mat& mat_slice = recon[s];
         mat_slice.resize(mat_slice.size(),1);
         VectorXf vec_recon = mat_slice;
-        vec_recon += A.transpose() * ( b.row(s).transpose() - A * vec_recon ) * (1/L);
+        vec_recon += A.transpose() * ( b.row(s).transpose() - A * vec_recon ) * beta;
         mat_slice = vec_recon;
         mat_slice.resize(Ny, Nz);
     }
@@ -257,7 +257,7 @@ void ctvlib::SIRT(double beta, int dyn_ind)
         right_slice = recon[Nslice_loc];
         MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD);
         MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    } else if {
+    } else if (rank > 0 && rank < size - 1 ){
         MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD);
         MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
         
@@ -272,7 +272,7 @@ void ctvlib::SIRT(double beta, int dyn_ind)
 }
 
 //Calculate Lipshits Gradient (for SIRT). 
-void ctvlib::lipschits()
+void mpi_ctvlib::lipschits()
 {
     VectorXf f(Ncol);
     f.setOnes();
@@ -280,7 +280,7 @@ void ctvlib::lipschits()
 }
 
 // Remove Negative Voxels.
-void ctvlib::positivity()
+void mpi_ctvlib::positivity()
 {
     #pragma omp parallel for
     for(int i=0; i<Nslice_loc; i++)
@@ -290,7 +290,7 @@ void ctvlib::positivity()
 }
 
 // Row Inner Product of Measurement Matrix.
-void ctvlib::normalization()
+void mpi_ctvlib::normalization()
 {
     #pragma omp parallel for
     for (int i = 0; i < Nrow; i++)
@@ -300,13 +300,13 @@ void ctvlib::normalization()
 }
 
 // Create Local Copy of Reconstruction. 
-void ctvlib::copy_recon()
+void mpi_ctvlib::copy_recon()
 {
     memcpy(temp_recon, recon, sizeof(recon));
 }
 
 // Measure the 2 norm between temporary and current reconstruction.
-float ctvlib::matrix_2norm()
+float mpi_ctvlib::matrix_2norm()
 {
     float L2, L2_loc;
     #pragma omp parallel for reduction(+:L2_loc)
@@ -314,25 +314,25 @@ float ctvlib::matrix_2norm()
     {
         L2_loc += ( recon[s].array() - temp_recon[s].array() ).square().sum();
     }
-    MPI_Allreduce(&L2_loc, &L2, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Allreduce(&L2_loc, &L2, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
     return sqrt(L2);
 }
 
 // Measure the 2 norm between experimental and reconstructed projections.
-float ctvlib::vector_2norm()
+float mpi_ctvlib::vector_2norm()
 {
     return (g - b).norm() / g.size();
 }
 
 // Measure the 2 norm for projections when data is 'dynamically' collected.
-float ctvlib::dyn_vector_2norm(int dyn_ind)
+float mpi_ctvlib::dyn_vector_2norm(int dyn_ind)
 {
     dyn_ind *= Ny;
     return ( g.leftCols(dyn_ind) - b.leftCols(dyn_ind) ).norm() / g.leftCols(dyn_ind).size();
 }
 
 // Foward project the data.
-void ctvlib::forwardProjection(int dyn_ind)
+void mpi_ctvlib::forwardProjection(int dyn_ind)
 {
     //No dynamic reconstruction, assume fully sampled batch.
     if (dyn_ind == -1) { dyn_ind = Nrow; }
@@ -356,7 +356,7 @@ void ctvlib::forwardProjection(int dyn_ind)
 }
 
 // Measure the RMSE (simulation studies)
-float ctvlib::rmse()
+float mpi_ctvlib::rmse()
 {
     float rmse, rmse_loc;
     #pragma omp parallel for reduction(+:rmse)
@@ -366,13 +366,13 @@ float ctvlib::rmse()
     }
 
     //MPI_Reduce.
-    MPI_Allreduce(&rmse_loc, &rmse, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Allreduce(&rmse_loc, &rmse, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
     rmse = sqrt( rmse / (Nslice * Ny * Nz ) );
     return rmse;
 }
 
 // Load Measurement Matrix from Python.
-void ctvlib::loadA(Eigen::Ref<Mat> pyA)
+void mpi_ctvlib::loadA(Eigen::Ref<Mat> pyA)
 {
     for (int i=0; i <pyA.cols(); i++)
     {
@@ -383,7 +383,7 @@ void ctvlib::loadA(Eigen::Ref<Mat> pyA)
 }
 
 //Measure Reconstruction's TV.
-float ctvlib::tv_3D()
+float mpi_ctvlib::tv_3D()
 {
     float tv, tv_loc;
     float eps = 1e-6;
@@ -415,12 +415,12 @@ float ctvlib::tv_3D()
     }
     
     //MPI_Reduce.
-    MPI_Allreduce(&tv_loc, &tv, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Allreduce(&tv_loc, &tv, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
     return tv;
 }
 
 //Measure Original Volume's TV.
-float ctvlib::original_tv_3D()
+float mpi_ctvlib::original_tv_3D()
 {
     float tv, tv_loc;
     float eps = 1e-6;
@@ -452,12 +452,12 @@ float ctvlib::original_tv_3D()
     }
 
     //MPI_Reduce.
-    MPI_Allreduce(&tv_loc, &tv, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Allreduce(&tv_loc, &tv, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
     return tv;
 }
 
 // TV Minimization (Gradient Descent)
-void ctvlib::tv_gd_3D(int ng, float dPOCS)
+void mpi_ctvlib::tv_gd_3D(int ng, float dPOCS)
 {
     float eps = 1e-6;
     float tv_norm, tv_norm_loc;
@@ -506,7 +506,7 @@ void ctvlib::tv_gd_3D(int ng, float dPOCS)
             }
         }
         
-        MPI_Allreduce(&tv_norm_loc, &tv_norm, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+        MPI_Allreduce(&tv_norm_loc, &tv_norm, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
         tv_norm = sqrt(tv_norm);
         
         //Broadcast tv_norm???
@@ -522,18 +522,18 @@ void ctvlib::tv_gd_3D(int ng, float dPOCS)
 }
 
 // Return Reconstruction to Python.
-Mat ctvlib::getRecon(int s)
+Mat mpi_ctvlib::getRecon(int s)
 {
     return recon[s];
 }
 
 //Return the projections.
-Mat ctvlib::get_projections()
+Mat mpi_ctvlib::get_projections()
 {
     return b;
 }
 
-void ctvlib::restart_recon()
+void mpi_ctvlib::restart_recon()
 {
     #pragma omp parallel for
     for (int s = 0; s < Nslice; s++)
@@ -545,30 +545,30 @@ void ctvlib::restart_recon()
 //Python functions for ctvlib module. 
 PYBIND11_MODULE(mpi_ctvlib, m)
 {
-    m.doc() = "C++ Scripts for TV-Tomography Reconstructions";
-    py::class_<ctvlib> ctvlib(m, "mpi_ctvlib");
-    ctvlib.def(py::init<int,int, int>());
-    ctvlib.def("setTiltSeries", &ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
-    ctvlib.def("setOriginalVolume", &ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
-    ctvlib.def("create_projections", &ctvlib::create_projections, "Create Projections from Volume");
-    ctvlib.def("getRecon", &ctvlib::getRecon, "Return the Reconstruction to Python");
-    ctvlib.def("ART", &ctvlib::ART, "ART Reconstruction");
-    ctvlib.def("sART", &ctvlib::sART, "Stochastic ART Reconstruction");
-    ctvlib.def("SIRT", &ctvlib::SIRT, "SIRT Reconstruction");
-    ctvlib.def("rowInnerProduct", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
-    ctvlib.def("positivity", &ctvlib::positivity, "Remove Negative Elements");
-    ctvlib.def("forwardProjection", &ctvlib::forwardProjection, "Forward Projection");
-    ctvlib.def("load_A", &ctvlib::loadA, "Load Measurement Matrix Created By Python");
-    ctvlib.def("copy_recon", &ctvlib::copy_recon, "Copy the reconstruction");
-    ctvlib.def("matrix_2norm", &ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");
-    ctvlib.def("vector_2norm", &ctvlib::vector_2norm, "Calculate L2-Norm of Projection (aka Vectors)");
-    ctvlib.def("dyn_vector_2norm", &ctvlib::dyn_vector_2norm, "Calculate L2-Norm of Partially Sampled Projections (aka Vectors)");
-    ctvlib.def("rmse", &ctvlib::rmse, "Calculate reconstruction's RMSE");
-    ctvlib.def("tv", &ctvlib::tv_3D, "Measure 3D TV");
-    ctvlib.def("original_tv", &ctvlib::original_tv_3D, "Measure original TV");
-    ctvlib.def("tv_gd", &ctvlib::tv_gd_3D, "3D TV Gradient Descent");
-    ctvlib.def("get_projections", &ctvlib::get_projections, "Return the projection matrix to python");
-    ctvlib.def("poissonNoise", &ctvlib::poissonNoise, "Add Poisson Noise to Projections");
-    ctvlib.def("lip", &ctvlib::lipschits, "Add Poisson Noise to Projections");
-    ctvlib.def("restart_recon", &ctvlib::restart_recon, "Set all the Slices Equal to Zero"); 
+    m.doc() = "C++ Scripts for TV-Tomography Reconstructions with OpenMPI Support";
+    py::class_<mpi_ctvlib> mpi_ctvlib(m, "mpi_ctvlib");
+    mpi_ctvlib.def(py::init<int,int, int>());
+    mpi_ctvlib.def("setTiltSeries", &mpi_ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
+    mpi_ctvlib.def("setOriginalVolume", &mpi_ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
+    mpi_ctvlib.def("create_projections", &mpi_ctvlib::create_projections, "Create Projections from Volume");
+    mpi_ctvlib.def("getRecon", &mpi_ctvlib::getRecon, "Return the Reconstruction to Python");
+    mpi_ctvlib.def("ART", &mpi_ctvlib::ART, "ART Reconstruction");
+    mpi_ctvlib.def("sART", &mpi_ctvlib::sART, "Stochastic ART Reconstruction");
+    mpi_ctvlib.def("SIRT", &mpi_ctvlib::SIRT, "SIRT Reconstruction");
+    mpi_ctvlib.def("rowInnerProduct", &mpi_ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
+    mpi_ctvlib.def("positivity", &mpi_ctvlib::positivity, "Remove Negative Elements");
+    mpi_ctvlib.def("forwardProjection", &mpi_ctvlib::forwardProjection, "Forward Projection");
+    mpi_ctvlib.def("load_A", &mpi_ctvlib::loadA, "Load Measurement Matrix Created By Python");
+    mpi_ctvlib.def("copy_recon", &mpi_ctvlib::copy_recon, "Copy the reconstruction");
+    mpi_ctvlib.def("matrix_2norm", &mpi_ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");
+    mpi_ctvlib.def("vector_2norm", &mpi_ctvlib::vector_2norm, "Calculate L2-Norm of Projection (aka Vectors)");
+    mpi_ctvlib.def("dyn_vector_2norm", &mpi_ctvlib::dyn_vector_2norm, "Calculate L2-Norm of Partially Sampled Projections (aka Vectors)");
+    mpi_ctvlib.def("rmse", &mpi_ctvlib::rmse, "Calculate reconstruction's RMSE");
+    mpi_ctvlib.def("tv", &mpi_ctvlib::tv_3D, "Measure 3D TV");
+    mpi_ctvlib.def("original_tv", &mpi_ctvlib::original_tv_3D, "Measure original TV");
+    mpi_ctvlib.def("tv_gd", &mpi_ctvlib::tv_gd_3D, "3D TV Gradient Descent");
+    mpi_ctvlib.def("get_projections", &mpi_ctvlib::get_projections, "Return the projection matrix to python");
+    mpi_ctvlib.def("poissonNoise", &mpi_ctvlib::poissonNoise, "Add Poisson Noise to Projections");
+    mpi_ctvlib.def("lip", &mpi_ctvlib::lipschits, "Add Poisson Noise to Projections");
+    mpi_ctvlib.def("restart_recon", &mpi_ctvlib::restart_recon, "Set all the Slices Equal to Zero");
 }

@@ -101,7 +101,7 @@ void ctvlib::poissonNoise(int Nc)
 }
 
 // ART Reconstruction.
-void ctvlib::ART(double beta, int dyn_ind)
+void ctvlib::ART(float beta, int dyn_ind)
 {
     //No dynamic reconstruction, assume fully sampled batch.
     if (dyn_ind == -1) { dyn_ind = Nrow; }
@@ -126,7 +126,7 @@ void ctvlib::ART(double beta, int dyn_ind)
 }
 
 // Stochastic ART Reconstruction.
-void ctvlib::sART(double beta, int dyn_ind)
+void ctvlib::sART(float beta, int dyn_ind)
 {
     //No dynamic reconstruction, assume fully sampled batch.
     if (dyn_ind == -1) { dyn_ind = Nrow; }
@@ -168,7 +168,7 @@ std::vector<int> ctvlib::rand_perm(int n)
 }
 
 // SIRT Reconstruction.
-void ctvlib::SIRT(double beta, int dyn_ind)
+void ctvlib::SIRT(float beta, int dyn_ind)
 {
     //No dynamic reconstruction, assume fully sampled batch.
     if (dyn_ind == -1) { dyn_ind = Nrow; }

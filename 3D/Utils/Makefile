@@ -9,5 +9,5 @@ MPICONFIG = mpi_ctvlib`python3-config --extension-suffix`
 ctvlib: ctvlib.cpp  ctvlib.hpp
 	$(CXX) $(CXXFLAGS) $(EIGEN) $(PYBIND) $(PYBIND11) ctvlib.cpp -o $(PYCONFIG) 
 
-mpiCtvlib: mpi_ctvlib.cpp mpi_ctvlib.hpp
+mpi_ctvlib: mpi_ctvlib.cpp mpi_ctvlib.hpp
 	$(MPXX) $(CXXFLAGS) $(EIGEN) $(PYBIND) $(PYBIND11) mpi_ctvlib.cpp -o $(MPICONFIG) 
