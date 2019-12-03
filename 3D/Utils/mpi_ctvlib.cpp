@@ -41,42 +41,35 @@ mpi_ctvlib::mpi_ctvlib(int Ns, int Nray, int Nproj)
     MPI_Init(NULL,NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &nproc);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    size = nproc; 
     
     //Calculate the number of slices for each rank.
-    Nslice_loc = Nslice/nproc;
+    Nslice_loc = int(Nslice/nproc);
+    // This is to deal with the case Nslice%nproc !=0
+    if (rank < Nslice%nproc) Nslice_loc++; 
 
-    //Initialize all the 3D-matrices.
-    if (rank == 0){
+    //All the rank Initialize all the 3D-matrices.
         
-        //Final Reconstruction.
-        recon = new Mat[Nslice_loc];
+   //Final Reconstruction.
+    recon = new Mat[Nslice_loc+2];
         
-        // Temporary copy for measuring changes in TV and ART.
-        temp_recon = new Mat[Nslice_loc];
+    // Temporary copy for measuring changes in TV and ART.
+    temp_recon = new Mat[Nslice_loc+2];
         
-        // Temporary copy for measuring 3D TV - Derivative.
-        tv_recon = new Mat[Nslice_loc];
+    // Temporary copy for measuring 3D TV - Derivative.
+    tv_recon = new Mat[Nslice_loc+2];
         
         // Original Volume for Simulation Studies.
-        original_volume = new Mat[Nslice_loc];
+    original_volume = new Mat[Nslice_loc+2];
 
         // Initialize the 3D Matrices as zeros.
-        #pragma omp parallel for
-        for (int i=0; i < Nslice_loc; i++)
-        {
-            recon[i] = Mat::Zero(Ny, Nz);
-            temp_recon[i] = Mat::Zero(Ny, Nz);
-            tv_recon[i] = Mat::Zero(Ny,Nz);
-        }
+    #pragma omp parallel for
+    for (int i=0; i < Nslice_loc; i++)
+    {
+         recon[i] = Mat::Zero(Ny, Nz);
+         temp_recon[i] = Mat::Zero(Ny, Nz);
+         tv_recon[i] = Mat::Zero(Ny,Nz);
     }
-    
-    //Pass the data to the ranks.
-    int total_elements = Nslice_loc*Ny*Nz;
-    MPI_Bcast(&recon, total_elements, MPI_FLOAT, MPI_COMM_WORLD);
-    MPI_Bcast(&temp_recon, total_elements, MPI_FLOAT, MPI_COMM_WORLD);
-    MPI_Bcast(&tv_recon, total_elements, MPI_FLOAT,MPI_COMM_WORLD);
-
 }
 
 //Import tilt series (projections) from Python.
@@ -120,12 +113,12 @@ void mpi_ctvlib::poissonNoise(int Nc)
     {
        std::poisson_distribution<int> distribution(b(i));
        b(i) = distribution(generator);
-       
     }
     b = b / ( Nc * b.size() ) * N;
     temp_b.array() -= b.array();
     float std = sqrt( ( temp_b.array() - temp_b.mean() ).square().sum() / (temp_b.size() - 1));
 }
+
 
 // ART Reconstruction.
 void mpi_ctvlib::ART(float beta, int dyn_ind)
@@ -151,25 +144,20 @@ void mpi_ctvlib::ART(float beta, int dyn_ind)
         mat_slice = vec_recon;
         mat_slice.resize(Ny, Nz);
     }
-    
+}
+
+
+void mpi_ctvlib::updateLeftSlice(Mat *vol) {
     MPI_Status status;
-    if (rank == 0 ) {
-        right_slice = recon[Nslice_loc];
-        MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD);
-        MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    } else if (rank > 0 && rank < size - 1 ){
-        right_slice = recon[Nslice_loc];
-        MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD);
-        MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-        
-        left_slice = recon[0];
-        MPI_Send(left_slice, Ny*Nz, 1, MPI_FLOAT, rank-1, MPI_ANY_TAG, MPI_COMM_WORLD);
-        MPI_Recv(left_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    } else {
-        left_slice = recon[0];
-        MPI_Send(left_slice, Ny*Nz, 1, MPI_FLOAT, rank-1, MPI_ANY_TAG, MPI_COMM_WORLD);
-        MPI_Recv(left_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    }
+    MPI_Send(vol[Nslice_loc-1], Ny*Nz, MPI_FLOAT, (rank+1)%nproc, MPI_ANY_TAG, MPI_COMM_WORLD); 
+    MPI_Recv(vol[Nslice_loc+1], Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, MPI_ANY_TAB, MPI_COMM_WORLD, &status); 
+}
+
+
+void mpi_ctvlib::updateRightSlice(Mat *vol) {
+    MPI_Status status;
+    MPI_Send(vol[0], Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, MPI_ANY_TAG, MPI_COMM_WORLD); 
+    MPI_Recv(vol[Nslice_loc], Ny*Nz, MPI_FLOAT, (rank+1)%nproc, MPI_ANY_TAB, MPI_COMM_WORLD, &status); 
 }
 
 // Stochastic ART Reconstruction.
@@ -198,25 +186,6 @@ void mpi_ctvlib::sART(float beta, int dyn_ind)
         }
         mat_slice = vec_recon;
         mat_slice.resize(Ny, Nz);
-    }
-    
-    MPI_Status status;
-    if (rank == 0 ) {
-        right_slice = recon[Nslice_loc];
-        MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD);
-        MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    } else if (rank > 0 && rank < size - 1 ){
-        right_slice = recon[Nslice_loc];
-        MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD);
-        MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-        
-        left_slice = recon[0];
-        MPI_Send(left_slice, Ny*Nz, 1, MPI_FLOAT, rank-1, MPI_ANY_TAG, MPI_COMM_WORLD);
-        MPI_Recv(left_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    } else {
-        left_slice = recon[0];
-        MPI_Send(left_slice, Ny*Nz, 1, MPI_FLOAT, rank-1, MPI_ANY_TAG, MPI_COMM_WORLD);
-        MPI_Recv(left_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
     }
 }
 
@@ -251,24 +220,7 @@ void mpi_ctvlib::SIRT(float beta, int dyn_ind)
         mat_slice = vec_recon;
         mat_slice.resize(Ny, Nz);
     }
-    
-    MPI_Status status;
-    if (rank == 0 ) {
-        right_slice = recon[Nslice_loc];
-        MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD);
-        MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    } else if (rank > 0 && rank < size - 1 ){
-        MPI_Send(right_slice, Ny*Nz, 1, MPI_FLOAT, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD);
-        MPI_Recv(right_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-        
-        left_slice = recon[0];
-        MPI_Send(left_slice, Ny*Nz, 1, MPI_FLOAT, rank-1, MPI_ANY_TAG, MPI_COMM_WORLD);
-        MPI_Recv(left_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    } else {
-        left_slice = recon[0];
-        MPI_Send(left_slice, Ny*Nz, 1, MPI_FLOAT, rank-1, MPI_ANY_TAG, MPI_COMM_WORLD);
-        MPI_Recv(left_slice, Ny*Nz, 1, MPI_FLOAT, rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    }
+    updateBoundarySlice();
 }
 
 //Calculate Lipshits Gradient (for SIRT). 
@@ -379,7 +331,8 @@ void mpi_ctvlib::loadA(Eigen::Ref<Mat> pyA)
         A.coeffRef(pyA(0,i), pyA(1,i)) = pyA(2,i);
     }
     A.makeCompressed();
-    MPI_Bcast(&A, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+    // I comment the following line out, assuming that all the ranks read pyA, therefore it does not need to do broadcast. 
+    //MPI_Bcast(&A, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 }
 
 //Measure Reconstruction's TV.
@@ -387,14 +340,14 @@ float mpi_ctvlib::tv_3D()
 {
     float tv, tv_loc;
     float eps = 1e-6;
-    int nx = Nslice;
+    int nx = Nslice_loc;
     int ny = Ny;
     int nz = Nz;
-    
-    #pragma omp parallel for
+    updateRightSlice(recon);
     for (int i = 0; i < Nslice_loc; i++)
     {
-        int ip = (i+1)%nx;
+        int ip = i+1;
+        #pragma omp parallel for
         for (int j = 0; j < ny; j++)
         {
             int jp = (j+1)%ny;
@@ -406,14 +359,8 @@ float mpi_ctvlib::tv_3D()
                                         + ( recon[i](j,k) - recon[i](j,kp) ) * ( recon[i](j,k) - recon[i](j,kp) ));
             }
         }
+        tv_loc+=tv_recon[i].sum();
     }
-
-    #pragma omp parallel for reduction(+:tv_loc)
-    for (int i = 0; i < Nslice; i++)
-    {
-        tv_loc += tv_recon[i].sum();
-    }
-    
     //MPI_Reduce.
     MPI_Allreduce(&tv_loc, &tv, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
     return tv;
@@ -424,14 +371,14 @@ float mpi_ctvlib::original_tv_3D()
 {
     float tv, tv_loc;
     float eps = 1e-6;
-    int nx = Nslice;
+    int nx = Nslice_loc;
     int ny = Ny;
     int nz = Nz;
-     
-    #pragma omp parallel for
-    for (int i = 0; i < Nslice; i++)
+    updateRightSlice(original_volume);
+    for (int i = 0; i < Nslice_loc; i++)
     {
-        int ip = (i+1)%nx;
+        int ip = i+1;
+        #pragma omp parallel for
         for (int j = 0; j < ny; j++)
         {
             int jp = (j+1)%ny;
@@ -443,14 +390,8 @@ float mpi_ctvlib::original_tv_3D()
                                         + pow( original_volume[i](j,k) - original_volume[i](j,kp) , 2));
             }
         }
+        tv_loc+= tv_recon[i].sum();
     }
-    
-    #pragma omp parallel for reduction(+:tv_loc)
-    for (int i = 0; i < Nslice; i++)
-    {
-        tv_loc += tv_recon[i].sum();
-    }
-
     //MPI_Reduce.
     MPI_Allreduce(&tv_loc, &tv, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
     return tv;
@@ -461,19 +402,19 @@ void mpi_ctvlib::tv_gd_3D(int ng, float dPOCS)
 {
     float eps = 1e-6;
     float tv_norm, tv_norm_loc;
-    int nx = Nslice;
+    int nx = Nslice_loc;
     int ny = Ny;
     int nz = Nz;
-    
+    updateRightSlice(recon);
+    updateLeftSlice(recon);
     //Calculate TV Derivative Tensor.
     for(int g=0; g < ng; g++)
     {
-        #pragma omp parallel for reduction(+:tv_norm_loc)
-        for (int i = 0; i < Nslice; i++)
+        for (int i = 0; i < nx; i++)
         {
-            int ip = (i+1) % nx;
-            int im = (i-1+nx) % nx;
-            
+            int ip = i+1
+            int im = (i-1+nx+2) % (nx+2);
+            #pragma omp parallel for reduction(+:tv_norm_loc)
             for (int j = 0; j < ny; j++)
             {
                 int jp = (j+1) % ny;
@@ -509,11 +450,9 @@ void mpi_ctvlib::tv_gd_3D(int ng, float dPOCS)
         MPI_Allreduce(&tv_norm_loc, &tv_norm, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
         tv_norm = sqrt(tv_norm);
         
-        //Broadcast tv_norm???
-        
         // Gradient Descent.
         #pragma omp parallel for
-        for (int l = 0; l < Nslice; l++)
+        for (int l = 0; l < nx; l++)
         {
             recon[l] -= dPOCS * tv_recon[l] / tv_norm;
         }

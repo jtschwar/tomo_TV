@@ -25,7 +25,7 @@ public:
 
     // Member Variables.
     Mat *recon, *temp_recon, *tv_recon, *original_volume;
-    Mat& left_slice, right_slice;
+//    Mat& left_slice, right_slice; //I don't need this any more
     SpMat A;
     int Nrow, Ncol, Nslice, Nslice_loc, Ny, Nz, nproc, rank, size;
     Eigen::VectorXf innerProduct;
