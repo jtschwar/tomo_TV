@@ -45,14 +45,17 @@ mpi_ctvlib::mpi_ctvlib(int Ns, int Nray, int Nproj)
     
     //Calculate the number of slices for each rank.
     Nslice_loc = int(Nslice/nproc);
-    // This is to deal with the case Nslice%nproc !=0
     if (rank < Nslice%nproc) Nslice_loc++; 
+    first_slice = rank*Nslice_loc; 
+    if (rank < Nslice%nproc) 
+        first_slice += rank%nproc; 
+    last_slice = first_slice + Nslice_loc - 1; 
 
     //All the rank Initialize all the 3D-matrices.
         
    //Final Reconstruction.
-    recon = new Mat[Nslice_loc+2];
-        
+    recon = new Mat[Nslice_loc+2]; /* I added two more slices, Mat[Nslice_loc] on rank N = Mat[0] on rank N+1
+        */
     // Temporary copy for measuring changes in TV and ART.
     temp_recon = new Mat[Nslice_loc+2];
         
@@ -87,12 +90,12 @@ void mpi_ctvlib::setOriginalVolume(Mat in, int slice)
 // Create projections from Volume (for simulation studies)
 void mpi_ctvlib::create_projections()
 {
-    #pragma omp parallel for
     for (int s = 0; s < Nslice_loc; s++)
     {
         Mat& mat_slice = original_volume[s];
         mat_slice.resize(mat_slice.size(),1);
         VectorXf vec_recon = mat_slice;
+        #pragma omp parallel for
         for (int i=0; i < Nrow; i++)
         {
             b(s,i) = A.row(i).dot(vec_recon);
@@ -148,6 +151,9 @@ void mpi_ctvlib::ART(float beta, int dyn_ind)
 
 
 void mpi_ctvlib::updateLeftSlice(Mat *vol) {
+    /*
+    Need to make sure this is OK. 
+    */
     MPI_Status status;
     MPI_Send(vol[Nslice_loc-1], Ny*Nz, MPI_FLOAT, (rank+1)%nproc, MPI_ANY_TAG, MPI_COMM_WORLD); 
     MPI_Recv(vol[Nslice_loc+1], Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, MPI_ANY_TAB, MPI_COMM_WORLD, &status); 

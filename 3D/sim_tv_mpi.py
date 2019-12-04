@@ -44,6 +44,7 @@ save_recon = 0           # Save final Reconstruction.
 
 #Read Image. 
 (file_name, original_volume) = load_data(vol_size,file_name)
+# this has some issue
 file_name = 'au_sto'
 (Nslice, Nray, _) = original_volume.shape
 
@@ -67,8 +68,8 @@ if noise:
     original_volume[original_volume == 0] = 1
 
 # Load Volume and Collect Projections. 
-for s in range(Nslice):
-    tomo_obj.setOriginalVolume(original_volume[s,:,:],s)
+for s in range(tomo_obj.Nslice_loc):
+    tomo_obj.setOriginalVolume(original_volume[s+tomo_obj.first_slice,:,:], s)
 tomo_obj.create_projections()
 
 # Apply poisson noise to volume.

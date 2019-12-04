@@ -30,11 +30,11 @@ public:
     int Nrow, Ncol, Nslice, Nslice_loc, Ny, Nz, nproc, rank, size;
     Eigen::VectorXf innerProduct;
     Mat b, g;
-    
+    int first_slice, last_slice; 
 	// Initializes Measurement Matrix. 
 	mpi_ctvlib(int Nslice, int Nray, int Nproj);
 
-	// Initialize Experimental Projections. 
+	// Initialize Experimental Projections.
 	void setTiltSeries(Mat in);
     void setOriginalVolume(Mat in, int slice);
     void create_projections();
