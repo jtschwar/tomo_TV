@@ -155,15 +155,15 @@ void mpi_ctvlib::updateLeftSlice(Mat *vol) {
     Need to make sure this is OK. 
     */
     MPI_Status status;
-    MPI_Send(vol[Nslice_loc-1], Ny*Nz, MPI_FLOAT, (rank+1)%nproc, MPI_ANY_TAG, MPI_COMM_WORLD); 
-    MPI_Recv(vol[Nslice_loc+1], Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, MPI_ANY_TAB, MPI_COMM_WORLD, &status); 
+    MPI_Send(&vol[Nslice_loc-1](0, 0), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, MPI_ANY_TAG, MPI_COMM_WORLD); 
+    MPI_Recv(&vol[Nslice_loc+1](0, 0), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, MPI_ANY_TAG, MPI_COMM_WORLD, &status); 
 }
 
 
 void mpi_ctvlib::updateRightSlice(Mat *vol) {
     MPI_Status status;
-    MPI_Send(vol[0], Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, MPI_ANY_TAG, MPI_COMM_WORLD); 
-    MPI_Recv(vol[Nslice_loc], Ny*Nz, MPI_FLOAT, (rank+1)%nproc, MPI_ANY_TAB, MPI_COMM_WORLD, &status); 
+    MPI_Send(&vol[0](0, 0), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, MPI_ANY_TAG, MPI_COMM_WORLD); 
+    MPI_Recv(&vol[Nslice_loc](0, 0), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, MPI_ANY_TAG, MPI_COMM_WORLD, &status); 
 }
 
 // Stochastic ART Reconstruction.
@@ -226,7 +226,6 @@ void mpi_ctvlib::SIRT(float beta, int dyn_ind)
         mat_slice = vec_recon;
         mat_slice.resize(Ny, Nz);
     }
-    updateBoundarySlice();
 }
 
 //Calculate Lipshits Gradient (for SIRT). 
@@ -418,7 +417,7 @@ void mpi_ctvlib::tv_gd_3D(int ng, float dPOCS)
     {
         for (int i = 0; i < nx; i++)
         {
-            int ip = i+1
+            int ip = i+1;
             int im = (i-1+nx+2) % (nx+2);
             #pragma omp parallel for reduction(+:tv_norm_loc)
             for (int j = 0; j < ny; j++)
