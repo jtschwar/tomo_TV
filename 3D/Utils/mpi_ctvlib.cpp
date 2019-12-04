@@ -416,11 +416,11 @@ void mpi_ctvlib::tv_gd_3D(int ng, float dPOCS)
     //Calculate TV Derivative Tensor.
     for(int g=0; g < ng; g++)
     {
+        #pragma omp parallel for reduction(+:tv_norm_loc)
         for (int i = 0; i < nx; i++)
         {
             int ip = i+1
             int im = (i-1+nx+2) % (nx+2);
-            #pragma omp parallel for reduction(+:tv_norm_loc)
             for (int j = 0; j < ny; j++)
             {
                 int jp = (j+1) % ny;
@@ -469,9 +469,21 @@ void mpi_ctvlib::tv_gd_3D(int ng, float dPOCS)
 // Return Reconstruction to Python.
 Mat mpi_ctvlib::getRecon(int s)
 {
+    /*
+        TODO: now the recon is distributed to different processors. We should have a gather operator. 
+    */
     return recon[s];
 }
 
+/* Still ongoing
+Mat mpi_ctvlib::gatherRecon() 
+{
+    Mat recon_gather(Nslice, Ny, Nz);
+    MPI_Gather(recon, Nslice_loc*Ny*Nz, MPI_FLOAT,
+               recon_gather, int Nslice_loc, MPI_Datatype recvtype,
+               int root, MPI_Comm comm)
+}
+*/
 //Return the projections.
 Mat mpi_ctvlib::get_projections()
 {
