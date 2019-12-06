@@ -45,10 +45,11 @@ mpi_ctvlib::mpi_ctvlib(int Ns, int Nray, int Nproj)
     
     //Calculate the number of slices for each rank.
     Nslice_loc = int(Nslice/nproc);
-    if (rank < Nslice%nproc) Nslice_loc++; 
     first_slice = rank*Nslice_loc; 
-    if (rank < Nslice%nproc) 
+    if (rank < Nslice%nproc) {
+        Nslice_loc++; 
         first_slice += rank%nproc; 
+    }
     last_slice = first_slice + Nslice_loc - 1; 
 
     //All the rank Initialize all the 3D-matrices.
@@ -155,15 +156,17 @@ void mpi_ctvlib::updateLeftSlice(Mat *vol) {
     Need to make sure this is OK. 
     */
     MPI_Status status;
-    MPI_Send(&vol[Nslice_loc-1](0, 0), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, MPI_ANY_TAG, MPI_COMM_WORLD); 
-    MPI_Recv(&vol[Nslice_loc+1](0, 0), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, MPI_ANY_TAG, MPI_COMM_WORLD, &status); 
+    int tag = 0; 
+    MPI_Send(&vol[Nslice_loc-1], Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD); 
+    MPI_Recv(&vol[Nslice_loc+1], Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, &status); 
 }
 
 
 void mpi_ctvlib::updateRightSlice(Mat *vol) {
     MPI_Status status;
-    MPI_Send(&vol[0](0, 0), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, MPI_ANY_TAG, MPI_COMM_WORLD); 
-    MPI_Recv(&vol[Nslice_loc](0, 0), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, MPI_ANY_TAG, MPI_COMM_WORLD, &status); 
+    int tag = 0; 
+    MPI_Send(&vol[0], Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD); 
+    MPI_Recv(&vol[Nslice_loc], Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD, &status); 
 }
 
 // Stochastic ART Reconstruction.
