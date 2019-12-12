@@ -168,12 +168,12 @@ void mpi_ctvlib::updateLeftSlice(Mat *vol) {
     float *sbuf = new float[vol[Nslice_loc-1].size()];
     float *rbuf = new float[vol[Nslice_loc+1].size()]; 
     for(int i=0; i<Ny; i++) 
-      for(int j=0; j<Nz, j++) 
+      for(int j=0; j<Nz; j++) 
 	sbuf[i*Nz + j] = vol[Nslice_loc-1](i, j);
     MPI_Send(sbuf, Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD);
     MPI_Recv(rbuf, Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, &status);
     for(int i=0; i<Ny; i++) 
-      for(int j=0; j<Nz, j++) 
+      for(int j=0; j<Nz; j++) 
 	vol[Nslice_loc+1](i, j) = rbuf[i*Nz + j];
     //MPI_Send(vol[Nslice_loc-1].data(), vol[Nslice_loc-1].size(), MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD);
     //MPI_Recv(vol[Nslice_loc+1].data(), vol[Nslice_loc+1].size(), MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, &status);
