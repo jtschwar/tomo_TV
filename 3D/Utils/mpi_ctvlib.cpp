@@ -41,14 +41,13 @@ mpi_ctvlib::mpi_ctvlib(int Ns, int Nray, int Nproj)
     MPI_Init(NULL,NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &nproc);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    size = nproc; 
     
     //Calculate the number of slices for each rank.
     Nslice_loc = int(Nslice/nproc);
-    if (rank < Nslice%nproc) Nslice_loc++; 
-    first_slice = rank*Nslice_loc; 
-    if (rank < Nslice%nproc) 
-        first_slice += rank%nproc; 
+    first_slice = rank*Nslice_loc;
+    if (rank < Nslice%nproc){
+        Nslice_loc++;
+        first_slice += rank%nproc; }
     last_slice = first_slice + Nslice_loc - 1; 
 
     //All the rank Initialize all the 3D-matrices.
@@ -73,6 +72,16 @@ mpi_ctvlib::mpi_ctvlib(int Ns, int Nray, int Nproj)
          temp_recon[i] = Mat::Zero(Ny, Nz);
          tv_recon[i] = Mat::Zero(Ny,Nz);
     }
+}
+
+int mpi_ctvlib::get_Nslice_loc()
+{
+    return Nslice_loc;
+}
+
+int mpi_ctvlib::get_first_slice()
+{
+    return first_slice;
 }
 
 //Import tilt series (projections) from Python.
@@ -155,15 +164,31 @@ void mpi_ctvlib::updateLeftSlice(Mat *vol) {
     Need to make sure this is OK. 
     */
     MPI_Status status;
-    MPI_Send(vol[Nslice_loc-1], Ny*Nz, MPI_FLOAT, (rank+1)%nproc, MPI_ANY_TAG, MPI_COMM_WORLD); 
-    MPI_Recv(vol[Nslice_loc+1], Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, MPI_ANY_TAB, MPI_COMM_WORLD, &status); 
+    int tag = 0;
+    float *sbuf = new float[vol[Nslice_loc-1].size()];
+    float *rbuf = new float[vol[Nslice_loc+1].size()]; 
+    for(int i=0; i<Ny; i++) 
+      for(int j=0; j<Nz, j++) 
+	sbuf[i*Nz + j] = vol[Nslice_loc-1](i, j);
+    MPI_Send(sbuf, Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD);
+    MPI_Recv(rbuf, Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, &status);
+    for(int i=0; i<Ny; i++) 
+      for(int j=0; j<Nz, j++) 
+	vol[Nslice_loc+1](i, j) = rbuf[i*Nz + j];
+    //MPI_Send(vol[Nslice_loc-1].data(), vol[Nslice_loc-1].size(), MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD);
+    //MPI_Recv(vol[Nslice_loc+1].data(), vol[Nslice_loc+1].size(), MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, &status);
+//    MPI_Sendrecv(vol[0].data(), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD,
+//                 vol[Nslice_loc].data(), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, &status);
 }
 
 
 void mpi_ctvlib::updateRightSlice(Mat *vol) {
     MPI_Status status;
-    MPI_Send(vol[0], Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, MPI_ANY_TAG, MPI_COMM_WORLD); 
-    MPI_Recv(vol[Nslice_loc], Ny*Nz, MPI_FLOAT, (rank+1)%nproc, MPI_ANY_TAB, MPI_COMM_WORLD, &status); 
+    int tag = 0;
+    MPI_Send(vol[0].data(), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD);
+    MPI_Recv(vol[Nslice_loc].data(), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD, &status);
+//    MPI_Sendrecv(vol[0].data(), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD,
+//                 vol[Nslice_loc].data(), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD, &status);
 }
 
 // Stochastic ART Reconstruction.
@@ -226,7 +251,6 @@ void mpi_ctvlib::SIRT(float beta, int dyn_ind)
         mat_slice = vec_recon;
         mat_slice.resize(Ny, Nz);
     }
-    updateBoundarySlice();
 }
 
 //Calculate Lipshits Gradient (for SIRT). 
@@ -337,8 +361,6 @@ void mpi_ctvlib::loadA(Eigen::Ref<Mat> pyA)
         A.coeffRef(pyA(0,i), pyA(1,i)) = pyA(2,i);
     }
     A.makeCompressed();
-    // I comment the following line out, assuming that all the ranks read pyA, therefore it does not need to do broadcast. 
-    //MPI_Bcast(&A, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 }
 
 //Measure Reconstruction's TV.
@@ -419,7 +441,7 @@ void mpi_ctvlib::tv_gd_3D(int ng, float dPOCS)
         #pragma omp parallel for reduction(+:tv_norm_loc)
         for (int i = 0; i < nx; i++)
         {
-            int ip = i+1
+            int ip = i+1;
             int im = (i-1+nx+2) % (nx+2);
             for (int j = 0; j < ny; j++)
             {
@@ -505,6 +527,8 @@ PYBIND11_MODULE(mpi_ctvlib, m)
     m.doc() = "C++ Scripts for TV-Tomography Reconstructions with OpenMPI Support";
     py::class_<mpi_ctvlib> mpi_ctvlib(m, "mpi_ctvlib");
     mpi_ctvlib.def(py::init<int,int, int>());
+    mpi_ctvlib.def("get_Nslice_loc", &mpi_ctvlib::get_Nslice_loc, "Get the size of local volume");
+    mpi_ctvlib.def("get_first_slice", &mpi_ctvlib::get_first_slice, "Get first slice location");
     mpi_ctvlib.def("setTiltSeries", &mpi_ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
     mpi_ctvlib.def("setOriginalVolume", &mpi_ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
     mpi_ctvlib.def("create_projections", &mpi_ctvlib::create_projections, "Create Projections from Volume");

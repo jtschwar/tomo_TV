@@ -17,12 +17,9 @@
 
 class mpi_ctvlib
 {
-
-typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Mat;
-typedef Eigen::SparseMatrix<float, Eigen::RowMajor> SpMat;
-
 public: 
-
+    typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Mat;
+    typedef Eigen::SparseMatrix<float, Eigen::RowMajor> SpMat;
     // Member Variables.
     Mat *recon, *temp_recon, *tv_recon, *original_volume;
 //    Mat& left_slice, right_slice; //I don't need this any more
@@ -33,6 +30,8 @@ public:
     int first_slice, last_slice; 
 	// Initializes Measurement Matrix. 
 	mpi_ctvlib(int Nslice, int Nray, int Nproj);
+    int get_Nslice_loc();
+    int get_first_slice();
 
 	// Initialize Experimental Projections.
 	void setTiltSeries(Mat in);
@@ -53,10 +52,11 @@ public:
     // Stochastic Reconstruction
     void sART(float beta, int dyn_ind);
     std::vector<int> rand_perm(int n);
-    
+    void updateRightSlice(Mat *vol); 
+    void updateLeftSlice(Mat *vol); 
 	//Forward Project Reconstruction for Data Tolerance Parameter. 
 	void forwardProjection(int dyn_ind);
-
+    
     // Acquire local copy of reconstruction.
     void copy_recon();
     
