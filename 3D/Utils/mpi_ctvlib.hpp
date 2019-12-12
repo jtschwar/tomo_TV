@@ -30,6 +30,8 @@ public:
     int first_slice, last_slice; 
 	// Initializes Measurement Matrix. 
 	mpi_ctvlib(int Nslice, int Nray, int Nproj);
+    int get_Nslice_loc();
+    int get_first_slice();
 
 	// Initialize Experimental Projections.
 	void setTiltSeries(Mat in);
