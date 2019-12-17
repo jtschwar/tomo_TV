@@ -14,7 +14,9 @@
 #include <iostream>
 #include <cmath>
 #include <random>
+#include <iostream>
 #include <mpi.h>
+
 
 #define PI 3.14159265359
 
@@ -160,6 +162,7 @@ void mpi_ctvlib::ART(float beta, int dyn_ind)
 
 
 void mpi_ctvlib::updateLeftSlice(Mat *vol) {
+    printf("updateLeftSice, rank(%d): ", rank);
     /*
     Need to make sure this is OK. 
     */
@@ -179,16 +182,26 @@ void mpi_ctvlib::updateLeftSlice(Mat *vol) {
     //MPI_Recv(vol[Nslice_loc+1].data(), vol[Nslice_loc+1].size(), MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, &status);
 //    MPI_Sendrecv(vol[0].data(), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD,
 //                 vol[Nslice_loc].data(), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, &status);
+    delete rbuf, sbuf; 
+    printf("updateLeftSice, rank(%d) done: ", rank);
 }
 
 
 void mpi_ctvlib::updateRightSlice(Mat *vol) {
+    printf("updateRightSice, rank(%d): ", rank);
     MPI_Status status;
     int tag = 0;
-    MPI_Send(vol[0].data(), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD);
-    MPI_Recv(vol[Nslice_loc].data(), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD, &status);
-//    MPI_Sendrecv(vol[0].data(), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD,
-//                 vol[Nslice_loc].data(), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD, &status);
+    float *sbuf = new float[vol[Nslice_loc-1].size()];
+    float *rbuf = new float[vol[Nslice_loc+1].size()]; 
+    for(int i=0; i<Ny; i++) 
+      for(int j=0; j<Nz; j++) 
+	sbuf[i*Nz + j] = vol[0](i, j);
+    MPI_Send(sbuf, Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD);
+    MPI_Recv(rbuf, Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD, &status);
+    for(int i=0; i<Ny; i++) 
+      for(int j=0; j<Nz; j++) 
+	vol[Nslice_loc+1](i, j) = rbuf[i*Nz + j];
+    printf("updateRightSice, rank(%d): done", rank);
 }
 
 // Stochastic ART Reconstruction.

@@ -51,7 +51,7 @@ file_name = 'au_sto'
 (Nslice, Nray, _) = original_volume.shape
 
 # Generate Tilt Angles.
-tiltAngles = np.load('Tilt_Series/'+ file_name +'_tiltAngles.npy')
+tiltAngles = np.load('Tilt_Series/'+ file_name +'_tiltAngles.npy', allow_pickle=True)
 Nproj = tiltAngles.shape[0]
 
 # Initialize C++ Object.. 
