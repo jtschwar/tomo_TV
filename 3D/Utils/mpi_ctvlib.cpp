@@ -68,11 +68,12 @@ mpi_ctvlib::mpi_ctvlib(int Ns, int Nray, int Nproj)
 
         // Initialize the 3D Matrices as zeros.
     #pragma omp parallel for
-    for (int i=0; i < Nslice_loc; i++)
+    for (int i=0; i < Nslice_loc+2; i++)
     {
          recon[i] = Mat::Zero(Ny, Nz);
          temp_recon[i] = Mat::Zero(Ny, Nz);
          tv_recon[i] = Mat::Zero(Ny,Nz);
+	 original_volume[i] = Mat::Zero(Ny, Nz);
     }
 }
 
@@ -162,46 +163,26 @@ void mpi_ctvlib::ART(float beta, int dyn_ind)
 
 
 void mpi_ctvlib::updateLeftSlice(Mat *vol) {
-    printf("updateLeftSice, rank(%d): ", rank);
     /*
     Need to make sure this is OK. 
     */
     MPI_Status status;
     int tag = 0;
-    float *sbuf = new float[vol[Nslice_loc-1].size()];
-    float *rbuf = new float[vol[Nslice_loc+1].size()]; 
-    for(int i=0; i<Ny; i++) 
-      for(int j=0; j<Nz; j++) 
-	sbuf[i*Nz + j] = vol[Nslice_loc-1](i, j);
-    MPI_Send(sbuf, Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD);
-    MPI_Recv(rbuf, Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, &status);
-    for(int i=0; i<Ny; i++) 
-      for(int j=0; j<Nz; j++) 
-	vol[Nslice_loc+1](i, j) = rbuf[i*Nz + j];
-    //MPI_Send(vol[Nslice_loc-1].data(), vol[Nslice_loc-1].size(), MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD);
-    //MPI_Recv(vol[Nslice_loc+1].data(), vol[Nslice_loc+1].size(), MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, &status);
-//    MPI_Sendrecv(vol[0].data(), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD,
-//                 vol[Nslice_loc].data(), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, &status);
-    delete rbuf, sbuf; 
-    printf("updateLeftSice, rank(%d) done: ", rank);
+    float *sbuf = new float[Ny*Nz];
+    float *rbuf = new float[Ny*Nz];
+    MPI_Send(&vol[Nslice_loc-1](0, 0), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD);
+    MPI_Recv(&vol[Nslice_loc+1](0, 0), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, &status);
 }
 
 
 void mpi_ctvlib::updateRightSlice(Mat *vol) {
-    printf("updateRightSice, rank(%d): ", rank);
     MPI_Status status;
     int tag = 0;
-    float *sbuf = new float[vol[Nslice_loc-1].size()];
-    float *rbuf = new float[vol[Nslice_loc+1].size()]; 
-    for(int i=0; i<Ny; i++) 
-      for(int j=0; j<Nz; j++) 
-	sbuf[i*Nz + j] = vol[0](i, j);
-    MPI_Send(sbuf, Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD);
-    MPI_Recv(rbuf, Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD, &status);
-    for(int i=0; i<Ny; i++) 
-      for(int j=0; j<Nz; j++) 
-	vol[Nslice_loc+1](i, j) = rbuf[i*Nz + j];
-    printf("updateRightSice, rank(%d): done", rank);
+    float *sbuf = new float[Ny*Nz];
+    float *rbuf = new float[Ny*Nz];
+    MPI_Send(&vol[0](0, 0), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD);
+    MPI_Recv(&vol[Nslice_loc+1](0, 0), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD, &status);
+    delete rbuf, sbuf; 
 }
 
 // Stochastic ART Reconstruction.

@@ -5,7 +5,7 @@
 import sys, os
 sys.path.append('./Utils')
 from pytvlib import parallelRay, timer, load_data
-from mpi4py import MPI
+#from mpi4py import MPI
 import numpy as np
 import mpi_ctvlib 
 import time
@@ -42,8 +42,8 @@ save_recon = 0           # Save final Reconstruction.
 ##########################################
 
 # Initalize pyMPI 
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
+#comm = MPI.COMM_WORLD
+#rank = comm.Get_rank()
 
 #Read Image. (MPI_IO)
 (file_name, original_volume) = load_data(vol_size,file_name)

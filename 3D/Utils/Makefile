@@ -10,3 +10,5 @@ ctvlib: ctvlib.cpp  ctvlib.hpp
 
 mpi_ctvlib: mpi_ctvlib.cpp mpi_ctvlib.hpp
 	$(MPXX) $(CXXFLAGS) $(EIGEN) $(PYBIND) $(PYBIND11) mpi_ctvlib.cpp -o $(MPICONFIG)
+clean:
+	rm -rf *.so *.o
