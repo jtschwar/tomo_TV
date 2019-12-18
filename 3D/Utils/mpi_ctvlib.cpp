@@ -562,7 +562,7 @@ Mat mpi_ctvlib::get_projections()
 void mpi_ctvlib::restart_recon()
 {
     #pragma omp parallel for
-    for (int s = 0; s < Nslice; s++)
+    for (int s = 0; s < Nslice_loc; s++)
     {
         recon[s] = Mat::Zero(Ny,Ny);
     }

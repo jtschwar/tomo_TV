@@ -15,7 +15,7 @@ vol_size = '256_'
 file_name = 'au_sto_tiltser.npy'
 
 # Number of Iterations (Main Loop)
-Niter = 5
+Niter = 10
 
 # Number of Iterations (TV Loop)
 ng = 10
@@ -144,12 +144,15 @@ for i in range(Niter):
     if (tomo_obj.get_rank()==0):
         print("rmse: %s" %rmse_vec[i])
 
-#Save all the results to single matrix.
+    #Save all the results to single matrix.
 
 if tomo_obj.get_rank() == 0:
     results = np.array([dd_vec, eps, tv_vec, tv0, rmse_vec, time_vec])
     os.makedirs('Results/'+ file_name +'_MPI/', exist_ok=True)
     np.save('Results/' + file_name + '_MPI/results.npy', results)
+    print("tv_vec", tv_vec)
+    print("time_vec", time_vec)
+    print("dd_vec", dd_vec)
 
 #Get and save the final reconstruction.
 tomo_obj.gather_recon()
