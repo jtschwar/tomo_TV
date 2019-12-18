@@ -15,7 +15,7 @@ vol_size = '256_'
 file_name = 'au_sto_tiltser.npy'
 
 # Number of Iterations (Main Loop)
-Niter = 10
+Niter = 100
 
 # Number of Iterations (TV Loop)
 ng = 10

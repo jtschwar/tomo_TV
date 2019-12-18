@@ -37,8 +37,6 @@ mpi_ctvlib::mpi_ctvlib(int Ns, int Nray, int Nproj)
     Ncol = Ny*Nz;
     A.resize(Nrow,Ncol);
     innerProduct.resize(Nrow);
-    b.resize(Ny, Nrow);
-    g.resize(Ny, Nrow);
     
     MPI_Init(NULL,NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &nproc);
@@ -51,6 +49,9 @@ mpi_ctvlib::mpi_ctvlib(int Ns, int Nray, int Nproj)
         Nslice_loc++;
         first_slice += rank%nproc; }
     last_slice = first_slice + Nslice_loc - 1; 
+
+    b.resize(Nslice_loc, Nrow);
+    g.resize(Nslice_loc, Nrow);
 
     //All the rank Initialize all the 3D-matrices.
         
@@ -312,12 +313,23 @@ float mpi_ctvlib::matrix_2norm()
 // Measure the 2 norm between experimental and reconstructed projections.
 float mpi_ctvlib::vector_2norm()
 {
-    return (g - b).norm() / g.size();
+  float v2_loc = (g - b).norm();
+  float v2; 
+  if (nproc==1) 
+    v2 = v2_loc/g.size(); 
+  else {
+    MPI_Allreduce(&v2_loc, &v2, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+    v2 = v2/Nslice/Nrow; 
+  }
+  return v2; 
 }
 
 // Measure the 2 norm for projections when data is 'dynamically' collected.
 float mpi_ctvlib::dyn_vector_2norm(int dyn_ind)
 {
+  /* TODO
+     we have to figure out the reduced version for this.
+   */
     dyn_ind *= Ny;
     return ( g.leftCols(dyn_ind) - b.leftCols(dyn_ind) ).norm() / g.leftCols(dyn_ind).size();
 }
