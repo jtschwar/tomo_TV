@@ -38,7 +38,7 @@ SNR = 100
 
 #Outcomes:
 noise = True                # Add noise to the reconstruction.
-save_recon = 0           # Save final Reconstruction. 
+save_recon = 1           # Save final Reconstruction. 
 ##########################################
 
 # Initalize pyMPI 
@@ -56,16 +56,17 @@ Nproj = tiltAngles.shape[0]
 
 # Initialize C++ Object.. 
 tomo_obj = mpi_ctvlib.mpi_ctvlib(Nslice, Nray, Nproj)
+if tomo_obj.get_rank()==0:
+    print("Number of process: %d "%tomo_obj.get_nproc())
 Nslice_loc = tomo_obj.get_Nslice_loc()
 first_slice = tomo_obj.get_first_slice()
-
 # Generate measurement matrix
 A = parallelRay(Nray, tiltAngles)
 tomo_obj.load_A(A)
 A = None
 tomo_obj.rowInnerProduct()
-
-print('Measurement Matrix is Constructed!')
+if tomo_obj.get_rank()==0:
+    print('Measurement Matrix is Constructed!')
 
 # If creating simulation with noise, set background value to 1.
 if noise:
@@ -92,8 +93,7 @@ t0 = time.time()
 
 #Main Loop
 for i in range(Niter): 
-
-    if ( i % 1 ==0):
+    if ( i % 1 ==0 and tomo_obj.get_rank()==0):
         print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
 
     tomo_obj.copy_recon()
@@ -124,7 +124,6 @@ for i in range(Niter):
     tv_vec[i] = tomo_obj.tv()
 
     #Measure RMSE.
-    print('rmse')
     rmse_vec[i] = tomo_obj.rmse()
 
     tomo_obj.copy_recon() 
@@ -142,27 +141,23 @@ for i in range(Niter):
     counter += 1
     time_vec[i] = time.time() - t0
 
-    print(rmse_vec[i])
+    if (tomo_obj.get_rank()==0):
+        print("rmse: %s" %rmse_vec[i])
 
 #Save all the results to single matrix.
-if rank == 0:
+
+if tomo_obj.get_rank() == 0:
     results = np.array([dd_vec, eps, tv_vec, tv0, rmse_vec, time_vec])
     os.makedirs('Results/'+ file_name +'_MPI/', exist_ok=True)
     np.save('Results/' + file_name + '_MPI/results.npy', results)
 
 #Get and save the final reconstruction.
-if save_recon: 
-    recon_loc = np.zeros([Nslice_loc, Nray, Nray], dtype=np.float32, order='F')
-
+tomo_obj.gather_recon()
+if save_recon and tomo_obj.get_rank()==0: 
+    recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F')
     #Use mpi4py to do MPI_Gatherv
-    for s in range(Nslice_loc):
+    for s in range(Nslice):
         # recon_loc[s+first_slice,:,:] = tomo_obj.getRecon(s)
-        recon_loc[s+first_slice,:,:] = tomo_obj.getRecon(s)
-        
-    if rank == 0:
-        recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F')
-    comm.gather(recon_loc, recon, root=0)
-    
-    #MPI_IO
-    if rank == 0:
-        np.save('Results/TV_'+ file_name + '_recon.npy', recon)
+        recon[s,:,:] = tomo_obj.getRecon(s)
+    np.save('Results/TV_'+ file_name + '_recon.npy', recon)
+tomo_obj.mpi_finalize()
