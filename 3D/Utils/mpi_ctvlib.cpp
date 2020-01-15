@@ -56,8 +56,9 @@ mpi_ctvlib::mpi_ctvlib(int Ns, int Nray, int Nproj)
     //All the rank Initialize all the 3D-matrices.
         
    //Final Reconstruction.
-    recon = new Mat[Nslice_loc+2]; /* I added two more slices, Mat[Nslice_loc] on rank N = Mat[0] on rank N+1
-        */
+    recon = new Mat[Nslice_loc+2]; 
+    /* I added two more slices, Mat[Nslice_loc] on rank N = Mat[0] on rank N+1
+     */
     // Temporary copy for measuring changes in TV and ART.
     temp_recon = new Mat[Nslice_loc+2];
         
@@ -128,21 +129,13 @@ void mpi_ctvlib::create_projections()
 void mpi_ctvlib::poissonNoise(int Nc)
 {
     Mat temp_b = b;
-    /*
-      float mean = b.mean();
-      float N = b.sum();
-      b  = b / ( b.sum() ) * Nc * b.size();
-    */
+    float N = b.sum();
     float mean;
-    float mean_loc = b.mean();
-    float N_loc  =  b.sum();
-    float N = 0.0; 
     if (nproc ==1 ) {
-      mean = mean_loc; 
-      N = N_loc; 
+      mean = N/b.size(); 
     } else {
-      MPI_Allreduce(&mean_loc, &mean, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-      MPI_Allreduce(&N_loc, &N, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(&N, &mean, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+      mean = mean/Nslice/Nrow;
     }
     b = b/mean*Nc; 
     std::default_random_engine generator;
@@ -152,9 +145,8 @@ void mpi_ctvlib::poissonNoise(int Nc)
        b(i) = distribution(generator);
     }
     float scale = 1;
-    if (nproc > 1) 
-      scale = float(Nslice_loc)/Nslice; 
-    b = b / ( Nc * b.size() ) * N*scale;
+
+    b = b / Nc * mean;
 
     //    temp_b.array() -= b.array();
     // float std = sqrt( ( temp_b.array() - temp_b.mean() ).square().sum() / (temp_b.size() - 1));
@@ -195,11 +187,18 @@ void mpi_ctvlib::updateLeftSlice(Mat *vol) {
     MPI_Status status;
     int tag = 0;
     if (nproc>1) {
+#ifdef DEBUG
+      cout << "rank" << rank << "sending the message" << endl; 
+#endif 
       MPI_Send(&vol[Nslice_loc-1](0, 0), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD);
       MPI_Recv(&vol[Nslice_loc+1](0, 0), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, &status);
+#ifdef DEBUG
+      cout << "message received" << endl; 
+#endif
     } else {
       vol[Nslice_loc+1] = vol[Nslice_loc-1];
     }
+
 }
 
 
@@ -207,8 +206,14 @@ void mpi_ctvlib::updateRightSlice(Mat *vol) {
     MPI_Status status;
     int tag = 0;
     if (nproc>1) {
+#ifdef DEBUG
+      cout << "rank" << rank << "sending the message" << endl; 
+#endif
       MPI_Send(&vol[0](0, 0), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD);
       MPI_Recv(&vol[Nslice_loc](0, 0), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD, &status);
+#ifdef DEBUG
+      cout << "message received" << endl; 
+#endif
     } else {
       vol[Nslice_loc] = vol[0];
     }
@@ -382,7 +387,7 @@ float mpi_ctvlib::rmse()
 {
     float rmse, rmse_loc;
     rmse_loc = 0.0; 
-    #pragma omp parallel for reduction(+:rmse)
+    #pragma omp parallel for reduction(+:rmse_loc)
     for (int s = 0; s < Nslice_loc; s++)
     {
         rmse_loc += ( recon[s].array() - original_volume[s].array() ).square().sum();
