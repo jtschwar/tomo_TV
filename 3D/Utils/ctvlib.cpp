@@ -228,7 +228,7 @@ float ctvlib::matrix_2norm()
 // Measure the 2 norm between experimental and reconstructed projections.
 float ctvlib::vector_2norm()
 {
-    return (g - b).norm() / g.size();
+  return (g - b).norm() / g.size(); // Nrow*Nslice,sum_{ij} M_ij^2 / Nrow*Nslice
 }
 
 // Measure the 2 norm for projections when data is 'dynamically' collected.

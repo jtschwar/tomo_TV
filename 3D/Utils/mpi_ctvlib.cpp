@@ -128,18 +128,36 @@ void mpi_ctvlib::create_projections()
 void mpi_ctvlib::poissonNoise(int Nc)
 {
     Mat temp_b = b;
-    float mean = b.mean();
-    float N = b.sum();
-    b  = b / ( b.sum() ) * Nc * b.size();
+    /*
+      float mean = b.mean();
+      float N = b.sum();
+      b  = b / ( b.sum() ) * Nc * b.size();
+    */
+    float mean;
+    float mean_loc = b.mean();
+    float N_loc  =  b.sum();
+    float N = 0.0; 
+    if (nproc ==1 ) {
+      mean = mean_loc; 
+      N = N_loc; 
+    } else {
+      MPI_Allreduce(&mean_loc, &mean, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(&N_loc, &N, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+    }
+    b = b/mean*Nc; 
     std::default_random_engine generator;
     for(int i=0; i < b.size(); i++)
     {
        std::poisson_distribution<int> distribution(b(i));
        b(i) = distribution(generator);
     }
-    b = b / ( Nc * b.size() ) * N;
-    temp_b.array() -= b.array();
-    float std = sqrt( ( temp_b.array() - temp_b.mean() ).square().sum() / (temp_b.size() - 1));
+    float scale = 1;
+    if (nproc > 1) 
+      scale = float(Nslice_loc)/Nslice; 
+    b = b / ( Nc * b.size() ) * N*scale;
+
+    //    temp_b.array() -= b.array();
+    // float std = sqrt( ( temp_b.array() - temp_b.mean() ).square().sum() / (temp_b.size() - 1));
 }
 
 
@@ -318,8 +336,9 @@ float mpi_ctvlib::vector_2norm()
   if (nproc==1) 
     v2 = v2_loc/g.size(); 
   else {
+    v2_loc = v2_loc*v2_loc; 
     MPI_Allreduce(&v2_loc, &v2, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-    v2 = v2/Nslice/Nrow; 
+    v2 = sqrt(v2)/Nslice/Nrow; 
   }
   return v2; 
 }
