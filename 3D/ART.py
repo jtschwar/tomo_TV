@@ -41,7 +41,7 @@ tomo_obj.setTiltSeries(b)
 tiltSeries = None
 
 # Generate Tilt Angles.
-tiltAngles = np.load('../Tilt_Series/'+file_name+'_tiltAngles.npy')
+tiltAngles = np.load('Tilt_Series/'+file_name+'_tiltAngles.npy')
 
 # Generate measurement matrix
 A = parallelRay(Nray, tiltAngles)
