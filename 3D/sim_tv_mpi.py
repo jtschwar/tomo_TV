@@ -5,7 +5,6 @@
 import sys, os
 sys.path.append('./Utils')
 from pytvlib import parallelRay, timer, load_data
-#from mpi4py import MPI
 import numpy as np
 import mpi_ctvlib 
 import time
@@ -15,7 +14,7 @@ vol_size = '256_'
 file_name = 'au_sto_tiltser.npy'
 
 # Number of Iterations (Main Loop)
-Niter = 100
+Niter = 10
 
 # Number of Iterations (TV Loop)
 ng = 10
@@ -41,13 +40,8 @@ noise = True                # Add noise to the reconstruction.
 save_recon = 1           # Save final Reconstruction. 
 ##########################################
 
-# Initalize pyMPI 
-#comm = MPI.COMM_WORLD
-#rank = comm.Get_rank()
-
 #Read Image. (MPI_IO)
 (file_name, original_volume) = load_data(vol_size,file_name)
-file_name = 'au_sto'
 (Nslice, Nray, _) = original_volume.shape
 
 # Generate Tilt Angles.
@@ -56,16 +50,18 @@ Nproj = tiltAngles.shape[0]
 
 # Initialize C++ Object.. 
 tomo_obj = mpi_ctvlib.mpi_ctvlib(Nslice, Nray, Nproj)
-if tomo_obj.get_rank()==0:
+rank = tomo_obj.get_rank()
+if rank == 0:
     print("Number of process: %d "%tomo_obj.get_nproc())
 Nslice_loc = tomo_obj.get_Nslice_loc()
 first_slice = tomo_obj.get_first_slice()
+
 # Generate measurement matrix
 A = parallelRay(Nray, tiltAngles)
 tomo_obj.load_A(A)
 A = None
 tomo_obj.rowInnerProduct()
-if tomo_obj.get_rank()==0:
+if rank == 0:
     print('Measurement Matrix is Constructed!')
 
 # If creating simulation with noise, set background value to 1.
@@ -93,8 +89,6 @@ t0 = time.time()
 
 #Main Loop
 for i in range(Niter): 
-    if ( i % 1 ==0 and tomo_obj.get_rank()==0):
-        print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
 
     tomo_obj.copy_recon()
 
@@ -135,32 +129,40 @@ for i in range(Niter):
     if(dg > dp * r_max and dd_vec[i] > eps):
         dPOCS *= alpha_red
 
-    if (i+1)% 25 == 0:
-        timer(t0, counter, Niter)
-
     counter += 1
     time_vec[i] = time.time() - t0
 
-    if (tomo_obj.get_rank()==0):
-        print("rmse: %s" %rmse_vec[i])
+    if ( i % 25 ==0 and rank == 0):
+        print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
+        timer(t0, counter, Niter)
 
-    #Save all the results to single matrix.
-
-if tomo_obj.get_rank() == 0:
+#Save all the results to single matrix.
+if rank == 0:
     results = np.array([dd_vec, eps, tv_vec, tv0, rmse_vec, time_vec])
     os.makedirs('Results/'+ file_name +'_MPI/', exist_ok=True)
     np.save('Results/' + file_name + '_MPI/results.npy', results)
-    print("tv_vec", tv_vec)
-    print("time_vec", time_vec)
-    print("dd_vec", dd_vec)
 
 #Get and save the final reconstruction.
-tomo_obj.gather_recon()
-if save_recon and tomo_obj.get_rank()==0: 
-    recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F')
-    #Use mpi4py to do MPI_Gatherv
-    for s in range(Nslice):
-        # recon_loc[s+first_slice,:,:] = tomo_obj.getRecon(s)
-        recon[s,:,:] = tomo_obj.getRecon(s)
-    np.save('Results/TV_'+ file_name + '_recon.npy', recon)
+if save_recon: 
+    recon_loc = np.zeros([Nslice_loc, Nray, Nray], dtype=np.float32, order='F')
+
+    for s in range(Nslice_loc):
+        recon_loc[s,:,:] = tomo_obj.getLocRecon(s+1)
+    np.save('Results/{}_MPI/recon{}.npy'.format(file_name,rank), recon_loc)
+
+    if rank == 0:
+        import os
+        recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F')
+
+        s1 = 0
+        for proc_num in range(tomo_obj.get_nproc()):
+
+            temp_recon = np.load('Results/{}_MPI/recon{}.npy'.format(file_name,proc_num))
+            s2 = temp_recon.shape[0] + s1
+            recon[s1:s2,:,:] = temp_recon
+            s1 = s2
+            os.remove('Results/{}_MPI/recon{}.npy'.format(file_name,proc_num))
+
+        np.save('Results/'+ file_name +'_MPI/recon.npy', recon)
+
 tomo_obj.mpi_finalize()
