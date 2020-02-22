@@ -2,7 +2,7 @@
 
 import sys
 sys.path.append('./Utils')
-from pytvlib import parallelRay, timer, load_data
+from pytvlib import *
 import numpy as np
 import ctvlib 
 import time
@@ -15,13 +15,13 @@ file_name = 'Co2P_tiltser.tif'
 Niter = 20
 
 # Parameter in SIRT Reconstruction.
-beta = 0.0001
+beta0 = 0.0001
 
 # ART Reduction.
 beta_red = 0.995
 
 # Save Final Reconstruction. 
-save = True
+saveRecon = True
 
 ##########################################
 
@@ -46,9 +46,9 @@ A = parallelRay(Nray, tiltAngles)
 tomo_obj.load_A(A)
 A = None
 tomo_obj.rowInnerProduct()
-tomo_obj.initialize_SIRT()
+print('Measurement Matrix is Constructed!')
 
-dd_vec = np.zeros(Niter)
+rmse_vec = np.zeros(Niter)
 
 t0 = time.time()
 counter = 1
@@ -64,6 +64,8 @@ for i in range(Niter):
     #Positivity constraint 
     tomo_obj.positivity()
 
+    rmse_vec = tomo_obj.rmse()
+
     #ART-Beta Reduction
     beta *= beta_red 
 
@@ -71,9 +73,14 @@ for i in range(Niter):
         timer(t0, counter, Niter)
     counter += 1
 
-recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
-for s in range(Nslice):
-    recon[s,:,:] = tomo_obj.getRecon(s)
+print('Reconstruction Complete, Saving Data..')
+print('Save Recon :: {}'.format(saveRecon))
 
-if save:
-    np.save('Results/SIRT_'+file_name+'_recon.npy', recon)
+#Save all the results to h5 file. 
+fDir = fName + '_ASD'
+meta = {'Niter':Niter,'beta':beta0,'beta_red':beta_red,'vol_size':vol_size}}
+results = {'rmse':rmse_vec}
+save_results([fDir,fName], meta, results)
+
+if saveRecon: 
+    save_recon([fDir,fName], (Nslice, Nray, Nproj), tomo_obj)

@@ -4,17 +4,15 @@
 
 import sys
 sys.path.append('./Utils')
-from pytvlib import parallelRay, timer, load_data
 import plot_results as pr
+from pytvlib import *
 import numpy as np
 import ctvlib 
 import time
 ########################################
 
-# vol_size = '256_'
-# file_name = '180_tiltser.tif'
-vol_size = ''
-file_name = 'FePt_tiltser.npy'
+vol_size = '256_'
+file_name = '180_tiltser.tif'
 
 # Number of Iterations (Main Loop)
 Niter = 100
@@ -23,7 +21,7 @@ Niter = 100
 ng = 10
 
 # Parameter in ART Reconstruction.
-beta =  0.25
+beta0 =  0.25
 
 # ART Reduction.
 beta_red = 0.99
@@ -37,13 +35,13 @@ alpha_red = 0.95
 alpha = 0.2
 
 #Outcomes:
-save = True                 # Save final Reconstruction. 
-show_live_plot = True      # Show intermediate results.
-show_final_plot = True     # Show final results (i.e. tv and dd) 
+show_live_plot = 0
+saveGif, saveRecon = True, True           
+gif_slice = 156
 ##########################################
 
 # Read Image. 
-(file_name, tiltSeries) = load_data(vol_size,file_name)
+(fName, tiltSeries) = load_data(vol_size,fName)
 (Nslice, Nray, Nproj) = tiltSeries.shape
 b = np.zeros([Nslice, Nray*Nproj])
 
@@ -57,19 +55,19 @@ tomo_obj.setTiltSeries(b)
 tiltSeries = None
 
 # Generate Tilt Angles.
-tiltAngles = np.load('Tilt_Series/'+ file_name +'_tiltAngles.npy')
+tiltAngles = np.load('Tilt_Series/'+ fName +'_tiltAngles.npy')
 
 # Generate measurement matrix
 A = parallelRay(Nray, tiltAngles)
 tomo_obj.load_A(A)
 A = None
 tomo_obj.rowInnerProduct()
+print('Measurement Matrix is Constructed!')
 
 # Initialize Vectors for DD, TV, and Time Elapsed. 
 dd_vec, tv_vec, time_vec = np.zeros(Niter), np.zeros(Niter), np.zeros(Niter)
-
+beta = beta0
 counter = 1 
-
 t0 = time.time()
 
 #Main Loop
@@ -121,12 +119,15 @@ for i in range(Niter):
 
     counter += 1
 
-if show_final_plot:
-    pr.ASD_results(dd_vec, eps, tv_vec) 
+print('Reconstruction Complete, Saving Data..')
+print('Save Gif :: {}, Save Recon :: {}'.format(saveGif, saveRecon))
 
-#Get the final reconstruction. 
-if save:
-    recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
-    for s in range(Nslice):
-        recon[s,:,:] = tomo_obj.getRecon(s)
-    np.save('Results/TV_'+ file_name + '_recon.npy', recon)
+#Save all the results to h5 file. 
+fDir = fName + '_ASD'
+meta = {'Niter':Niter,'ng':ng,'beta':beta0,'beta_red':beta_red,'eps':eps}
+meta.update({'r_max':r_max,'alpha':alpha,'alpha_red':alpha_red,'vol_size':vol_size})
+results = {'dd':dd_vec,'eps':eps,'tv':tv_vec,'time':time_vec}
+save_results([fDir,fName], meta, results)
+
+if saveRecon: 
+    save_recon([fDir,fName], (Nslice, Nray, Nproj), tomo_obj)

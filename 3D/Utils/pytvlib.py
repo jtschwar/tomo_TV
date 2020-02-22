@@ -1,7 +1,9 @@
 from skimage import io
 import scipy.ndimage
 import numpy as np
-import time
+import time, os
+from tqdm import tqdm
+import h5py
 
 def tv_derivative(recon):
     r = np.lib.pad(recon, ((1, 1), (1, 1), (1, 1)), 'edge')
@@ -94,7 +96,7 @@ def parallelRay(Nside, angles):
     vals = np.zeros((2 * Nside * Nproj * Nray), dtype=np.float32)
     idxend = 0
 
-    for i in range(0, Nproj): # Loop over projection angles
+    for i in tqdm(range(0, Nproj)): # Loop over projection angles
         ang = angles[i] * np.pi / 180.
         # Points passed by rays at current angles
         xrayRotated = np.cos(ang) * offsets
@@ -197,21 +199,70 @@ def load_data(vol_size, file_name):
 
     #sk-image loads tilt series as (z,y,x) so the axes need to be
     #swapped to return to (x,y,z)
-
+    dir = 'Tilt_Series/'
     full_name = vol_size+file_name
 
     if full_name.endswith('.tiff'):
-        tiltSeries = io.imread('Tilt_Series/'+ full_name)
-        tiltSeries = np.array(tiltSeries, dtype=np.float32)
+        tiltSeries = np.array(io.imread(dir+full_name), dtype=np.float32)
         tiltSeries = np.swapaxes(tiltSeries, 0, 2)
-        file_name = file_name.replace('_tiltser.tiff', '')
+        ftype = '.tiff'
     elif full_name.endswith('.tif'):
-        tiltSeries = io.imread('Tilt_Series/'+ full_name)
-        tiltSeries = np.array(tiltSeries, dtype=np.float32)
+        tiltSeries = np.array(io.imread(dir+full_name), dtype=np.float32)
         tiltSeries = np.swapaxes(tiltSeries, 0, 2)
-        file_name = file_name.replace('_tiltser.tif', '')
+        ftype = '.tif'
     elif full_name.endswith('.npy'):
-        tiltSeries = np.load('Tilt_Series/' + full_name)
-        file_name = file_name.replace('_tiltser.npy', '')
+        tiltSeries = np.load(dir+full_name)
+        ftype = '.npy'
+
+    # remove file type from name. 
+    file_name = file_name.replace('_tiltser'+ftype, '')
 
     return (file_name,tiltSeries)
+
+def save_results(fname, meta, results):
+
+    os.makedirs('Results/'+fname[0]+'/', exist_ok=True)
+
+    h5=h5py.File('Results/{}/{}.h5'.format(fname[0],fname[1]), 'w')
+    params = h5.create_group("parameters")
+    for key,item in meta.items():
+        params.attrs[key] = item
+
+    conv = h5.create_group("convergence")
+    for key,item in results.items():
+        conv.create_dataset(key, dtype=np.float32, data=item)
+
+    h5.close()
+
+def save_gif(fname, meta, gif):
+    h5=h5py.File('Results/{}/{}.h5'.format(fname[0],fname[1]), 'a')
+    gif = h5.create_group("gif")
+    gif.create_dataset("gif", dtype=np.float32, data=gif)
+    gif.attrs["img_slice"] = meta
+
+def save_recon(fname, meta, tomo):
+
+    (Nslice, Nray, Nproj) = meta
+
+    recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
+    for s in range(Nslice):
+        recon[s,:,:] = tomo.getRecon(s)
+
+    h5=h5py.File('Results/{}/{}.h5'.format(fname[0],fname[1]), 'a')
+    dset = h5.create_group("Reconstruction")
+    dset.create_dataset("recon", dtype=np.float32, data=recon)
+    dset.attrs["Nslice"] = Nslice
+    dset.attrs["Nray"] = Nray
+    dset.attrs["Nproj"] = Nproj
+
+    h5.close()
+
+# TODO :: Save Reconstruction in Parallel with MPI. 
+def save_recon_parallel(fname, meta, tomo):
+
+    h5=h5py.File('Results/{}/{}.h5'.format(fname[0],fname[1]), 'a')
+    dset = h5.create_group("Reconstruction")
+    dset.create_dataset("recon", dtype=np.float32, data=recon)
+
+    h5.close()
+    

@@ -7,8 +7,8 @@
 
 import sys, os
 sys.path.append('./Utils')
-from pytvlib import parallelRay, load_data
 import plot_results as pr
+from pytvlib import *
 import numpy as np
 import ctvlib
 import time
@@ -24,10 +24,10 @@ ng = 10
 beta0 = 0.25
 
 # ART Reduction.
-beta_red = 0.99
+beta_red = 0.98
 
 # Data Tolerance Parameter
-eps = 0.43
+eps = 0.019
 
 # Reduction Criteria
 r_max = 0.95
@@ -40,42 +40,53 @@ time_limit = 180
 # Max Number of iterations before next projection is collected. 
 max_iter = 125
 
-#SNR
 SNR = 100
-noise = True
 
-save = False        # Save final reconstruction. 
-show_live_plot = 0  # Show intermediate results. 
-
+#Outcomes:
+show_live_plot = 0
+saveGif, saveRecon = True, True           
+gif_slice = 156
 ##########################################
 
-# #Read Image. 
-(file_name, tiltSeries) = load_data(vol_size,file_name)
-(Nslice, Nray, Nproj) = tiltSeries.shape
-b = np.zeros([Nslice, Nray*Nproj])
+#Read Image. 
+(file_name, original_volume) = load_data(vol_size,file_name)
+(Nslice, Nray, _) = original_volume.shape
+
+
+# Generate Tilt Angles.
+tiltAngles = np.load('Tilt_Series/'+file_name+'_tiltAngles.npy')
+Nproj = tiltAngles.shape[0]
 
 # Initialize C++ Object.. 
 tomo_obj = ctvlib.ctvlib(Nslice, Nray, Nproj)
-
-for s in range(Nslice):
-    b[s,:] = tiltSeries[s,:,:].transpose().ravel()
-tomo_obj.setTiltSeries(b)
-tiltSeries = None
-
-# Generate Tilt Angles.
-tiltAngles = np.load('Tilt_Series/'+ file_name +'_tiltAngles.npy')
 
 # Generate measurement matrix
 A = parallelRay(Nray, tiltAngles)
 tomo_obj.load_A(A)
 A = None
 tomo_obj.rowInnerProduct()
+print('Measurement Matrix is Constructed!')
 
-# gif = np.zeros([Nray, Nray, Nproj], dtype=np.float32)
+
+# If creating simulation with noise, set background value to 1.
+if SNR != 0:
+    original_volume[original_volume == 0] = 1
+
+# Load Volume and Collect Projections. 
+for s in range(Nslice):
+    tomo_obj.setOriginalVolume(original_volume[s,:,:],s)
+tomo_obj.create_projections()
+
+# Apply poisson noise to volume.
+if SNR != 0:
+    tomo_obj.poissonNoise(SNR)
 
 #Final vectors for dd, tv, and Niter. 
+tv0 = tomo_obj.original_tv()
+gif = np.zeros([Nray, Nray, Nproj], dtype=np.float32)
 Niter = np.zeros(Nproj, dtype=np.int32)
-fdd_vec, ftv_vec, ftime_vec  = np.array([]),np. array([]), np.array([])
+fdd_vec,ftv_vec  = np.array([]),np.array([])
+frmse_vec,ftime_vec = np.array([]),np.array([])
 
 i = 0 # Projection Number
 max_time = time_limit * (Nproj-1)
@@ -89,9 +100,8 @@ while i < Nproj:
     # Reset Beta.
     beta = beta0 * (1.0 - 2/3 * i/Nproj)
 
-    dd_vec = np.zeros(max_iter, dtype=np.float32)
-    tv_vec = np.zeros(max_iter, dtype=np.float32)
-    time_vec = np.zeros(max_iter, dtype=np.float32)
+    dd_vec,tv_vec = np.zeros(max_iter, dtype=np.float32), np.zeros(max_iter, dtype=np.float32)
+    rmse_vec,time_vec = np.zeros(max_iter, dtype=np.float32), np.zeros(max_iter, dtype=np.float32)
 
     t0 = time.time()
  
@@ -128,6 +138,9 @@ while i < Nproj:
         #Measure TV. 
         tv_vec[Niter[i]] = tomo_obj.tv()
 
+        #Measure RMSE.
+        rmse_vec[Niter[i]] = tomo_obj.rmse()
+
         tomo_obj.copy_recon() 
 
         #TV Minimization. 
@@ -142,15 +155,15 @@ while i < Nproj:
         Niter[i] += 1
 
         #Calculate current time. 
-        ctime = ( time.time() - t0 ) 
+        ctime =  time.time() - t0  
         t_time = time.time() - t_start
 
         # Check convergence criteria.
         if (ctime > time_limit and Niter[i] > max_iter-1) or t_time > max_time:
             break
 
-    # # Get a slice for visualization of convergence. 
-    # gif[:,:,i] = tomo_obj.getRecon(259)
+    # Get a slice for visualization of convergence. 
+    gif[:,:,i] = tomo_obj.getRecon(gif_slice)
 
     Niter_est = Niter[i]
     print('Number of Iterations: ' + str(Niter[i]) + '\n')
@@ -158,11 +171,13 @@ while i < Nproj:
     #Remove Excess elements.
     dd_vec = dd_vec[:Niter[i]]
     tv_vec = tv_vec[:Niter[i]]
+    rmse_vec = rmse_vec[:Niter[i]]
     time_vec = time_vec[:Niter[i]]
 
     #Append to final vector. 
     fdd_vec = np.append(fdd_vec, dd_vec)
     ftv_vec = np.append(ftv_vec, tv_vec)
+    frmse_vec = np.append(frmse_vec, rmse_vec)
     ftime_vec = np.append(ftime_vec, time_vec)
 
     # Determine how many more projections to add w time elapsed.
@@ -174,17 +189,21 @@ while i < Nproj:
 
     # Show live plot. 
     if show_live_plot and (i+1) % 15 == 0:
-        pr.exp_time_tv_live_plot(fdd_vec,eps,ftv_vec, Niter,i)
+        pr.sim_time_tv_live_plot(fdd_vec,eps,ftv_vec, tv0, frmse_vec, Niter,i)
 
-#Save all the results to single matrix.
-parameters = np.array([max_iter, ng, beta0, beta_red, eps, alpha, time_limit])
-results = np.array([Niter, ftime_vec, fdd_vec, eps, ftv_vec, tv0])
-os.makedirs('Results/'+ file_name +'_exp_sblock/', exist_ok=True)
-np.save('Results/'+ file_name +'_exp_sblock/results.npy', results)
-# np.save('Results/'+ file_name +'_block/gif.npy', gif)
+print('Reconstruction Complete, Saving Data..')
+print('Save Gif :: {}, Save Recon :: {}'.format(saveGif, saveRecon))
 
-# Save the Reconstruction.
-recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
-for s in range(Nslice):
-    recon[s,:,:] = tomo_obj.getRecon(s)
-np.save('Results/'+ file_name +'_exp_sblock/final_recon.npy', recon)
+#Save all the results to h5 file. 
+fDir = fName + '_dynamic_CS'
+meta = {'ng':ng,'beta':beta0,'beta_red':beta_red,'eps':eps,'r_max':r_max,'max_iter':max_iter}
+meta.update({'alpha':alpha,'alpha_red':alpha_red,'SNR':SNR,'vol_size':vol_size,'time_limit':time_limit})
+results = {'dd':fdd_vec,'eps':eps,'tv':ftv_vec,'tv0':tv0,'rmse':frmse_vec,'time':ftime_vec}
+results.update({'Niter':Niter})
+save_results([fDir,fName], meta, results)
+
+if saveGif: 
+    save_gif([fDir,fName], gif_slice, gif)
+
+if saveRecon: 
+    save_recon([fDir,fName], (Nslice, Nray, Nproj), tomo_obj)
