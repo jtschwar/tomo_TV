@@ -12,7 +12,7 @@ vol_size = '256_'
 file_name = 'Co2P_tiltser.tif'
 
 # Number of Iterations (Main Loop)
-Niter = 20
+Niter = 100
 
 # Parameter in SIRT Reconstruction.
 beta0 = 0.0001
@@ -46,8 +46,10 @@ A = parallelRay(Nray, tiltAngles)
 tomo_obj.load_A(A)
 A = None
 tomo_obj.rowInnerProduct()
+beta0 = 1/tomo_obj.lipschits()
 print('Measurement Matrix is Constructed!')
 
+beta = beta0
 rmse_vec = np.zeros(Niter)
 
 t0 = time.time()
@@ -77,8 +79,8 @@ print('Reconstruction Complete, Saving Data..')
 print('Save Recon :: {}'.format(saveRecon))
 
 #Save all the results to h5 file. 
-fDir = fName + '_ASD'
-meta = {'Niter':Niter,'beta':beta0,'beta_red':beta_red,'vol_size':vol_size}}
+fDir = fName + '_SIRT'
+meta = {'vol_size':vol_size,'Niter':Niter,'beta':beta0,'beta_red':beta_red}
 results = {'rmse':rmse_vec}
 save_results([fDir,fName], meta, results)
 

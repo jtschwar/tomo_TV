@@ -13,7 +13,7 @@ vol_size = '256_'
 file_name = 'Co2P_tiltser.tif'
 
 # Number of Iterations (Main Loop)
-Niter = 10
+Niter = 100
 
 # Parameter in ART Reconstruction.
 beta = 1.0
@@ -21,7 +21,7 @@ beta = 1.0
 # ART Reduction.
 beta_red = 0.995
 
-saveGif, saveRecon = False, False #Save Final Reconstruction
+saveRecon = False #Save Final Reconstruction
 show_live_plot = False #Calculate dd and show intermediate plots.
 
 ##########################################
@@ -48,8 +48,7 @@ tomo_obj.load_A(A)
 A = None
 tomo_obj.rowInnerProduct()
 
-dd_vec = np.zeros(Niter)
-rmse_vec = np.zeros(Niter)
+rmse_vec,dd_vec = np.zeros(Niter), np.zeros(Niter)
 
 t0 = time.time()
 counter = 1
@@ -85,12 +84,9 @@ print('Save Gif :: {}, Save Recon :: {}'.format(saveGif, saveRecon))
 fDir = fName + '_ART'
 create_save_directory([fDir])
 meta = {'Niter':Niter,'ng':ng,'beta':beta0,'beta_red':beta_red,'eps':eps,'r_max':r_max}
-# meta = meta.update({'alpha':alpha,'alpha_red':alpha_red,'SNR':SNR,'vol_size':vol_size})
+meta = meta.update({'alpha':alpha,'alpha_red':alpha_red,'SNR':SNR,'vol_size':vol_size})
 results = {'dd':dd_vec,'eps':eps,'tv':tv_vec,'tv0':tv0,'rmse':rmse_vec,'time':time_vec}
 save_results([fDir,fName], meta, results)
-
-if saveGif: 
-    save_gif([fDir,fName], gif_slice, gif)
 
 if saveRecon: 
     save_recon([fDir,fName], (Nslice, Nray, Nproj), tomo_obj)

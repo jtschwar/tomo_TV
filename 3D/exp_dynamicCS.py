@@ -69,7 +69,6 @@ A = None
 tomo_obj.rowInnerProduct()
 print('Measurement Matrix is Constructed!')
 
-
 #Final vectors for dd, tv, and Niter. 
 gif = np.zeros([Nray, Nray, Nproj], dtype=np.float32)
 Niter = np.zeros(Nproj, dtype=np.int32)
