@@ -43,6 +43,7 @@ public:
 	// Constructs Measurement Matrix.
     void loadA(Eigen::Ref<Mat> pyA);
 	void normalization();
+    float lipschits();
 
 	// 2D Reconstructions
 	void ART(float beta, int dyn_ind);

@@ -2,8 +2,8 @@
 
 import sys
 sys.path.append('./Utils')
-from pytvlib import parallelRay, timer, load_data
 import plot_results as pr
+from pytvlib import *
 import numpy as np
 import ctvlib 
 import time
@@ -21,9 +21,8 @@ beta = 1.0
 # ART Reduction.
 beta_red = 0.995
 
-save = True #Save Final Reconstruction
-show_final_plot = True #Calculate dd and show final plot.
-show_live_plot = True #Calculate dd and show intermediate plots.
+saveRecon = False #Save Final Reconstruction
+show_live_plot = False #Calculate dd and show intermediate plots.
 
 ##########################################
 
@@ -49,7 +48,7 @@ tomo_obj.load_A(A)
 A = None
 tomo_obj.rowInnerProduct()
 
-dd_vec = np.zeros(Niter)
+rmse_vec,dd_vec = np.zeros(Niter), np.zeros(Niter)
 
 t0 = time.time()
 counter = 1
@@ -68,6 +67,7 @@ for i in range(Niter):
     if show_final_plot or show_live_plot:
         tomo_obj.forwardProjection(-1)
         dd_vec[i] = tomo_obj.vector_2norm()
+        rmse_vec[i] = tomo_ojb.rmse()
 
     if (i+1) % 25 ==0:
         print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
@@ -77,13 +77,16 @@ for i in range(Niter):
 
     counter += 1
 
-#Get final reconstruction. 
-recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
-for s in range(Nslice):
-    recon[s,:,:] = tomo_obj.getRecon(s)
+print('Reconstruction Complete, Saving Data..')
+print('Save Gif :: {}, Save Recon :: {}'.format(saveGif, saveRecon))
 
-if save:
-    np.save('Results/ART_'+file_name+'_recon.npy', recon)
+#Save all the results to h5 file. 
+fDir = fName + '_ART'
+create_save_directory([fDir])
+meta = {'Niter':Niter,'ng':ng,'beta':beta0,'beta_red':beta_red,'eps':eps,'r_max':r_max}
+meta = meta.update({'alpha':alpha,'alpha_red':alpha_red,'SNR':SNR,'vol_size':vol_size})
+results = {'dd':dd_vec,'eps':eps,'tv':tv_vec,'tv0':tv0,'rmse':rmse_vec,'time':time_vec}
+save_results([fDir,fName], meta, results)
 
-if show_final_plot:
-    pr.ART_results(dd_vec)
+if saveRecon: 
+    save_recon([fDir,fName], (Nslice, Nray, Nproj), tomo_obj)

@@ -167,6 +167,14 @@ std::vector<int> ctvlib::rand_perm(int n)
     return a;
 }
 
+//Calculate Lipshits Gradient (for SIRT).
+float ctvlib::lipschits()
+{
+    VectorXf f(Ncol);
+    f.setOnes();
+    return (A.transpose() * (A * f)).maxCoeff();
+}
+
 // SIRT Reconstruction.
 void ctvlib::SIRT(float beta, int dyn_ind)
 {
@@ -444,6 +452,7 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("ART", &ctvlib::ART, "ART Reconstruction");
     ctvlib.def("sART", &ctvlib::sART, "Stochastic ART Reconstruction");
     ctvlib.def("SIRT", &ctvlib::SIRT, "SIRT Reconstruction");
+    ctvlib.def("lipschits", &ctvlib::lipschits, "Calculate Lipschitz Constant");
     ctvlib.def("rowInnerProduct", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
     ctvlib.def("positivity", &ctvlib::positivity, "Remove Negative Elements");
     ctvlib.def("forwardProjection", &ctvlib::forwardProjection, "Forward Projection");

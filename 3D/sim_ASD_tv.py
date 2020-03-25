@@ -3,8 +3,8 @@
 
 import sys, os
 sys.path.append('./Utils')
-from pytvlib import parallelRay, timer, load_data
 import plot_results as pr
+from pytvlib import *
 import numpy as np
 import ctvlib 
 import time
@@ -14,13 +14,13 @@ vol_size = '256_'
 file_name = 'au_sto_tiltser.npy'
 
 # Number of Iterations (Main Loop)
-Niter = 300
+Niter = 10
 
 # Number of Iterations (TV Loop)
 ng = 10
 
 # Parameter in ART Reconstruction.
-beta = 0.25
+beta0 = 0.25
 
 # ART Reduction.
 beta_red = 0.985
@@ -36,18 +36,17 @@ alpha = 0.2
 SNR = 100
 
 #Outcomes:
-noise = True                # Add noise to the reconstruction.
 show_live_plot = 0
-save_recon = 0           # Save final Reconstruction. 
+saveGif, saveRecon = True, True           
+gif_slice = 156
 ##########################################
 
 #Read Image. 
-(file_name, original_volume) = load_data(vol_size,file_name)
-file_name = 'au_sto'
+(fName, original_volume) = load_data(vol_size,file_name)
 (Nslice, Nray, _) = original_volume.shape
 
 # Generate Tilt Angles.
-tiltAngles = np.load('Tilt_Series/'+ file_name +'_tiltAngles.npy')
+tiltAngles = np.load('Tilt_Series/'+fName+'_tiltAngles.npy')
 Nproj = tiltAngles.shape[0]
 
 # Initialize C++ Object.. 
@@ -58,11 +57,11 @@ A = parallelRay(Nray, tiltAngles)
 tomo_obj.load_A(A)
 A = None
 tomo_obj.rowInnerProduct()
-
 print('Measurement Matrix is Constructed!')
 
+# Find way to read SNR value and 
 # If creating simulation with noise, set background value to 1.
-if noise:
+if SNR != 0:
     original_volume[original_volume == 0] = 1
 
 # Load Volume and Collect Projections. 
@@ -71,22 +70,18 @@ for s in range(Nslice):
 tomo_obj.create_projections()
 
 # Apply poisson noise to volume.
-if noise:
+if SNR != 0:
     tomo_obj.poissonNoise(SNR)
 
-#Measure Volume's Original TV
+#Measure Volume's Original TV, Initalize vectors. 
+beta = beta0
 tv0 = tomo_obj.original_tv()
-
 gif = np.zeros([Nray, Nray, Niter], dtype=np.float32)
-gif2 = np.zeros([Nray, Nray, Niter], dtype=np.float32)
+dd_vec , tv_vec = np.zeros(Niter), np.zeros(Niter) 
+rmse_vec, time_vec = np.zeros(Niter), np.zeros(Niter)
 
-dd_vec = np.zeros(Niter)
-tv_vec = np.zeros(Niter)
-rmse_vec = np.zeros(Niter)
-time_vec = np.zeros(Niter)
-
+# Measure time elapsed. 
 counter = 1 
-
 t0 = time.time()
 
 #Main Loop
@@ -141,16 +136,18 @@ for i in range(Niter):
     counter += 1
     time_vec[i] = time.time() - t0
 
-#Save all the results to single matrix.
-results = np.array([dd_vec, eps, tv_vec, tv0, rmse_vec, time_vec])
-os.makedirs('Results/'+ file_name +'_ASD/', exist_ok=True)
-np.save('Results/' + file_name + '_ASD/results5.npy', results)
+print('Reconstruction Complete, Saving Data..')
+print('Save Gif :: {}, Save Recon :: {}'.format(saveGif, saveRecon))
 
-#Get and save the final reconstruction.
-if save_recon: 
-    recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
+#Save all the results to h5 file. 
+fDir = fName + '_ASD'
+meta = {'Niter':Niter,'ng':ng,'beta':beta0,'beta_red':beta_red,'eps':eps,'r_max':r_max}
+meta.update({'alpha':alpha,'alpha_red':alpha_red,'SNR':SNR,'vol_size':vol_size})
+results = {'dd':dd_vec,'eps':eps,'tv':tv_vec,'tv0':tv0,'rmse':rmse_vec,'time':time_vec}
+save_results([fDir,fName], meta, results)
 
-    for s in range(Nslice):
-        recon[s,:,:] = tomo_obj.getRecon(s)
-    
-    np.save('Results/TV_'+ file_name + '_recon.npy', recon)
+if saveGif: 
+    save_gif([fDir,fName], gif_slice, gif)
+
+if saveRecon: 
+    save_recon([fDir,fName], (Nslice, Nray, Nproj), tomo_obj)

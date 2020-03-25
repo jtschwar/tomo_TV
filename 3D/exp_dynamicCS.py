@@ -7,8 +7,8 @@
 
 import sys, os
 sys.path.append('./Utils')
-from pytvlib import parallelRay, load_data
 import plot_results as pr
+from pytvlib import *
 import numpy as np
 import ctvlib
 import time
@@ -40,14 +40,11 @@ time_limit = 180
 # Max Number of iterations before next projection is collected. 
 max_iter = 125
 
-#SNR
-SNR = 100
-noise = True
-
-save = False        # Save final reconstruction. 
-show_live_plot = 0  # Show intermediate results. 
-
-##########################################
+#Outcomes:
+show_live_plot = 0
+saveGif, saveRecon = True, True           
+gif_slice = 156
+###################################################################
 
 # #Read Image. 
 (file_name, tiltSeries) = load_data(vol_size,file_name)
@@ -70,10 +67,10 @@ A = parallelRay(Nray, tiltAngles)
 tomo_obj.load_A(A)
 A = None
 tomo_obj.rowInnerProduct()
-
-# gif = np.zeros([Nray, Nray, Nproj], dtype=np.float32)
+print('Measurement Matrix is Constructed!')
 
 #Final vectors for dd, tv, and Niter. 
+gif = np.zeros([Nray, Nray, Nproj], dtype=np.float32)
 Niter = np.zeros(Nproj, dtype=np.int32)
 fdd_vec, ftv_vec, ftime_vec  = np.array([]),np. array([]), np.array([])
 
@@ -150,7 +147,7 @@ while i < Nproj:
             break
 
     # # Get a slice for visualization of convergence. 
-    # gif[:,:,i] = tomo_obj.getRecon(259)
+    gif[:,:,i] = tomo_obj.getRecon(gif_slice)
 
     Niter_est = Niter[i]
     print('Number of Iterations: ' + str(Niter[i]) + '\n')
@@ -176,15 +173,18 @@ while i < Nproj:
     if show_live_plot and (i+1) % 15 == 0:
         pr.exp_time_tv_live_plot(fdd_vec,eps,ftv_vec, Niter,i)
 
-#Save all the results to single matrix.
-parameters = np.array([max_iter, ng, beta0, beta_red, eps, alpha, time_limit])
-results = np.array([Niter, ftime_vec, fdd_vec, eps, ftv_vec, tv0])
-os.makedirs('Results/'+ file_name +'_exp_sblock/', exist_ok=True)
-np.save('Results/'+ file_name +'_exp_sblock/results.npy', results)
-# np.save('Results/'+ file_name +'_block/gif.npy', gif)
+print('Reconstruction Complete, Saving Data..')
+print('Save Gif :: {}, Save Recon :: {}'.format(saveGif, saveRecon))
 
-# Save the Reconstruction.
-recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
-for s in range(Nslice):
-    recon[s,:,:] = tomo_obj.getRecon(s)
-np.save('Results/'+ file_name +'_exp_sblock/final_recon.npy', recon)
+#Save all the results to h5 file. 
+fDir = fName + '_dynamicCS'
+meta = {'Niter':Niter,'ng':ng,'beta':beta0,'beta_red':beta_red,'eps':eps,'r_max':r_max}
+meta.update({'alpha':alpha,'alpha_red':alpha_red,'SNR':SNR,'vol_size':vol_size})
+results = {'dd':dd_vec,'eps':eps,'tv':tv_vec,'time':time_vec,'Niter':Niter}
+save_results([fDir,fName], meta, results)
+
+if saveGif: 
+    save_gif([fDir,fName], gif_slice, gif)
+
+if saveRecon: 
+    save_recon([fDir,fName], (Nslice, Nray, Nproj), tomo_obj)
