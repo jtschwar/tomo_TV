@@ -34,8 +34,8 @@ ctvlib::ctvlib(int Ns, int Nray, int Nproj)
     Ncol = Ny*Nz;
     A.resize(Nrow,Ncol);
     innerProduct.resize(Nrow);
-    b.resize(Ny, Nrow);
-    g.resize(Ny, Nrow);
+    b.resize(Nslice, Nrow);
+    g.resize(Nslice, Nrow);
     
     //Initialize all the Slices in Recon as Zero.
     recon = new Mat[Nslice]; //Final Reconstruction.
@@ -253,7 +253,7 @@ void ctvlib::forwardProjection(int dyn_ind)
     if (dyn_ind == -1) { dyn_ind = Nrow; }
     //Calculate how many projections were sampled.
     else { dyn_ind *= Ny; }
-    
+  
     #pragma omp parallel for
     for (int s = 0; s < Nslice; s++)
     {
