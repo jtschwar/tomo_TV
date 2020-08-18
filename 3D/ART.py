@@ -16,18 +16,18 @@ file_name = 'Co2P_tiltser.tif'
 Niter = 100
 
 # Parameter in ART Reconstruction.
-beta = 1.0
+beta0 = 1.0
 
 # ART Reduction.
 beta_red = 0.995
 
-saveRecon = False #Save Final Reconstruction
+saveRecon = True #Save Final Reconstruction
 show_live_plot = False #Calculate dd and show intermediate plots.
 
 ##########################################
 
 # #Read Image. 
-(file_name, tiltSeries) = load_data(vol_size,file_name)
+(fName, tiltSeries) = load_data(vol_size,file_name)
 (Nslice, Nray, Nproj) = tiltSeries.shape
 b = np.zeros([Nslice, Nray*Nproj])
 
@@ -40,7 +40,7 @@ tomo_obj.setTiltSeries(b)
 tiltSeries = None
 
 # Generate Tilt Angles.
-tiltAngles = np.load('Tilt_Series/'+file_name+'_tiltAngles.npy')
+tiltAngles = np.load('Tilt_Series/'+fName+'_tiltAngles.npy')
 
 # Generate measurement matrix
 A = parallelRay(Nray, tiltAngles)
@@ -48,8 +48,9 @@ tomo_obj.load_A(A)
 A = None
 tomo_obj.rowInnerProduct()
 
-rmse_vec,dd_vec = np.zeros(Niter), np.zeros(Niter)
+dd_vec = np.zeros(Niter)
 
+beta = beta0
 t0 = time.time()
 counter = 1
 
@@ -64,10 +65,8 @@ for i in range(Niter):
     #ART-Beta Reduction
     beta *= beta_red 
 
-    if show_final_plot or show_live_plot:
-        tomo_obj.forwardProjection(-1)
-        dd_vec[i] = tomo_obj.vector_2norm()
-        rmse_vec[i] = tomo_ojb.rmse()
+    tomo_obj.forwardProjection(-1)
+    dd_vec[i] = tomo_obj.vector_2norm()
 
     if (i+1) % 25 ==0:
         print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
@@ -78,14 +77,12 @@ for i in range(Niter):
     counter += 1
 
 print('Reconstruction Complete, Saving Data..')
-print('Save Gif :: {}, Save Recon :: {}'.format(saveGif, saveRecon))
+print('Save Recon :: {}'.format(saveRecon))
 
 #Save all the results to h5 file. 
 fDir = fName + '_ART'
-create_save_directory([fDir])
-meta = {'Niter':Niter,'ng':ng,'beta':beta0,'beta_red':beta_red,'eps':eps,'r_max':r_max}
-meta = meta.update({'alpha':alpha,'alpha_red':alpha_red,'SNR':SNR,'vol_size':vol_size})
-results = {'dd':dd_vec,'eps':eps,'tv':tv_vec,'tv0':tv0,'rmse':rmse_vec,'time':time_vec}
+meta = {'Niter':Niter,'beta':beta0,'beta_red':beta_red}
+results = {'dd':dd_vec}
 save_results([fDir,fName], meta, results)
 
 if saveRecon: 
