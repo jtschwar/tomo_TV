@@ -14,7 +14,7 @@ vol_size = '256_'
 file_name = 'au_sto.h5'
 
 # Number of Iterations (Main Loop)
-Niter = 5
+Niter = 25
 
 # Parameter in SIRT Reconstruction.
 beta0 = 0.0001
@@ -36,6 +36,7 @@ print('Loaded h5 file, now intiializing c++ object')
 
 # Initialize C++ Object.. 
 tomo_obj = astra_ctvlib.astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
+tomo_obj.initilizeInitialVolume()
 
 # Load Volume and Collect Projections. 
 for s in range(Nslice):

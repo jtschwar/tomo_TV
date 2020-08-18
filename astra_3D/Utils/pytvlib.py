@@ -262,6 +262,7 @@ def save_recon(fname, meta, tomo):
         recon[s,:,:] = tomo.getRecon(s)
 
     print(np.amin(recon))
+    print(np.amax(recon))
  
     h5=h5py.File('results/{}/{}.h5'.format(fname[0],fname[1]), 'a')
     dset = h5.create_group("Reconstruction")

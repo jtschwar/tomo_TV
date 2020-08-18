@@ -5,14 +5,15 @@
 //  Copyright © 2019 Jonathan Schwartz. All rights reserved.
 //
 
-#ifndef astra_ctvlib_hpp
-#define astra_ctvlib_hpp
+#ifndef mpi_astra_ctvlib_hpp
+#define mpi_astra_ctvlib_hpp
 
 #include <Eigen/Core>
 #include <pybind11/pybind11.h>
 #include <pybind11/eigen.h>
-#include "container/Matrix3D.h"
 
+
+#include <astra/Config.h>
 
 #include <astra/Float32VolumeData2D.h>
 #include <astra/Float32ProjectionData2D.h>
@@ -30,7 +31,7 @@
 
 using namespace astra;
 
-class astra_ctvlib
+class mpi_astra_ctvlib
 {
 
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Mat;
@@ -39,8 +40,9 @@ typedef Eigen::VectorXf Vec;
 public: 
 
     // Eigen - tomoTV Member Variables.
-    Matrix3D recon, temp_recon, original_volume;
-    int Nrow, Ncol, Nslice, Ny, Nz;
+    Mat *recon, *temp_recon, *tv_recon, *original_volume;
+    int Nrow, Ncol, Nslice, Nslice_loc, Ny, Nz, nproc, rank, size;
+    int first_slice, last_slice, numGPUperNode;
     Eigen::VectorXf innerProduct;
     Mat b, g;
     
@@ -64,13 +66,14 @@ public:
     // Auxilary variables for Sart and FBP.
     std::string fbfFilter;
     std::string projOrder;
-
-    void checkNumGPUs();
+    Config *cfg;
  
 	// Initializes Measurement Matrix. 
-	astra_ctvlib(int Nslice, int Nray, int Nproj, Vec pyAngles);
-    void initilizeInitialVolume();
-
+	mpi_astra_ctvlib(int Nslice, int Nray, int Nproj, Vec pyAngles);
+    void checkNumGPUs();
+    int get_rank();
+    int get_nproc();
+    
 	// Initialize Experimental Projections. 
 	void setTiltSeries(Mat in);
     void setOriginalVolume(Mat in, int slice);
@@ -92,7 +95,6 @@ public:
     void SART(float beta);
     void SIRT(float beta);
     void FBP();
-    void positivity();
     
 	//Forward Project Reconstruction for Data Tolerance Parameter. 
 	void forwardProjection();
@@ -106,16 +108,17 @@ public:
     float dyn_vector_2norm(int dyn_ind);
     float rmse();
     
-    // Total variation
-    float tv_3D();
-    float original_tv_3D();
-    float tv_gd_3D(int ng, float dPOCS);
+    // Total variation 
+    void updateRightSlice(Mat *vol); 
+    void updateLeftSlice(Mat *vol);
+    float tv_3D(Mat *vol);
+    void tv_gd_3D(int ng, float dPOCS);
+    void positivity();
     
     // Set Slices to Zero.
     void restart_recon();
     
     // Return reconstruction to python.
-    void setRecon(Mat in, int s);
     Mat getRecon(int i);
     
     // Return projections to python. 
@@ -123,4 +126,4 @@ public:
     
 };
 
-#endif /* astra_ctlib.hpp */
+#endif /* tlib_hpp */

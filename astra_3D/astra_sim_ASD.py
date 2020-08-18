@@ -9,7 +9,8 @@ import numpy as np
 import time
 import sys
 
-
+import wandb
+wandb.init(project='gpuTomography')
 ########################################
 
 vol_size = '256_'
@@ -39,7 +40,7 @@ SNR = 0
 
 #Outcomes:
 show_live_plot = 0
-saveGif, saveRecon = True, True           
+saveGif, saveRecon = False, True           
 gif_slice = 156
 ##########################################
 
@@ -51,8 +52,8 @@ Nproj = tiltAngles.shape[0]
 print('Loaded h5 file, now intiializing c++ object')
 
 # Initialize C++ Object.. 
-#print(tiltAngles[:])
 tomo_obj = astra_ctvlib.astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
+tomo_obj.initilizeInitialVolume()
 
 # Load Volume and Collect Projections. 
 for s in range(Nslice):
@@ -61,14 +62,10 @@ for s in range(Nslice):
 print('Loaded Object, now creating projections')
 
 tomo_obj.create_projections()
+tomo_obj.initializeSART('random')
 
 b = np.zeros([Nray,Nray*Nproj],dtype=np.float32)
-#b = np.zeros([Nproj,Ny],dtype=np.float32)
 b[:] = tomo_obj.get_projections()
-
-np.save('proj.npy',b)
-
-sys.exit()
 
 # Apply poisson noise to volume.
 if SNR != 0:
@@ -76,8 +73,9 @@ if SNR != 0:
 
 #Measure Volume's Original TV, Initalize vectors. 
 beta = beta0
+
+print('Measuring TV0')
 tv0 = tomo_obj.original_tv()
-gif = np.zeros([Nray, Nray, Niter], dtype=np.float32)
 dd_vec , tv_vec = np.zeros(Niter), np.zeros(Niter) 
 rmse_vec, time_vec = np.zeros(Niter), np.zeros(Niter)
 
@@ -88,22 +86,20 @@ t0 = time.time()
 #Main Loop
 for i in range(Niter): 
 
+
     if ( i % 25 ==0):
         print('Iteration No.: ' + str(i+1) +'/'+str(Niter))
 
     tomo_obj.copy_recon()
 
     #ART Reconstruction. 
-    tomo_obj.ART(beta, -1)
-
-    #Positivity constraint 
-    tomo_obj.positivity()
+    tomo_obj.SART(beta)
 
     #ART-Beta Reduction
     beta *= beta_red 
 
     #Forward Projection.
-    tomo_obj.forwardProjection(-1)
+    tomo_obj.forwardProjection()
 
     #Measure Magnitude for TV - GD.
     if (i == 0):
@@ -136,6 +132,11 @@ for i in range(Niter):
             pr.sim_ASD_live_plot(dd_vec, eps, tv_vec, tv0, rmse_vec, i)
     counter += 1
     time_vec[i] = time.time() - t0
+
+
+print('RMSE: ' + str(rmse_vec))
+print('TV: ' + str(tv_vec))
+print('DD: ' + str(dd_vec))
 
 print('Reconstruction Complete, Saving Data..')
 print('Save Gif :: {}, Save Recon :: {}'.format(saveGif, saveRecon))

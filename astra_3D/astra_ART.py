@@ -36,6 +36,7 @@ print('Loaded h5 file, now intiializing c++ object')
 
 # Initialize C++ Object.. 
 tomo_obj = astra_ctvlib.astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
+tomo_obj.initilizeInitialVolume()
 
 # Load Volume and Collect Projections. 
 for s in range(Nslice):
