@@ -73,6 +73,7 @@ public:
 
 	// Initialize Experimental Projections. 
 	void setTiltSeries(Mat in);
+    void setRecon(Mat in, int s);
     void setOriginalVolume(Mat in, int slice);
     
     // Create Projections and Add Poisson Noise (Simulations)
@@ -115,7 +116,6 @@ public:
     void restart_recon();
     
     // Return reconstruction to python.
-    void setRecon(Mat in, int s);
     Mat getRecon(int i);
     
     // Return projections to python. 

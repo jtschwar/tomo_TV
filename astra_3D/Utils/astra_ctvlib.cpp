@@ -87,20 +87,12 @@ void astra_ctvlib::setTiltSeries(Mat in)
 // Import the original volume from python.
 void astra_ctvlib::setOriginalVolume(Mat inBuffer, int slice)
 {
-    for (int yInd = 0; yInd < Ny; yInd++) {
-        for (int zInd = 0; zInd < Nz; zInd++) {
-            original_volume.data[original_volume.calc_index(slice,yInd,zInd)] = inBuffer(yInd,zInd);
-        }
-    }
+    original_volume.setData(inBuffer,slice);
 }
 
 void astra_ctvlib::setRecon(Mat inBuffer, int slice)
 {
-    for (int yInd = 0; yInd < Ny; yInd++) {
-      for (int zInd = 0; zInd < Nz; zInd++) {
-          recon.data[recon.calc_index(slice,yInd,zInd)] = inBuffer(yInd,zInd);
-      }
-    }
+    recon.setData(inBuffer,slice);
 }
 
 // Create projections from Volume (for simulation studies)
@@ -323,13 +315,7 @@ float astra_ctvlib::tv_gd_3D(int ng, float dPOCS)
 // Return Reconstruction to Python.
 Mat astra_ctvlib::getRecon(int slice)
 {
-    Mat outBuffer(recon.ny,recon.nz);
-    for (int yInd = 0; yInd < recon.ny; yInd++) {
-        for (int zInd = 0; zInd < recon.nz; zInd++) {
-            outBuffer(yInd,zInd) = recon.data[recon.calc_index(slice,yInd,zInd)];
-        }
-    }
-    return outBuffer;
+    return recon.getData(slice);
 }
 
 //Return the projections.
