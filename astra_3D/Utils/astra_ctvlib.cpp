@@ -46,20 +46,18 @@ astra_ctvlib::astra_ctvlib(int Ns, int Nray, int Nproj, Vec pyAngles)
     //Initialize all the Slices in Recon as Zero.
     recon = Matrix3D(Ns,Ny,Nz); //Final Reconstruction.
     temp_recon =  Matrix3D(Ns,Ny,Nz); // Temporary copy for measuring changes in TV and ART.
-
-    // INITIALIZE ASTRA OBJECTS.
     
-     // Create volume (2D) Geometry
-     vol_geom = new CVolumeGeometry2D(Ny,Nz);
+    // Create volume (2D) Geometry
+    vol_geom = new CVolumeGeometry2D(Ny,Nz);
     
-     // Create Volume ASTRA Object
-     vol = new CFloat32VolumeData2D(vol_geom);
+    // Create Volume ASTRA Object
+    vol = new CFloat32VolumeData2D(vol_geom);
      
-     // Specify projection matrix geometries
-     float32 *angles = new float32[Nproj];
+    // Specify projection matrix geometries
+    float32 *angles = new float32[Nproj];
 
-     for (int j = 0; j < Nproj; j++) {
-         angles[j] = pyAngles(j);    }
+    for (int j = 0; j < Nproj; j++) {
+        angles[j] = pyAngles(j);    }
  
      // Create Projection Matrix Geometry
      proj_geom = new CParallelProjectionGeometry2D(Nproj,Nray,1.0,angles);
@@ -98,14 +96,14 @@ void astra_ctvlib::setRecon(Mat inBuffer, int slice)
 // Create projections from Volume (for simulation studies)
 void astra_ctvlib::create_projections()
 {
-     // Create Sinogram ASTRA Object
-     sino = new CFloat32ProjectionData2D(proj_geom);
+    // Create Sinogram ASTRA Object
+    sino = new CFloat32ProjectionData2D(proj_geom);
 
-     // Create CUDA Projector
-     proj = new CCudaProjector2D(proj_geom,vol_geom);
+    // Create CUDA Projector
+    proj = new CCudaProjector2D(proj_geom,vol_geom);
      
-     // Forward Projection Operator
-     algo_fp = new CCudaForwardProjectionAlgorithm();
+    // Forward Projection Operator
+    algo_fp = new CCudaForwardProjectionAlgorithm();
 
     int sliceInd;
     for (int s=0; s < Nslice; s++) {
@@ -255,9 +253,7 @@ void astra_ctvlib::copy_recon()
 // Measure the 2 norm between temporary and current reconstruction.
 float astra_ctvlib::matrix_2norm()
 {
-    float L2;
-    L2 = cuda_euclidean_dist(recon.data, temp_recon.data, Nslice, Ny, Nz);
-    return L2;
+    return cuda_euclidean_dist(recon.data, temp_recon.data, Nslice, Ny, Nz);
 }
 
 // Measure the 2 norm between experimental and reconstructed projections.
@@ -291,25 +287,19 @@ void astra_ctvlib::forwardProjection()
 // Measure the RMSE (simulation studies)
 float astra_ctvlib::rmse()
 {
-    float rmse;
-    rmse = cuda_rmse(recon.data, original_volume.data, Nslice, Ny, Nz);
-    return rmse;
+    return cuda_rmse(recon.data, original_volume.data, Nslice, Ny, Nz);
 }
 
 //Measure Original Volume's TV.
 float astra_ctvlib::original_tv_3D()
 {
-    float tv;
-    tv = cuda_tv_3D(original_volume.data, Nslice, Ny, Nz);
-    return tv;
+    return cuda_tv_3D(original_volume.data, Nslice, Ny, Nz);
 }
 
 // TV Minimization (Gradient Descent)
 float astra_ctvlib::tv_gd_3D(int ng, float dPOCS)
 {
-    float tv;
-    tv = cuda_tv_gd_3D(recon.data, ng, dPOCS, Nslice, Ny, Nz);
-    return tv;
+    return cuda_tv_gd_3D(recon.data, ng, dPOCS, Nslice, Ny, Nz);;
 }
 
 // Return Reconstruction to Python.
@@ -322,6 +312,11 @@ Mat astra_ctvlib::getRecon(int slice)
 Mat astra_ctvlib::get_projections()
 {
     return b;
+}
+
+Mat astra_ctvlib::get_model_projections()
+{
+    return g;
 }
 
 // Restart the Reconstruction (Reset to Zero). 
@@ -357,6 +352,7 @@ PYBIND11_MODULE(astra_ctvlib, m)
     astra_ctvlib.def("original_tv", &astra_ctvlib::original_tv_3D, "Measure original TV");
     astra_ctvlib.def("tv_gd", &astra_ctvlib::tv_gd_3D, "3D TV Gradient Descent");
     astra_ctvlib.def("get_projections", &astra_ctvlib::get_projections, "Return the projection matrix to python");
+    astra_ctvlib.def("get_model_projections", &astra_ctvlib::get_model_projections, "Return Reprojections to Python");
     astra_ctvlib.def("poissonNoise", &astra_ctvlib::poissonNoise, "Add Poisson Noise to Projections");
     astra_ctvlib.def("restart_recon", &astra_ctvlib::restart_recon, "Set all the Slices Equal to Zero");
     astra_ctvlib.def("gpuCount", &astra_ctvlib::checkNumGPUs, "Check Num GPUs available");

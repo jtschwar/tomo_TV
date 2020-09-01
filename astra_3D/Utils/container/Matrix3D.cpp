@@ -20,11 +20,11 @@ Matrix3D::Matrix3D(int Nx, int Ny, int Nz)
 }
 
 float Matrix3D::get_val(int i,int j,int k) {
-	return data[(ny*nz)*i + ny*j + k];
+    return data[calc_index(i,j,k)];
 }
 
 int Matrix3D::calc_index(int i, int j, int k){
-    return (ny*nz)*i + ny*j + k;
+    return k * (nx * ny) + j * (nx) + i;
 }
 
 float Matrix3D::sum() {
@@ -56,3 +56,11 @@ Mat Matrix3D::getData(int slice)
     return outBuffer;
 }
 
+
+for (int i = 0; i < nx; i++) {
+    for (int j = 0; j < ny; j++) {
+        for (int k = 0; k < nz; k++) {
+            int ind = k * (nx * ny) + j * (nx) + i;
+        }
+    }
+}

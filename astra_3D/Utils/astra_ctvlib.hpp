@@ -120,6 +120,7 @@ public:
     
     // Return projections to python. 
     Mat get_projections();
+    Mat get_model_projections();
     
 };
 
