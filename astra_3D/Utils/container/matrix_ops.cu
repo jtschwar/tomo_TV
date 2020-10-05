@@ -36,18 +36,28 @@ __global__ void difference_kernel(float *output, float *vol1, float *vol2, int n
     return;
 }
 
+__global__ void cuda_positivity_kernel(float *vol, int nx, int ny, int nz)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    int j = blockDim.y * blockIdx.y + threadIdx.y;
+    int k = blockDim.z * blockIdx.z + threadIdx.z;
+
+    int ijk = (nx*ny)*k + i + nx*j;
+
+    if ((i < nx) && (j < ny) && (k < nz)) {
+        if (vol[ijk] < 0.0f) {
+            vol[ijk] = 0.0f; 
+        }
+    }
+    return;
+}
+
 // MAIN HOST FUNCTION //
 float cuda_norm(float *input, int nx, int ny, int nz)
 {
     int volSize = nx * ny * nz;
     float *d_input;
     float norm;
-
-    // Block
-    dim3 dimBlock(BLKXSIZE,BLKXSIZE, BLKXSIZE);
-
-    // Grid
-    dim3 dimGrid(idivup(nx,BLKXSIZE), idivup(ny,BLKXSIZE), idivup(nz,BLKXSIZE));
 
     /*allocate space for volume on device*/
     cudaMalloc((void**)&d_input,volSize*sizeof(float));
@@ -72,12 +82,6 @@ float cuda_sum(float *input, int nx, int ny, int nz)
     int volSize = nx * ny * nz;
     float *d_input;
     float sum;
-
-    // Block
-    dim3 dimBlock(BLKXSIZE,BLKXSIZE, BLKXSIZE);
-
-    // Grid
-    dim3 dimGrid(idivup(nx,BLKXSIZE), idivup(ny,BLKXSIZE), idivup(nz,BLKXSIZE));
 
     /*allocate space for volume on device*/
     cudaMalloc((void**)&d_input,volSize*sizeof(float));
@@ -173,4 +177,28 @@ float cuda_euclidean_dist(float *recon, float *original, int nx, int ny, int nz)
     cudaDeviceSynchronize();
 
     return std::sqrt(L2);
+}
+
+void cuda_positivity(float *recon, int nx, int ny, int nz)
+{
+    int volSize = nx * ny * nz;
+    float *d_recon;
+
+    // Block
+    dim3 dimBlock(BLKXSIZE,BLKXSIZE, BLKXSIZE);
+
+    // Grid
+    dim3 dimGrid(idivup(nx,BLKXSIZE), idivup(ny,BLKXSIZE), idivup(nz,BLKXSIZE));
+
+    /*allocate space for volume on device*/
+    cudaMalloc((void**)&d_recon,volSize*sizeof(float));
+    cudaMemcpy(d_recon, recon, volSize*sizeof(float), cudaMemcpyHostToDevice);
+
+    cuda_positivity_kernel<<<dimGrid,dimBlock>>>(d_recon, nx, ny, nz);
+    cudaDeviceSynchronize();
+    cudaPeekAtLastError();
+
+    cudaMemcpy(recon, d_recon, volSize*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaFree(d_recon);
+    cudaDeviceSynchronize();
 }

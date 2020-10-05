@@ -31,6 +31,7 @@ public:
 
     float sum();
 
+    void positivity();
 };
 
 #endif

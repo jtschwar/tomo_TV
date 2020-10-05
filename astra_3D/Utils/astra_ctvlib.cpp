@@ -45,19 +45,20 @@ astra_ctvlib::astra_ctvlib(int Ns, int Nray, int Nproj, Vec pyAngles)
     
     //Initialize all the Slices in Recon as Zero.
     recon = Matrix3D(Ns,Ny,Nz); //Final Reconstruction.
-    temp_recon =  Matrix3D(Ns,Ny,Nz); // Temporary copy for measuring changes in TV and ART.
-    
-    // Create volume (2D) Geometry
-    vol_geom = new CVolumeGeometry2D(Ny,Nz);
-    
-    // Create Volume ASTRA Object
-    vol = new CFloat32VolumeData2D(vol_geom);
-     
-    // Specify projection matrix geometries
-    float32 *angles = new float32[Nproj];
 
-    for (int j = 0; j < Nproj; j++) {
-        angles[j] = pyAngles(j);    }
+    // INITIALIZE ASTRA OBJECTS.
+    
+     // Create volume (2D) Geometry
+     vol_geom = new CVolumeGeometry2D(Ny,Nz);
+    
+     // Create Volume ASTRA Object
+     vol = new CFloat32VolumeData2D(vol_geom);
+     
+     // Specify projection matrix geometries
+     float32 *angles = new float32[Nproj];
+
+     for (int j = 0; j < Nproj; j++) {
+         angles[j] = pyAngles(j);    }
  
      // Create Projection Matrix Geometry
      proj_geom = new CParallelProjectionGeometry2D(Nproj,Nray,1.0,angles);
@@ -66,6 +67,11 @@ astra_ctvlib::astra_ctvlib(int Ns, int Nray, int Nproj, Vec pyAngles)
 void astra_ctvlib::initilizeInitialVolume()
 {
     original_volume = Matrix3D(Nslice,Ny,Nz);
+}
+
+void astra_ctvlib::initializeReconCopy()
+{
+    temp_recon =  Matrix3D(Nslice,Ny,Nz); // Temporary copy for measuring changes in TV and ART.
 }
 
 void astra_ctvlib::checkNumGPUs()
@@ -79,6 +85,12 @@ void astra_ctvlib::checkNumGPUs()
 //Import tilt series (projections) from Python.
 void astra_ctvlib::setTiltSeries(Mat in)
 {
+    // Create Sinogram ASTRA Object
+    sino = new CFloat32ProjectionData2D(proj_geom);
+
+    // Create CUDA Projector
+    proj = new CCudaProjector2D(proj_geom,vol_geom);
+	
     b = in;
 }
 
@@ -96,14 +108,14 @@ void astra_ctvlib::setRecon(Mat inBuffer, int slice)
 // Create projections from Volume (for simulation studies)
 void astra_ctvlib::create_projections()
 {
-    // Create Sinogram ASTRA Object
-    sino = new CFloat32ProjectionData2D(proj_geom);
+     // Create Sinogram ASTRA Object
+     sino = new CFloat32ProjectionData2D(proj_geom);
 
-    // Create CUDA Projector
-    proj = new CCudaProjector2D(proj_geom,vol_geom);
+     // Create CUDA Projector
+     proj = new CCudaProjector2D(proj_geom,vol_geom);
      
-    // Forward Projection Operator
-    algo_fp = new CCudaForwardProjectionAlgorithm();
+     // Forward Projection Operator
+     algo_fp = new CCudaForwardProjectionAlgorithm();
 
     int sliceInd;
     for (int s=0; s < Nslice; s++) {
@@ -197,10 +209,10 @@ void astra_ctvlib::SIRT(float beta)
     int sliceInd;
     for (int s=0; s < Nslice; s++)
     {
-        // Pass 2D Slice and Sinogram (Measurements) to ASTRA.
+        // Pass 2D Slice and Sinogram (Measurements) to ASTRA
         sliceInd = recon.calc_index(s,0,0);
-        sino->copyData((float32*) &b(s,0));
-        vol->copyData( (float32*) &recon.data[sliceInd] );
+	sino->copyData((float32*) &b(s,0));
+	vol->copyData( (float32*) &recon.data[sliceInd] );
 
         // SIRT Reconstruction
         algo_sirt->initialize(proj,sino,vol);
@@ -225,7 +237,7 @@ void astra_ctvlib::initializeFBP(std::string filter)
 }
 
 // Filtered Backprojection.
-void astra_ctvlib::FBP()
+void astra_ctvlib::FBP(bool apply_positivity)
 {
     E_FBPFILTER fbfFilt = convertStringToFilter(fbfFilter);
     for (int s=0; s < Nslice; s++)
@@ -242,6 +254,7 @@ void astra_ctvlib::FBP()
         // Return Slice to tomo_TV
         memcpy(&recon.data[recon.calc_index(s,0,0)], vol->getData(), sizeof(float)*Ny*Nz);
     }
+    if (apply_positivity) { recon.positivity(); }
 }
 
 // Create Local Copy of Reconstruction. 
@@ -253,7 +266,9 @@ void astra_ctvlib::copy_recon()
 // Measure the 2 norm between temporary and current reconstruction.
 float astra_ctvlib::matrix_2norm()
 {
-    return cuda_euclidean_dist(recon.data, temp_recon.data, Nslice, Ny, Nz);
+    float L2;
+    L2 = cuda_euclidean_dist(recon.data, temp_recon.data, Nslice, Ny, Nz);
+    return L2;
 }
 
 // Measure the 2 norm between experimental and reconstructed projections.
@@ -269,17 +284,22 @@ float astra_ctvlib::dyn_vector_2norm(int dyn_ind)
     return ( g.leftCols(dyn_ind) - b.leftCols(dyn_ind) ).norm() / g.leftCols(dyn_ind).size();
 }
 
+void astra_ctvlib::initializeFP()
+{
+    // Forward Projection Operator
+    algo_fp = new CCudaForwardProjectionAlgorithm();
+}
+
 // Foward project the data.
 void astra_ctvlib::forwardProjection()
 {
     for (int s=0; s < Nslice; s++) {
-        
         vol->copyData((float32*) &recon.data[recon.calc_index(s,0,0)]);
 
         // Forward Project
         algo_fp->initialize(proj,vol,sino);
         algo_fp->run();
-
+        
         memcpy(&g(s,0), sino->getData(), sizeof(float)*Nrow);
     }
 }
@@ -287,19 +307,25 @@ void astra_ctvlib::forwardProjection()
 // Measure the RMSE (simulation studies)
 float astra_ctvlib::rmse()
 {
-    return cuda_rmse(recon.data, original_volume.data, Nslice, Ny, Nz);
+    float rmse;
+    rmse = cuda_rmse(recon.data, original_volume.data, Nslice, Ny, Nz);
+    return rmse;
 }
 
 //Measure Original Volume's TV.
 float astra_ctvlib::original_tv_3D()
 {
-    return cuda_tv_3D(original_volume.data, Nslice, Ny, Nz);
+    float tv;
+    tv = cuda_tv_3D(original_volume.data, Nslice, Ny, Nz);
+    return tv;
 }
 
 // TV Minimization (Gradient Descent)
 float astra_ctvlib::tv_gd_3D(int ng, float dPOCS)
 {
-    return cuda_tv_gd_3D(recon.data, ng, dPOCS, Nslice, Ny, Nz);;
+    float tv;
+    tv = cuda_tv_gd_3D(recon.data, ng, dPOCS, Nslice, Ny, Nz);
+    return tv;
 }
 
 // Return Reconstruction to Python.
@@ -332,17 +358,19 @@ PYBIND11_MODULE(astra_ctvlib, m)
     py::class_<astra_ctvlib> astra_ctvlib(m, "astra_ctvlib");
     astra_ctvlib.def(py::init<int,int,int,Vec>());
     astra_ctvlib.def("initilizeInitialVolume", &astra_ctvlib::initilizeInitialVolume, "Initialize Original Data");
+    astra_ctvlib.def("initializeReconCopy", &astra_ctvlib::initializeReconCopy, "Initalize Copy Data of Recon");
     astra_ctvlib.def("setTiltSeries", &astra_ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
     astra_ctvlib.def("setOriginalVolume", &astra_ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
     astra_ctvlib.def("create_projections", &astra_ctvlib::create_projections, "Create Projections from Volume");
     astra_ctvlib.def("getRecon", &astra_ctvlib::getRecon, "Return the Reconstruction to Python");
     astra_ctvlib.def("setRecon", &astra_ctvlib::setRecon, "Return the Reconstruction to Python");
-    astra_ctvlib.def("initializeSART", &astra_ctvlib::initializeSART, "Generate Config File");
+    astra_ctvlib.def("initializeSART", &astra_ctvlib::initializeSART, "Initialize SART");
     astra_ctvlib.def("SART", &astra_ctvlib::SART, "ART Reconstruction");
-    astra_ctvlib.def("initializeSIRT", &astra_ctvlib::initializeSIRT, "Generate Config File");
+    astra_ctvlib.def("initializeSIRT", &astra_ctvlib::initializeSIRT, "Initialize SIRT");
     astra_ctvlib.def("SIRT", &astra_ctvlib::SIRT, "SIRT Reconstruction");
-    astra_ctvlib.def("initializeFBP", &astra_ctvlib::initializeFBP, "Generate Config File");
+    astra_ctvlib.def("initializeFBP", &astra_ctvlib::initializeFBP, "Initialize Filtered BackProjection");
     astra_ctvlib.def("FBP", &astra_ctvlib::FBP, "Filtered Backprojection");
+    astra_ctvlib.def("initializeFP", &astra_ctvlib::initializeFP, "Initialize Forward Projection");
     astra_ctvlib.def("forwardProjection", &astra_ctvlib::forwardProjection, "Forward Projection");
     astra_ctvlib.def("copy_recon", &astra_ctvlib::copy_recon, "Copy the reconstruction");
     astra_ctvlib.def("matrix_2norm", &astra_ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");
@@ -352,7 +380,7 @@ PYBIND11_MODULE(astra_ctvlib, m)
     astra_ctvlib.def("original_tv", &astra_ctvlib::original_tv_3D, "Measure original TV");
     astra_ctvlib.def("tv_gd", &astra_ctvlib::tv_gd_3D, "3D TV Gradient Descent");
     astra_ctvlib.def("get_projections", &astra_ctvlib::get_projections, "Return the projection matrix to python");
-    astra_ctvlib.def("get_model_projections", &astra_ctvlib::get_model_projections, "Return Reprojections to Python");
+    astra_ctvlib.def("get_model_projections", &astra_ctvlib::get_model_projections, "Return the re-projection matrix to python");
     astra_ctvlib.def("poissonNoise", &astra_ctvlib::poissonNoise, "Add Poisson Noise to Projections");
     astra_ctvlib.def("restart_recon", &astra_ctvlib::restart_recon, "Set all the Slices Equal to Zero");
     astra_ctvlib.def("gpuCount", &astra_ctvlib::checkNumGPUs, "Check Num GPUs available");

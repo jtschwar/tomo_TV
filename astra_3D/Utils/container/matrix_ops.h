@@ -18,4 +18,6 @@ float cuda_euclidean_dist(float *recon, float *original, int nx, int ny, int nz)
 
 float cuda_rmse(float *recon, float *original, int nx, int ny, int nz);
 
+void cuda_positivity(float *recon, int nx, int ny, int nz);
+
 #endif /* tlib_hpp */

@@ -70,10 +70,10 @@ public:
 	// Initializes Measurement Matrix. 
 	astra_ctvlib(int Nslice, int Nray, int Nproj, Vec pyAngles);
     void initilizeInitialVolume();
+    void initializeReconCopy();
 
 	// Initialize Experimental Projections. 
 	void setTiltSeries(Mat in);
-    void setRecon(Mat in, int s);
     void setOriginalVolume(Mat in, int slice);
     
     // Create Projections and Add Poisson Noise (Simulations)
@@ -87,13 +87,13 @@ public:
     void initializeSIRT();
     void initializeSART(std::string projOrder);
     void initializeFBP(std::string filter);
-
+    void initializeFP();
+    
 	// 2D Reconstructions
     void update_projection_angles(int Nproj, Vec pyAngles);
     void SART(float beta);
     void SIRT(float beta);
-    void FBP();
-    void positivity();
+    void FBP(bool apply_positivity);
     
 	//Forward Project Reconstruction for Data Tolerance Parameter. 
 	void forwardProjection();
@@ -116,12 +116,12 @@ public:
     void restart_recon();
     
     // Return reconstruction to python.
+    void setRecon(Mat in, int s);
     Mat getRecon(int i);
     
-    // Return projections to python. 
+    // Return projections to python
     Mat get_projections();
     Mat get_model_projections();
-    
 };
 
 #endif /* astra_ctlib.hpp */
