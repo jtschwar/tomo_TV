@@ -11,34 +11,6 @@ def timer(t0, counter, Niter):
     timeLeftHour, timeLeftMin = divmod(timeLeftMin, 60)
     print('Estimated time to complete: %02d:%02d:%02d' % (timeLeftHour, timeLeftMin, timeLeftSec))
 
-def generate_tilt_series(volume, angles, num_tilts):
-
-    Ny = volume.shape[1]
-    Nz = volume.shape[2]
-    N = volume.shape[1]
-
-    # pad volume
-    pad_y_pre = int(np.ceil((N - Ny) / 2.0))
-    pad_y_post = int(np.floor((N - Ny) / 2.0))
-    pad_z_pre = int(np.ceil((N - Nz) / 2.0))
-    pad_z_post = int(np.floor((N - Nz) / 2.0))
-    volume_pad = np.lib.pad(
-        volume, ((0, 0), (pad_y_pre, pad_y_post), (pad_z_pre, pad_z_post)),
-        'constant')
-
-    Nslice = volume.shape[0]  # Number of slices along rotation axis.
-    tiltSeries = np.empty([Nslice, N, num_tilts], dtype=float, order='F')
-
-    for i in range(num_tilts):
-        # Rotate volume about x-axis
-        rotatedVolume = np.empty_like(volume_pad)
-        scipy.ndimage.interpolation.rotate(
-            volume_pad, angles[i], axes=(1, 2), reshape=False, order=1,
-            output=rotatedVolume)
-        # Calculate projection
-        tiltSeries[:, :, i] = np.sum(rotatedVolume, axis=2)
-    return tiltSeries
-
 def load_data(vol_size, file_name):
 
     #sk-image loads tilt series as (z,y,x) so the axes need to be

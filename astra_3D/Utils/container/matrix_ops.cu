@@ -135,7 +135,7 @@ float cuda_rmse(float *recon, float *original, int nx, int ny, int nz)
     cudaFree(d_original);
     cudaFree(d_diff);
 
-    return std::sqrt(rmse/(nx*ny*nz));
+    return rmse;
 }
 
 float cuda_euclidean_dist(float *recon, float *original, int nx, int ny, int nz)

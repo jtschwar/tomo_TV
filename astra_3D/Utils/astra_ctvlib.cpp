@@ -307,25 +307,19 @@ void astra_ctvlib::forwardProjection()
 // Measure the RMSE (simulation studies)
 float astra_ctvlib::rmse()
 {
-    float rmse;
-    rmse = cuda_rmse(recon.data, original_volume.data, Nslice, Ny, Nz);
-    return rmse;
+    return sqrt(cuda_rmse(recon.data, original_volume.data, Nslice, Ny, Nz) / (Nslice * Ny * Nz));
 }
 
 //Measure Original Volume's TV.
 float astra_ctvlib::original_tv_3D()
 {
-    float tv;
-    tv = cuda_tv_3D(original_volume.data, Nslice, Ny, Nz);
-    return tv;
+    return cuda_tv_3D(original_volume.data, Nslice, Ny, Nz);
 }
 
 // TV Minimization (Gradient Descent)
 float astra_ctvlib::tv_gd_3D(int ng, float dPOCS)
 {
-    float tv;
-    tv = cuda_tv_gd_3D(recon.data, ng, dPOCS, Nslice, Ny, Nz);
-    return tv;
+    return cuda_tv_gd_3D(recon.data, ng, dPOCS, Nslice, Ny, Nz);
 }
 
 // Return Reconstruction to Python.
