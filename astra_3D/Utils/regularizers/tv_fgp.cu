@@ -1,9 +1,27 @@
+/* CUDA implementation of FGP-TV [1] denoising/regularization model (2D/3D case)
+ *
+ * Input Parameters:
+ * 1. Noisy image/volume
+ * 2. lambdaPar - regularization parameter
+ * 3. Number of iterations
+ * 4. eplsilon: tolerance constant
+ * 5. TV-type: methodTV - 'iso' (0) or 'l1' (1)
+ * 6. nonneg: 'nonnegativity (0 is OFF by default)
+ *
+ * Output:
+ * [1] Filtered/regularized image/volume
+ * [2] Information vector which contains [iteration no., reached tolerance]
+ *
+ * This function is based on the Matlab's code and paper by
+ * [1] Amir Beck and Marc Teboulle, "Fast Gradient-Based Algorithms for Constrained Total Variation Image Denoising and Deblurring Problems"
+ */
 //
 //  tv_fgp.cu
 //
 //  Created by Hovden Group on 9/1/20.
-//  Copyright © 2020 Jonathan Schwartz. All rights reserved.
+//  Adapted from CCPI-Regularization-Toolkit
 //
+
 
 #include "tv_fgp.h"
 #include "shared.h"
@@ -14,7 +32,6 @@
 #include <cmath>
 #include <stdio.h>
 
-// What's the best block size? 8? 16? How can we calculate this? 
 #define BLKXSIZE 8
 
 #define MAX(x,y) (x>y?x:y)
@@ -46,7 +63,7 @@ __global__ void Obj_func3D_kernel(float *Ad, float *D, float *R1, float *R2, flo
     return;
 }
 
-__global__ void Grad_func3D_kernel(float *P1, float *P2, float *P3, float *D, float *R1, float *R2, float *R3, int N, int M, int Z, int ImSize, float multip)
+__global__ void Grad_func3D_kernel(float *P1, float *P2, float *P3, float *D, int N, int M, int Z, int ImSize, float multip)
 {
 
     float val1,val2,val3;
@@ -59,15 +76,15 @@ __global__ void Grad_func3D_kernel(float *P1, float *P2, float *P3, float *D, fl
     int index = (N*M)*k + i + N*j;
 
     if ((i < N) && (j < M) && (k <  Z)) {
-        /* boundary conditions */
+        // boundary conditions 
         if (i >= N-1) val1 = 0.0f; else val1 = D[index] - D[(N*M)*(k) + (i+1) + N*j];
         if (j >= M-1) val2 = 0.0f; else val2 = D[index] - D[(N*M)*(k) + i + N*(j+1)];
         if (k >= Z-1) val3 = 0.0f; else val3 = D[index] - D[(N*M)*(k+1) + i + N*j];
 
         //Write final result to global memory
-        P1[index] = R1[index] + multip*val1;
-        P2[index] = R2[index] + multip*val2;
-        P3[index] = R3[index] + multip*val3;
+        P1[index] += multip * val1;
+        P2[index] += multip * val2;
+        P3[index] += multip * val3;
     }
     return;
 }
@@ -177,14 +194,18 @@ __global__ void FGPResidCalc3D_kernel(float *Input1, float *Input2, float* Outpu
 }
 
 ////////////MAIN HOST FUNCTION ///////////////
-void cuda_tv_fgp(float *Input, float *Output, float *infovector, float lambdaPar, int iter, float epsil, int methodTV, int nonneg, int dimX, int dimY, int dimZ)
+void cuda_tv_fgp(float *vol, float lambdaPar, int iter, int methodTV, int nonneg, int dimX, int dimY, int dimZ, int gpuIndex)
 {
-    int deviceCount = -1; // number of devices
-    cudaGetDeviceCount(&deviceCount);
-    if (deviceCount == 0) {
-        fprintf(stderr, "No CUDA devices found\n");
-        return -1;
+    // Set GPU Index
+    if (gpuIndex != -1) {
+        cudaSetDevice(gpuIndex);
+        cudaError_t err = cudaGetLastError();
+
+        // Ignore errors caused by calling cudaSetDevice multiple times
+        // if (err != cudaSuccess && err != cudaErrorSetOnActiveProcess)
+        //     return false;
     }
+
 
     int count = 0, i;
     float re, multip,multip2;
@@ -194,129 +215,69 @@ void cuda_tv_fgp(float *Input, float *Output, float *infovector, float lambdaPar
 
     /*3D verson*/
     int ImSize = dimX*dimY*dimZ;
-    float *d_input, *d_update=NULL, *d_update_prev=NULL, *P1=NULL, *P2=NULL, *P3=NULL, *P1_prev=NULL, *P2_prev=NULL, *P3_prev=NULL, *R1=NULL, *R2=NULL, *R3=NULL;
+    float *d_input, *d_update=NULL, *d_update_prev=NULL, *P1=NULL, *P2=NULL, *P3=NULL;
 
-    dim3 dimBlock(BLKXSIZE,BLKYSIZE,BLKZSIZE);
-    dim3 dimGrid(idivup(dimX,BLKXSIZE), idivup(dimY,BLKYSIZE),idivup(dimZ,BLKZSIZE));
+    // Look into, originally BLK(X/Y/Z)SIZE
+    dim3 dimBlock(BLKXSIZE,BLKXSIZE,BLKXSIZE);
+    dim3 dimGrid(idivup(dimX,BLKXSIZE), idivup(dimY,BLKXSIZE),idivup(dimZ,BLKXSIZE));
 
-    if (epsil != 0.0f) checkCudaErrors( cudaMalloc((void**)&d_update_prev,ImSize*sizeof(float)) );
     /*allocate space for images on device*/
-    checkCudaErrors( cudaMalloc((void**)&d_input,ImSize*sizeof(float)) );
-    checkCudaErrors( cudaMalloc((void**)&d_update,ImSize*sizeof(float)) );
-    checkCudaErrors( cudaMalloc((void**)&P1,ImSize*sizeof(float)) );
-    checkCudaErrors( cudaMalloc((void**)&P2,ImSize*sizeof(float)) );
-    checkCudaErrors( cudaMalloc((void**)&P3,ImSize*sizeof(float)) );
-    checkCudaErrors( cudaMalloc((void**)&P1_prev,ImSize*sizeof(float)) );
-    checkCudaErrors( cudaMalloc((void**)&P2_prev,ImSize*sizeof(float)) );
-    checkCudaErrors( cudaMalloc((void**)&P3_prev,ImSize*sizeof(float)) );
-    checkCudaErrors( cudaMalloc((void**)&R1,ImSize*sizeof(float)) );
-    checkCudaErrors( cudaMalloc((void**)&R2,ImSize*sizeof(float)) );
-    checkCudaErrors( cudaMalloc((void**)&R3,ImSize*sizeof(float)) );
+    cudaMalloc((void**)&d_input,ImSize*sizeof(float));
+    cudaMalloc((void**)&d_update,ImSize*sizeof(float));
+    cudaMalloc((void**)&P1,ImSize*sizeof(float));
+    cudaMalloc((void**)&P2,ImSize*sizeof(float));
+    cudaMalloc((void**)&P3,ImSize*sizeof(float));
 
-    checkCudaErrors( cudaMemcpy(d_input,Input,ImSize*sizeof(float),cudaMemcpyHostToDevice));
+
+    cudaMemcpy(d_input,vol,ImSize*sizeof(float),cudaMemcpyHostToDevice);
     cudaMemset(P1, 0, ImSize*sizeof(float));
     cudaMemset(P2, 0, ImSize*sizeof(float));
     cudaMemset(P3, 0, ImSize*sizeof(float));
-    cudaMemset(P1_prev, 0, ImSize*sizeof(float));
-    cudaMemset(P2_prev, 0, ImSize*sizeof(float));
-    cudaMemset(P3_prev, 0, ImSize*sizeof(float));
-    cudaMemset(R1, 0, ImSize*sizeof(float));
-    cudaMemset(R2, 0, ImSize*sizeof(float));
-    cudaMemset(R3, 0, ImSize*sizeof(float));
+
     /********************** Run CUDA 3D kernel here ********************/
     multip = (1.0f/(26.0f*lambdaPar));
 
-    /* The main kernel */
+    /* Main Loop */
     for (i = 0; i < iter; i++) {
 
-       if ((epsil != 0.0f) && (i % 5 == 0)) {
-       FGPcopy_kernel3D<<<dimGrid,dimBlock>>>(d_update, d_update_prev, dimX, dimY, dimZ, ImSize);
-       checkCudaErrors( cudaDeviceSynchronize() );
-       checkCudaErrors(cudaPeekAtLastError() );
-        }
-
         /* computing the gradient of the objective function */
-        Obj_func3D_kernel<<<dimGrid,dimBlock>>>(d_input, d_update, R1, R2, R3, dimX, dimY, dimZ, ImSize, lambdaPar);
-        checkCudaErrors( cudaDeviceSynchronize() );
-        checkCudaErrors(cudaPeekAtLastError() );
+        Obj_func3D_kernel<<<dimGrid,dimBlock>>>(d_input, d_update, P1, P2, P3, dimX, dimY, dimZ, ImSize, lambdaPar);
+        cudaDeviceSynchronize();
+        cudaPeekAtLastError();
 
+        // Apply Nonnegativity 
         if (nonneg != 0) {
-        nonneg3D_kernel<<<dimGrid,dimBlock>>>(d_update, dimX, dimY, dimZ, ImSize);
-        checkCudaErrors( cudaDeviceSynchronize() );
-        checkCudaErrors(cudaPeekAtLastError() ); }
+            nonneg3D_kernel<<<dimGrid,dimBlock>>>(d_update, dimX, dimY, dimZ, ImSize);
+            cudaDeviceSynchronize();
+            cudaPeekAtLastError(); }
 
         /*Taking a step towards minus of the gradient*/
-        Grad_func3D_kernel<<<dimGrid,dimBlock>>>(P1, P2, P3, d_update, R1, R2, R3, dimX, dimY, dimZ, ImSize, multip);
-        checkCudaErrors( cudaDeviceSynchronize() );
-        checkCudaErrors(cudaPeekAtLastError() );
+        // Grad_func3D_kernel<<<dimGrid,dimBlock>>>(P1, P2, P3, d_update, R1, R2, R3, dimX, dimY, dimZ, ImSize, multip);
+        Grad_func3D_kernel<<<dimGrid,dimBlock>>>(P1, P2, P3, d_update, dimX, dimY, dimZ, ImSize, multip);
+        cudaDeviceSynchronize();
+        cudaPeekAtLastError();
 
         /* projection step */
         if (methodTV == 0) Proj_func3D_iso_kernel<<<dimGrid,dimBlock>>>(P1, P2, P3, dimX, dimY, dimZ, ImSize); /* isotropic kernel */
         else Proj_func3D_aniso_kernel<<<dimGrid,dimBlock>>>(P1, P2, P3, dimX, dimY, dimZ, ImSize); /* anisotropic kernel */
-        checkCudaErrors( cudaDeviceSynchronize() );
-        checkCudaErrors(cudaPeekAtLastError() );
+        cudaDeviceSynchronize();
+        cudaPeekAtLastError();
 
-        tkp1 = (1.0f + sqrt(1.0f + 4.0f*tk*tk))*0.5f;
-        multip2 = ((tk-1.0f)/tkp1);
-
-        Rupd_func3D_kernel<<<dimGrid,dimBlock>>>(P1, P1_prev, P2, P2_prev, P3, P3_prev, R1, R2, R3, tkp1, tk, multip2, dimX, dimY, dimZ, ImSize);
-        checkCudaErrors( cudaDeviceSynchronize() );
-        checkCudaErrors(cudaPeekAtLastError() );
-
-        FGPcopy_kernel3D<<<dimGrid,dimBlock>>>(P1, P1_prev, dimX, dimY, dimZ, ImSize);
-        checkCudaErrors( cudaDeviceSynchronize() );
-        checkCudaErrors(cudaPeekAtLastError() );
-
-        FGPcopy_kernel3D<<<dimGrid,dimBlock>>>(P2, P2_prev, dimX, dimY, dimZ, ImSize);
-        checkCudaErrors( cudaDeviceSynchronize() );
-        checkCudaErrors(cudaPeekAtLastError() );
-
-        FGPcopy_kernel3D<<<dimGrid,dimBlock>>>(P3, P3_prev, dimX, dimY, dimZ, ImSize);
-        checkCudaErrors( cudaDeviceSynchronize() );
-        checkCudaErrors(cudaPeekAtLastError() );
-
-        tk = tkp1;
-
-        if ((epsil != 0.0f) && (i % 5 == 0)) {
-        /* calculate norm - stopping rules using the Thrust library */
-        FGPResidCalc3D_kernel<<<dimGrid,dimBlock>>>(d_update, d_update_prev, P1, dimX, dimY, dimZ, ImSize);
-        checkCudaErrors( cudaDeviceSynchronize() );
-        checkCudaErrors(cudaPeekAtLastError() );
-
-        // setup arguments
-        square<float>        unary_op;
-        thrust::plus<float> binary_op;
-        thrust::device_vector<float> d_vec(P1, P1 + ImSize);
-        float reduction = std::sqrt(thrust::transform_reduce(d_vec.begin(), d_vec.end(), unary_op, 0.0f, binary_op));
-        thrust::device_vector<float> d_vec2(d_update, d_update + ImSize);
-          float reduction2 = std::sqrt(thrust::transform_reduce(d_vec2.begin(), d_vec2.end(), unary_op, 0.0f, binary_op));
-
-        // compute norm
-        re = (reduction/reduction2);
-        if (re < epsil)  count++;
-        if (count > 3) break;
-        }
     }
-        /***************************************************************/
-        //copy result matrix from device to host memory
-        cudaMemcpy(Output,d_update,ImSize*sizeof(float),cudaMemcpyDeviceToHost);
-        if (epsil != 0.0f) cudaFree(d_update_prev);
 
-        cudaFree(d_input);
-        cudaFree(d_update);
-        cudaFree(P1);
-        cudaFree(P2);
-        cudaFree(P3);
-        cudaFree(P1_prev);
-        cudaFree(P2_prev);
-        cudaFree(P3_prev);
-        cudaFree(R1);
-        cudaFree(R2);
-        cudaFree(R3);
+    /***************************************************************/
+    //copy result matrix from device to host memory
+    cudaMemcpy(vol,d_update,ImSize*sizeof(float),cudaMemcpyDeviceToHost);
 
-    /*adding info into info_vector */
-    infovector[0] = (float)(i);  /*iterations number (if stopped earlier based on tolerance)*/
-    infovector[1] = re;  /* reached tolerance */
-    cudaDeviceSynchronize();
-    return 0;
+    cudaFree(d_input);
+    cudaFree(d_update);
+    cudaFree(P1);
+    cudaFree(P2);
+    cudaFree(P3);
+
+    // /*adding info into info_vector */
+    // infovector[0] = (float)(i);  iterations number (if stopped earlier based on tolerance)
+    // infovector[1] = re;  /* reached tolerance */
+    // cudaDeviceSynchronize();
+    // return 0;
 }

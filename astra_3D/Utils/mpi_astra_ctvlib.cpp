@@ -84,6 +84,16 @@ int mpi_astra_ctvlib::get_nproc() {
     return nproc;
 }
 
+int mpi_astra_ctvlib::get_Nslice_loc()
+{
+    return Nslice_loc;
+}
+
+int mpi_astra_ctvlib::get_first_slice()
+{
+    return first_slice;
+}
+
 void mpi_astra_ctvlib::initilizeInitialVolume()
 {
     original_volume = Matrix3D(Nslice,Ny,Nz);
@@ -96,12 +106,12 @@ void mpi_astra_ctvlib::initializeReconCopy()
 
 void mpi_astra_ctvlib::checkNumGPUs()
 {
-    int nDevices;
-
+    //int nDevices;
     cudaGetDeviceCount(&nDevices);
-
     cout << "NumGPUs: " << nDevices << endl;
+    localDevice = rank % nDevices;
 }
+
 
 //Import tilt series (projections) from Python.
 void mpi_astra_ctvlib::setTiltSeries(Mat in)
@@ -183,11 +193,10 @@ void mpi_astra_ctvlib::initializeSART(std::string order)
 {
     projOrder = order;
     cout << "ProjectionOrder: " << projOrder << endl;
- 
     algo_sart = new CCudaSartAlgorithm();
     algo_sart->initialize(proj,sino,vol);
     algo_sart->setConstraints(true, 0, false, 1);
-    algo_sart->setGPUIndex(rank%numGPUperNode);
+    algo_sart->setGPUIndex(localDevice);
 }
 
 // ART Reconstruction.
@@ -216,12 +225,16 @@ void mpi_astra_ctvlib::SART(float beta)
 void mpi_astra_ctvlib::initializeSIRT()
 {
     algo_sirt = new CCudaSirtAlgorithm();
+    algo_sirt->initialize(proj, sino, vol);
     algo_sirt->setConstraints(true, 0, false, 1);
-    algo_sirt->setGPUIndex(rank%numGPUperNode);
+    checkNumGPUs();
+    cout << "Rank : " << rank << endl;
+    cout << "GPUindex : " << localDevice << endl;
+    algo_sirt->setGPUIndex(localDevice);
 }
 
 // SIRT Reconstruction.
-void mpi_astra_ctvlib::SIRT(float beta)
+void mpi_astra_ctvlib::SIRT()
 {
     int sliceInd;
     for (int s=0; s < Nslice_loc; s++)
@@ -232,8 +245,9 @@ void mpi_astra_ctvlib::SIRT(float beta)
         vol->copyData( (float32*) &recon.data[sliceInd] );
 
         // SIRT Reconstruction
-        algo_sirt->initialize(proj,sino,vol);
-        algo_sirt->setConstraints(true, 0, false, 1);
+	algo_sirt->updateSlice(sino, vol);
+//        algo_sirt->initialize(proj,sino,vol);
+//        algo_sirt->setConstraints(true, 0, false, 1);
         algo_sirt->run(1);
         
         // Return Slice to tomo_TV
@@ -391,7 +405,7 @@ float mpi_astra_ctvlib::original_tv_3D()
     updateRightSlice(original_volume);
 
     float tv_norm, tv_norm_loc;
-    tv_norm_loc = cuda_tv_3D(original_volume.data, Nslice_loc, Ny, Nz);
+    tv_norm_loc = cuda_tv_3D(original_volume.data, Nslice_loc, Ny, Nz, localDevice);
 
     if (nproc == 1) { return sqrt(tv_norm_loc); }
     else { 
@@ -403,11 +417,13 @@ float mpi_astra_ctvlib::original_tv_3D()
 // TV Minimization (Gradient Descent)
 float mpi_astra_ctvlib::tv_gd_3D(int ng, float dPOCS)
 {
+    cout << "Updating Right Slice" << endl;
     updateRightSlice(recon);
+    cout << "Updating Left Slice" << endl;
     updateLeftSlice(recon);
 
     float tv_norm, tv_norm_loc;
-    tv_norm_loc = cuda_tv_gd_3D(recon.data, ng, dPOCS, Nslice, Ny, Nz);
+    tv_norm_loc = cuda_tv_gd_3D(recon.data, ng, dPOCS, Nslice_loc, Ny, Nz, localDevice);
 
     if (nproc == 1) { return sqrt(tv_norm_loc); }
     else {
@@ -448,6 +464,8 @@ PYBIND11_MODULE(mpi_astra_ctvlib, m)
     py::class_<mpi_astra_ctvlib> mpi_astra_ctvlib(m, "mpi_astra_ctvlib");
     mpi_astra_ctvlib.def(py::init<int,int,int,Vec>());
     mpi_astra_ctvlib.def("initilizeInitialVolume", &mpi_astra_ctvlib::initilizeInitialVolume, "Initialize Original Data");
+    mpi_astra_ctvlib.def("getNsliceLoc", &mpi_astra_ctvlib::get_Nslice_loc, "Get Nslice_loc");
+    mpi_astra_ctvlib.def("getFirstSlice", &mpi_astra_ctvlib::get_first_slice, "Get first_slice");
     mpi_astra_ctvlib.def("setTiltSeries", &mpi_astra_ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
     mpi_astra_ctvlib.def("setOriginalVolume", &mpi_astra_ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
     mpi_astra_ctvlib.def("create_projections", &mpi_astra_ctvlib::create_projections, "Create Projections from Volume");

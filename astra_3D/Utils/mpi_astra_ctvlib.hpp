@@ -40,7 +40,7 @@ public:
     // Eigen - tomoTV Member Variables.
     Matrix3D recon, temp_recon, original_volume;
     int Nrow, Ncol, Nslice, Nslice_loc, Ny, Nz, nproc, rank, size;
-    int first_slice, last_slice, numGPUperNode;
+    int first_slice, last_slice, nDevices, localDevice;
     Mat b, g;
     
     // Astra Member Variables
@@ -68,6 +68,8 @@ public:
 	mpi_astra_ctvlib(int Nslice, int Nray, int Nproj, Vec pyAngles);
     int get_rank();
     int get_nproc();
+    int get_Nslice_loc();
+    int get_first_slice();
     void initilizeInitialVolume();
     void initializeReconCopy();
     void checkNumGPUs();
@@ -89,7 +91,7 @@ public:
 	// 2D Reconstructions
     void update_projection_angles(int Nproj, Vec pyAngles);
     void SART(float beta);
-    void SIRT(float beta);
+    void SIRT();
     void FBP();
     void positivity();
     

@@ -10,8 +10,8 @@
 
 #include <memory.h>
 
-float cuda_tv_gd_3D(float *recon, int ng, float dPOCS, int nx, int ny, int nz);
+float cuda_tv_gd_3D(float *recon, int ng, float dPOCS, int nx, int ny, int nz, int gpuIndex);
 
-float cuda_tv_3D(float *recon, int nx, int ny, int nz);
+float cuda_tv_3D(float *recon, int nx, int ny, int nz, int gpuIndex);
 
 #endif /* tlib_hpp */

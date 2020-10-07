@@ -14,7 +14,6 @@
 #include <cmath>
 #include <stdio.h>
 
-// What's the best block size? 8? 16? How can we calculate this? 
 #define BLKXSIZE 8
 
 #define MAX(x,y) (x>y?x:y)
@@ -111,7 +110,7 @@ __global__ void xi_update_kernel(float *gd1, float *gd2, float *gd3, float *P1, 
     }
 }
 
-__global__ void recon_update_kernel(float recon, float )
+__global__ void recon_update_kernel(float *vol, float *p1, float *p2, float *p3, float lambda)
 {
     int val1, val2, val3;
 
@@ -153,6 +152,7 @@ float cuda_tv_chambolle(float *recon, int ng, float lambda, int nx, int ny, int 
     int volSize = nx*ny*nz;
     float *d_recon, *tv_recon=NULL;
     float tv_gpu, tv_norm;
+    float tau = 2/8;
 
     // Block
     dim3 dimBlock(BLKXSIZE,BLKXSIZE, BLKXSIZE);
@@ -165,9 +165,6 @@ float cuda_tv_chambolle(float *recon, int ng, float lambda, int nx, int ny, int 
     cudaMalloc((void**)&d_xi_1,volSize*sizeof(float));
     cudaMalloc((void**)&d_xi_2,volSize*sizeof(float));
     cudaMalloc((void**)&d_xi_3,volSize*sizeof(float));
-    cudaMalloc((void**)&d_gdv_1,volSize*sizeof(float));
-    cudaMalloc((void**)&d_gdv_2,volSize*sizeof(float));
-    cudaMalloc((void**)&d_gdv_3,volSize*sizeof(float));
     cudaMalloc((void**)&d_gdv, volSize*sizeof(float));
 
     // TV Recon is Always on Device. 
@@ -181,7 +178,7 @@ float cuda_tv_chambolle(float *recon, int ng, float lambda, int nx, int ny, int 
     for(int g=0; g < ng; g++)
     {   
         // Measure Isotropic TV - Gradient
-        tv_gradient_3D_kernel<<<dimGrid,dimBlock>>>(d_recon, tv_recon, nx, ny, nz);
+        grad_kernel<<<dimGrid,dimBlock>>>(d_recon, d_xi_1, d_xi_2, d_xi_3, nx, ny, nz);
         cudaDeviceSynchronize();
         cudaPeekAtLastError();
 
@@ -192,7 +189,7 @@ float cuda_tv_chambolle(float *recon, int ng, float lambda, int nx, int ny, int 
         cudaPeekAtLastError();
 
         // TV Gradient Update 
-        tv_gradient_update_3D_kernel<<<dimGrid,dimBlock>>>(d_recon, tv_recon, tv_norm, dPOCS, nx, ny, nz);
+        recon_update_kernel<<<dimGrid,dimBlock>>>(d_recon, tv_recon, tv_norm, dPOCS, nx, ny, nz);
         cudaDeviceSynchronize();
         cudaPeekAtLastError();
     }

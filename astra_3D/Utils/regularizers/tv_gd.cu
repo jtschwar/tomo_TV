@@ -138,8 +138,18 @@ __global__ void positivity_kernel(float *recon, int nx, int ny, int nz)
 }
 
 // MAIN HOST FUNCTION //
-float cuda_tv_gd_3D(float *recon, int ng, float dPOCS, int nx, int ny, int nz)
+float cuda_tv_gd_3D(float *recon, int ng, float dPOCS, int nx, int ny, int nz, int gpuIndex)
 {
+    // Set GPU Index
+    if (gpuIndex != -1) {
+        cudaSetDevice(gpuIndex);
+        cudaError_t err = cudaGetLastError();
+
+        // Ignore errors caused by calling cudaSetDevice multiple times
+        if (err != cudaSuccess && err != cudaErrorSetOnActiveProcess)
+            return false;
+    }
+
     // Operators for Global Reductions
     thrust::plus<float>  binary_op;
     square<float>        unary_op;
@@ -217,8 +227,18 @@ float cuda_tv_gd_3D(float *recon, int ng, float dPOCS, int nx, int ny, int nz)
     return tv_gpu;
 }
 
-float cuda_tv_3D(float *recon, int nx, int ny, int nz)
+float cuda_tv_3D(float *recon, int nx, int ny, int nz, int gpuIndex)
 {
+    // Set GPU Index
+    if (gpuIndex != -1) {
+        cudaSetDevice(gpuIndex);
+        cudaError_t err = cudaGetLastError();
+
+        // Ignore errors caused by calling cudaSetDevice multiple times
+        if (err != cudaSuccess && err != cudaErrorSetOnActiveProcess)
+            return false;
+    }
+
     // Operators for Global Reductions
     thrust::plus<float>  binary_op;
 
