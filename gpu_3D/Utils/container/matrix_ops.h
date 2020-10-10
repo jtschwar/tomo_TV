@@ -1,0 +1,23 @@
+//
+//  matrix_ops.h
+//
+//  Created by Hovden Group on 8/17/2020.
+//  Copyright © 2020 Jonathan Schwartz. All rights reserved.
+//
+
+#ifndef matrix_ops
+#define matrix_ops
+
+#include <memory.h>
+
+float cuda_norm(float *input, int nx, int ny, int nz, int gpuIndex=-1);
+
+float cuda_sum(float *input, int nx, int ny, int nz, int gpuIndex=-1);
+
+float cuda_euclidean_dist(float *recon, float *original, int nx, int ny, int nz, int gpuIndex=-1);
+
+float cuda_rmse(float *recon, float *original, int nx, int ny, int nz, int gpuIndex=-1);
+
+void cuda_positivity(float *recon, int nx, int ny, int nz, int gpuIndex=-1);
+
+#endif /* tlib_hpp */

@@ -1,4 +1,0 @@
-CXX = g++ -fPIC -fopenmp
-MPXX = mpicxx -fPIC -fopenmp
-CUDAXX = nvcc -c
-CXXFLAGS = -O3 -Wno-div-by-zero -shared -std=c++11  -I$(HOME)/.local/include/python3.6m/ `python3 -m pybind11 --includes`
