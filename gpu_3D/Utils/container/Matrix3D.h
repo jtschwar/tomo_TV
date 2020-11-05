@@ -32,6 +32,8 @@ public:
     float sum();
 
     void positivity();
+
+    void setBackground(int backgroundValue=1);
 };
 
 #endif

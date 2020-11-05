@@ -44,19 +44,20 @@
 __global__ void Obj_func3D_kernel(float *Ad, float *D, float *R1, float *R2, float *R3, int N, int M, int Z, int ImSize, float lambda)
 {
 
-    float val1,val2,val3;
+    float val1, val2, val3;
 
     //calculate each thread global index
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     int j = blockDim.y * blockIdx.y + threadIdx.y;
     int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-    int index = (N*M)*k + i + N*j;
+    int index = (Z*M)*i + Z*j + k; 
 
     if ((i < N) && (j < M) && (k < Z)) {
-        if (i <= 0) {val1 = 0.0f;} else {val1 = R1[(N*M)*(k) + (i-1) + N*j];}
-        if (j <= 0) {val2 = 0.0f;} else {val2 = R2[(N*M)*(k) + i + N*(j-1)];}
-        if (k <= 0) {val3 = 0.0f;} else {val3 = R3[(N*M)*(k-1) + i + N*j];}
+        if (i <= 0) {val1 = 0.0f;} else {val1 = R1[(Z*M)*(i-1) + Z*j + k];}
+        if (j <= 0) {val2 = 0.0f;} else {val2 = R2[(Z*M)*i + Z*(j-1) + k];}
+        if (k <= 0) {val3 = 0.0f;} else {val3 = R3[(Z*M)*i + Z*j + (k-1)];}
+
         //Write final result to global memory
         D[index] = Ad[index] - lambda*(R1[index] + R2[index] + R3[index] - val1 - val2 - val3);
     }
@@ -73,13 +74,13 @@ __global__ void Grad_func3D_kernel(float *P1, float *P2, float *P3, float *D, in
     int j = blockDim.y * blockIdx.y + threadIdx.y;
     int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-    int index = (N*M)*k + i + N*j;
+    int index = (Z*M)*i + Z*j + k; 
 
     if ((i < N) && (j < M) && (k <  Z)) {
         // boundary conditions 
-        if (i >= N-1) val1 = 0.0f; else val1 = D[index] - D[(N*M)*(k) + (i+1) + N*j];
-        if (j >= M-1) val2 = 0.0f; else val2 = D[index] - D[(N*M)*(k) + i + N*(j+1)];
-        if (k >= Z-1) val3 = 0.0f; else val3 = D[index] - D[(N*M)*(k+1) + i + N*j];
+        if (i >= N-1) val1 = 0.0f; else val1 = D[index] - D[(Z*M)*(i+1) + Z*j + k];
+        if (j >= M-1) val2 = 0.0f; else val2 = D[index] - D[(Z*M)*i + Z*(j+1) + k];
+        if (k >= Z-1) val3 = 0.0f; else val3 = D[index] - D[(Z*M)*i + Z*j + (k+1)];
 
         //Write final result to global memory
         P1[index] += multip * val1;
@@ -98,7 +99,7 @@ __global__ void Proj_func3D_iso_kernel(float *P1, float *P2, float *P3, int N, i
     int j = blockDim.y * blockIdx.y + threadIdx.y;
     int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-    int index = (N*M)*k + i + N*j;
+    int index = (Z*M)*i + Z*j + k; 
 
     if ((i < N) && (j < M) && (k <  Z)) {
         denom = pow(P1[index],2) +  pow(P2[index],2) + pow(P3[index],2);
@@ -122,7 +123,7 @@ __global__ void Proj_func3D_aniso_kernel(float *P1, float *P2, float *P3, int N,
     int j = blockDim.y * blockIdx.y + threadIdx.y;
     int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-    int index = (N*M)*k + i + N*j;
+    int index = (Z*M)*i + Z*j + k; 
 
     if ((i < N) && (j < M) && (k <  Z)) {
                 val1 = abs(P1[index]);
@@ -137,22 +138,7 @@ __global__ void Proj_func3D_aniso_kernel(float *P1, float *P2, float *P3, int N,
     }
     return;
 }
-__global__ void Rupd_func3D_kernel(float *P1, float *P1_old, float *P2, float *P2_old, float *P3, float *P3_old, float *R1, float *R2, float *R3, float tkp1, float tk, float multip2, int N, int M, int Z, int ImSize)
-{
-    //calculate each thread global index
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
-    int j = blockDim.y * blockIdx.y + threadIdx.y;
-    int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-    int index = (N*M)*k + i + N*j;
-
-    if ((i < N) && (j < M) && (k <  Z)) {
-        R1[index] = P1[index] + multip2*(P1[index] - P1_old[index]);
-        R2[index] = P2[index] + multip2*(P2[index] - P2_old[index]);
-        R3[index] = P3[index] + multip2*(P3[index] - P3_old[index]);
-    }
-    return;
-}
 
 __global__ void nonneg3D_kernel(float* Output, int N, int M, int Z, int num_total)
 {
@@ -160,23 +146,10 @@ __global__ void nonneg3D_kernel(float* Output, int N, int M, int Z, int num_tota
     int j = blockDim.y * blockIdx.y + threadIdx.y;
     int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-    int index = (N*M)*k + i + N*j;
+    int index = (Z*M)*i + Z*j + k; 
 
     if (index < num_total)  {
         if (Output[index] < 0.0f) Output[index] = 0.0f;
-    }
-}
-
-__global__ void FGPcopy_kernel3D(float *Input, float* Output, int N, int M, int Z, int num_total)
-{
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
-    int j = blockDim.y * blockIdx.y + threadIdx.y;
-    int k = blockDim.z * blockIdx.z + threadIdx.z;
-
-    int index = (N*M)*k + i + N*j;
-
-    if (index < num_total)  {
-        Output[index] = Input[index];
     }
 }
 
@@ -186,7 +159,7 @@ __global__ void FGPResidCalc3D_kernel(float *Input1, float *Input2, float* Outpu
     int j = blockDim.y * blockIdx.y + threadIdx.y;
     int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-    int index = (N*M)*k + i + N*j;
+    int index = (Z*M)*i + Z*j + k; 
 
     if (index < num_total)  {
         Output[index] = Input1[index] - Input2[index];
@@ -202,11 +175,11 @@ __global__ void tv_kernel_3D(float *vol, float *tv_recon, int nx, int ny, int nz
     int j = blockDim.y * blockIdx.y + threadIdx.y;
     int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-    int ijk = (nx*ny)*k + i + nx*j;
+    int ijk = (ny*nz)*i + nz*j + k;
     
-    int ip = (nx*ny)*k + (i+1)%nx + nx*j;
-    int jp = (nx*ny)*k + i + nx*((j+1)%ny);
-    int kp = (nx*ny)*((k+1)%nz) + i + nx*j;
+    int ip = (ny*nz)*((i+1)%nx) + nz*j + k;
+    int jp = (ny*nz)*i + nz*((j+1)%ny) + k;
+    int kp = (ny*nz)*i + nz*j + ((k+1)%nz);
 
     if ((i < nx) && (j < ny) && (k < nz)) {
         tv_recon[ijk] = sqrt(eps + ( vol[ijk] - vol[ip] ) * ( vol[ijk] - vol[ip] )
@@ -229,7 +202,7 @@ float cuda_tv_fgp_3D(float *vol, int iter, float lambdaPar, int dimX, int dimY, 
     }
 
     int nonneg = 1, methodTV = 0;
-    float multip, tv;
+    float multip, tv=1.0;
 
     /*3D verson*/
     int ImSize = dimX*dimY*dimZ;
@@ -247,9 +220,22 @@ float cuda_tv_fgp_3D(float *vol, int iter, float lambdaPar, int dimX, int dimY, 
     cudaMalloc((void**)&P3,ImSize*sizeof(float));
 
     cudaMemcpy(d_input,vol,ImSize*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemset(d_update, 0, ImSize*sizeof(float));
     cudaMemset(P1, 0, ImSize*sizeof(float));
     cudaMemset(P2, 0, ImSize*sizeof(float));
     cudaMemset(P3, 0, ImSize*sizeof(float));
+
+    // // Operators for Global Reductions
+    thrust::plus<float>  binary_op;
+
+    // Measure TV (in this case d_update == tv_recon)
+    tv_kernel_3D<<<dimGrid,dimBlock>>>(d_input, d_update, dimX, dimY, dimZ);
+    cudaDeviceSynchronize();
+    cudaPeekAtLastError();
+
+    // Measure Norm of TV - Gradient
+    thrust::device_vector<float> tv_vec(d_update, d_update + ImSize);
+    tv = thrust::reduce(tv_vec.begin(), tv_vec.end(), 0.0f, binary_op);
 
     /********************** Run CUDA 3D kernel here ********************/
     multip = (1.0f/(26.0f*lambdaPar));
@@ -269,7 +255,6 @@ float cuda_tv_fgp_3D(float *vol, int iter, float lambdaPar, int dimX, int dimY, 
             cudaPeekAtLastError(); }
 
         /*Taking a step towards minus of the gradient*/
-        // Grad_func3D_kernel<<<dimGrid,dimBlock>>>(P1, P2, P3, d_update, R1, R2, R3, dimX, dimY, dimZ, ImSize, multip);
         Grad_func3D_kernel<<<dimGrid,dimBlock>>>(P1, P2, P3, d_update, dimX, dimY, dimZ, ImSize, multip);
         cudaDeviceSynchronize();
         cudaPeekAtLastError();
@@ -281,18 +266,6 @@ float cuda_tv_fgp_3D(float *vol, int iter, float lambdaPar, int dimX, int dimY, 
         cudaPeekAtLastError();
 
     }
-
-    // Operators for Global Reductions
-    thrust::plus<float>  binary_op;
-
-    // Measure TV (in this case d_input == tv_recon)
-    tv_kernel_3D<<<dimGrid,dimBlock>>>(d_update, d_input, dimX, dimY, dimZ);
-    cudaDeviceSynchronize();
-    cudaPeekAtLastError();
-
-    // Measure Norm of TV - Gradient
-    thrust::device_vector<float> tv_vec(d_input, d_input + ImSize);
-    tv = thrust::reduce(tv_vec.begin(), tv_vec.end(), 0.0f, binary_op);
 
     /***************************************************************/
     //copy result matrix from device to host memory

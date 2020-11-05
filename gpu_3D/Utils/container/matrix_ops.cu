@@ -28,12 +28,11 @@ __global__ void difference_kernel(float *output, float *vol1, float *vol2, int n
     int j = blockDim.y * blockIdx.y + threadIdx.y;
     int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-    int ijk = (nx*ny)*k + i + nx*j;
+    int ijk = (ny*nz)*i + nz*j + k;
 
     if ((i < nx) && (j < ny) && (k < nz)) {
         output[ijk] = (vol1[ijk] - vol2[ijk]) * (vol1[ijk] - vol2[ijk]);
     }
-    return;
 }
 
 __global__ void cuda_positivity_kernel(float *vol, int nx, int ny, int nz)
@@ -42,14 +41,24 @@ __global__ void cuda_positivity_kernel(float *vol, int nx, int ny, int nz)
     int j = blockDim.y * blockIdx.y + threadIdx.y;
     int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-    int ijk = (nx*ny)*k + i + nx*j;
+    int ijk = (ny*nz)*i + nz*j + k;
 
     if ((i < nx) && (j < ny) && (k < nz)) {
-        if (vol[ijk] < 0.0f) {
-            vol[ijk] = 0.0f; 
-        }
+        if (vol[ijk] < 0.0f) { vol[ijk] = 0.0f; }
     }
-    return;
+}
+
+__global__ void cuda_background_kernel(float *vol, int value, int nx, int ny, int nz)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    int j = blockDim.y * blockIdx.y + threadIdx.y;
+    int k = blockDim.z * blockIdx.z + threadIdx.z;
+
+    int ijk = (ny*nz)*i + nz*j + k;
+
+    if ((i < nx) && (j < ny) && (k < nz)) {
+        if (vol[ijk] == 0.0f) { vol[ijk] = value; }
+    }
 }
 
 // MAIN HOST FUNCTION //
@@ -64,7 +73,6 @@ float cuda_norm(float *input, int nx, int ny, int nz, int gpuIndex)
         if (err != cudaSuccess && err != cudaErrorSetOnActiveProcess)
             return false;
     }
-
 
     int volSize = nx * ny * nz;
     float *d_input;
@@ -99,7 +107,6 @@ float cuda_sum(float *input, int nx, int ny, int nz, int gpuIndex)
         if (err != cudaSuccess && err != cudaErrorSetOnActiveProcess)
             return false;
     }
-
 
     int volSize = nx * ny * nz;
     float *d_input;
@@ -172,7 +179,7 @@ float cuda_rmse(float *recon, float *original, int nx, int ny, int nz, int gpuIn
     // return std::sqrt(rmse/(nx*ny*nz));
 }
 
-float cuda_euclidean_dist(float *recon, float *original, int nx, int ny, int nz, int gpuIndex)
+float cuda_euclidean_dist(float *vol1, float *vol2, int nx, int ny, int nz, int gpuIndex)
 {
     // Set GPU Index
     if (gpuIndex != -1) {
@@ -185,7 +192,7 @@ float cuda_euclidean_dist(float *recon, float *original, int nx, int ny, int nz,
     }
 
     int volSize = nx * ny * nz;
-    float *d_recon, *d_original, *d_diff;
+    float *d_vol1, *d_vol2, *d_diff;
     float L2;
 
     // Block
@@ -195,15 +202,15 @@ float cuda_euclidean_dist(float *recon, float *original, int nx, int ny, int nz,
     dim3 dimGrid(idivup(nx,BLKXSIZE), idivup(ny,BLKXSIZE), idivup(nz,BLKXSIZE));
 
     /*allocate space for volume on device*/
-    cudaMalloc((void**)&d_recon,volSize*sizeof(float));
-    cudaMalloc((void**)&d_original,volSize*sizeof(float));
+    cudaMalloc((void**)&d_vol1,volSize*sizeof(float));
+    cudaMalloc((void**)&d_vol2,volSize*sizeof(float));
     cudaMalloc((void**)&d_diff,volSize*sizeof(float));
 
-    cudaMemcpy(d_recon,recon,volSize*sizeof(float),cudaMemcpyHostToDevice);
-    cudaMemcpy(d_original,original,volSize*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_vol1,vol1,volSize*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_vol2,vol2,volSize*sizeof(float),cudaMemcpyHostToDevice);
     cudaMemset(d_diff, 0.0f, volSize*sizeof(float));
 
-    difference_kernel<<<dimGrid,dimBlock>>>(d_diff, d_recon, d_original, nx, ny, nz);
+    difference_kernel<<<dimGrid,dimBlock>>>(d_diff, d_vol1, d_vol2, nx, ny, nz);
     cudaDeviceSynchronize();
     cudaPeekAtLastError();
 
@@ -214,8 +221,8 @@ float cuda_euclidean_dist(float *recon, float *original, int nx, int ny, int nz,
     cudaDeviceSynchronize();
     cudaPeekAtLastError();
 
-    cudaFree(d_recon);
-    cudaFree(d_original);
+    cudaFree(d_vol1);
+    cudaFree(d_vol2);
     cudaFree(d_diff);
 
     cudaDeviceSynchronize();
@@ -250,5 +257,35 @@ void cuda_positivity(float *recon, int nx, int ny, int nz, int gpuIndex)
 
     cudaMemcpy(recon, d_recon, volSize*sizeof(float), cudaMemcpyDeviceToHost);
     cudaFree(d_recon);
+    cudaDeviceSynchronize();
+}
+
+void cuda_set_background(float *vol, int value, int nx, int ny, int nz, int gpuIndex)
+{
+        // Set GPU Index
+    if (gpuIndex != -1) {
+        cudaSetDevice(gpuIndex);
+        cudaError_t err = cudaGetLastError();
+    }
+
+    int volSize = nx * ny * nz;
+    float *d_vol;
+
+    // Block
+    dim3 dimBlock(BLKXSIZE,BLKXSIZE, BLKXSIZE);
+
+    // Grid
+    dim3 dimGrid(idivup(nx,BLKXSIZE), idivup(ny,BLKXSIZE), idivup(nz,BLKXSIZE));
+
+    // allocate space for volume on device
+    cudaMalloc((void**)&d_vol,volSize*sizeof(float));
+    cudaMemcpy(d_vol, vol, volSize*sizeof(float), cudaMemcpyHostToDevice);
+
+    cuda_background_kernel<<<dimGrid,dimBlock>>>(d_vol, value, nx, ny, nz);
+    cudaDeviceSynchronize();
+    cudaPeekAtLastError();
+
+    cudaMemcpy(vol, d_vol, volSize*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaFree(d_vol);
     cudaDeviceSynchronize();
 }

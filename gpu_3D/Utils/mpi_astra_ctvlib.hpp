@@ -42,6 +42,7 @@ public:
     unsigned int Nrow, Ncol, Nslice, Nslice_loc, Ny, Nz, first_slice, last_slice; 
     int nproc, rank, size, nDevices, localDevice;
     Mat b, g;
+    bool deletePrev;
     
     // Astra Member Variables
     
@@ -70,7 +71,7 @@ public:
     int get_nproc();
     int get_Nslice_loc();
     int get_first_slice();
-    void initilizeInitialVolume();
+    void initializeInitialVolume();
     void initializeReconCopy();
     void checkNumGPUs();
 
@@ -81,6 +82,7 @@ public:
     
     // Create Projections and Add Poisson Noise (Simulations)
     void create_projections();
+    void set_background();
     void poissonNoise(int SNR);
     
     // Generate Config File for Reconstruction Operators
@@ -89,10 +91,10 @@ public:
     void initializeFBP(std::string filter);
 
 	// 2D Reconstructions
-    void update_projection_angles(int Nproj, Vec pyAngles);
+    void update_projection_angles(Vec pyAngles);
     void SART(float beta, int nIter=1);
     void SIRT(int niter=1);
-    void FBP();
+    void FBP(bool apply_positivity);
     void positivity();
     
 	//Forward Project Reconstruction for Data Tolerance Parameter.
@@ -105,7 +107,6 @@ public:
     // Measure 2-norm of projections and reconstruction.
     float matrix_2norm();
     float vector_2norm();
-    float dyn_vector_2norm(int dyn_ind);
     float rmse();
     
     // Total variation

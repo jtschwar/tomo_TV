@@ -24,6 +24,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include "hdf5.h"
 
 using namespace astra;
 using namespace Eigen;
@@ -71,7 +72,7 @@ astra_ctvlib::astra_ctvlib(int Ns, int Nray, int Nproj, Vec pyAngles)
      proj = new CCudaProjector2D(proj_geom,vol_geom);
 }
 
-void astra_ctvlib::initilizeInitialVolume()
+void astra_ctvlib::initializeInitialVolume()
 {
     original_volume = Matrix3D(Nslice,Ny,Nz);
 }
@@ -137,16 +138,24 @@ void astra_ctvlib::poissonNoise(int Nc)
     b = b / ( Nc * b.size() ) * N;
 }
 
-void astra_ctvlib::update_projection_angles(int Nproj, Vec pyAngles)
+void astra_ctvlib::update_projection_angles(Vec pyAngles)
 {
+    // newNProj = pyAngles.size()
+    Nrow = Ny * pyAngles.size();
+    b.resize(Nslice, Nrow);
+    g.resize(Nslice, Nrow);
+    
     // Specify projection matrix geometries
     float32 *angles = new float32[pyAngles.size()];
 
     for (int j = 0; j < pyAngles.size(); j++) {
         angles[j] = pyAngles(j);    }
     
+    // Delete Previous Projection Matrix Geometry and Projector.
+    delete proj_geom, proj, sino;
+    
     // Create Projection Matrix Geometry and Projector.
-    proj_geom = new CParallelProjectionGeometry2D(Nproj, Ny, 1, angles);
+    proj_geom = new CParallelProjectionGeometry2D(pyAngles.size(), Ny, 1, angles);
     proj = new CCudaProjector2D(proj_geom,vol_geom);
     sino =  new CFloat32ProjectionData2D(proj_geom);
 }
@@ -313,6 +322,18 @@ float astra_ctvlib::tv_fgp_3D(int ng, float lambda)
     return cuda_tv_fgp_3D(recon.data, ng, lambda, Nslice, Ny, Nz);
 }
 
+// Save Reconstruction with Parallel MPI - I/O
+void astra_ctvlib::save_recon(char *filename) {
+    hid_t fd = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    hsize_t dims[3] = {Nslice, Ny, Nz};
+    hid_t dataspace = H5Screate_simple(3, dims, NULL);
+    hid_t dset = H5Dcreate(fd, "recon", H5T_NATIVE_FLOAT, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    H5Dwrite(dset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &recon.data[recon.index(0,0, 0)]);
+    H5Dclose(dset);
+    H5Sclose(dataspace);
+    H5Fclose(fd);
+}
+
 // Return Reconstruction to Python.
 Mat astra_ctvlib::getRecon(int slice)
 {
@@ -342,13 +363,14 @@ PYBIND11_MODULE(astra_ctvlib, m)
     m.doc() = "C++ Scripts for TV-Tomography Reconstructions using ASTRA Cuda Library";
     py::class_<astra_ctvlib> astra_ctvlib(m, "astra_ctvlib");
     astra_ctvlib.def(py::init<int,int,int,Vec>());
-    astra_ctvlib.def("initilizeInitialVolume", &astra_ctvlib::initilizeInitialVolume, "Initialize Original Data");
+    astra_ctvlib.def("initializeInitialVolume", &astra_ctvlib::initializeInitialVolume, "Initialize Original Data");
     astra_ctvlib.def("initializeReconCopy", &astra_ctvlib::initializeReconCopy, "Initalize Copy Data of Recon");
     astra_ctvlib.def("setTiltSeries", &astra_ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
     astra_ctvlib.def("setOriginalVolume", &astra_ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
     astra_ctvlib.def("create_projections", &astra_ctvlib::create_projections, "Create Projections from Volume");
     astra_ctvlib.def("getRecon", &astra_ctvlib::getRecon, "Return the Reconstruction to Python");
     astra_ctvlib.def("setRecon", &astra_ctvlib::setRecon, "Return the Reconstruction to Python");
+    astra_ctvlib.def("saveRecon", &astra_ctvlib::save_recon, "Save the Reconstruction with HDF5 parallel I/O");
     astra_ctvlib.def("initializeSART", &astra_ctvlib::initializeSART, "Initialize SART");
     astra_ctvlib.def("SART", &astra_ctvlib::SART, "ART Reconstruction");
     astra_ctvlib.def("initializeSIRT", &astra_ctvlib::initializeSIRT, "Initialize SIRT");

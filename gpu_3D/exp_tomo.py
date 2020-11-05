@@ -1,7 +1,7 @@
 # General 3D - SIRT Reconstruction with Positivity Constraint. 
 
 from pytvlib import *
-import astra_ctvlib
+import mpi_astra_ctvlib
 import numpy as np
 import time
 from tqdm import tqdm
@@ -9,16 +9,16 @@ check_cuda()
 ########################################
 
 # File Name
-vol_size = '256'
-file_name = 'au_sto.h5'
+vol_size=''
+file_name='bowtie.h5'
 
 # Number of Iterations (Main Loop)
-Niter = 100
+Niter = 200
 
 alg = 'SIRT' # Algorithm
 initAlg = '' # Algorithm Parameters (ie Projection Order or Filter)
 
-# Descent Parameter and Reduction
+# Descent Parameter and Reduction (ART)
 beta0 = 0.5
 beta_red = 0.995
 
@@ -34,11 +34,10 @@ saveRecon = True
 (Nslice, Nray, Nproj) = tiltSeries.shape
 Nproj = tiltAngles.shape[0]
 
+# Create Projections Vector
 b = np.zeros([Nslice, Nray*Nproj])
 for s in range(Nslice):
     b[s,:] = tiltSeries[s,:,:].transpose().ravel()
-
-print('Loaded h5 file, now intiializing c++ object')
 
 # Initialize C++ Object.. 
 tomo_obj = astra_ctvlib.astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
@@ -48,7 +47,7 @@ tomo_obj.setTiltSeries(b)
 dd_vec = np.zeros(Niter)
 beta = beta0
 
-print('Starting Reconstruction')
+if tomo_obj.rank() == 0: print('Starting Reconstruction')
 
 #Main Loop
 for i in tqdm(range(Niter)): 
@@ -59,14 +58,12 @@ for i in tqdm(range(Niter)):
     tomo_obj.forwardProjection()
     dd_vec[i] = tomo_obj.vector_2norm()
 
-print('Reconstruction Complete, Saving Data..')
-print('Save Recon :: {}'.format(saveRecon))
+if tomo_obj.rank() == 0:
+	print('Reconstruction Complete, Saving Data..')
+	print('Save Recon :: {}'.format(saveRecon))
 
 #Save all the results to h5 file. 
-fDir = fName + '_' + alg
+fDir = 'results/' + fName + '_' + alg
 meta = {'vol_size':vol_size,'Niter':Niter, 'initAlg':initAlg, 'beta':beta, 'beta_red': beta_red}
-results = {'rmse':dd_vec}
-save_results([fDir,fName], meta, results)
-
-if saveRecon: 
-    save_recon([fDir,fName], (Nslice, Nray, Nproj), tomo_obj)
+results = {'dd':dd_vec}
+mpi_save_results([fDir, fName], tomo_obj, saveRecon, meta, results)

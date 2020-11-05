@@ -1,26 +1,24 @@
-# General 3D - SIRT Reconstruction with Positivity Constraint. 
+# General 3D Reconstruction with Positivity Constraint. 
 
-from pytvlib import *
-import astra_ctvlib
-import numpy as np
-import time
+import mpi_astra_ctvlib
 from tqdm import tqdm
+from pytvlib import *
+import numpy as np
 check_cuda()
 ########################################
 
 vol_size = '256'
 file_name = 'au_sto.h5'
 
+# Algorithm
+alg = 'SIRT'
+initAlg = '' # Algorithm Parameters (ie Projection Order or Filter)
+
 # Number of Iterations (Main Loop)
 Niter = 100
 
-# Algorithm
-alg = 'SIRT'
-initAlg = '' # Algorithm Parameters (ie Projection Order or FBF-Filter)
-
-# Descent Parameter and Reduction
-beta = 0.5
-beta_red = 0.995
+# Descent Parameter and Reduction (ART)
+beta0, beta_red = 0.5, 0.995
 
 # Save Final Reconstruction. 
 saveRecon = True
@@ -32,40 +30,34 @@ saveRecon = True
 (Nslice, Nray, _) = original_volume.shape
 Nproj = tiltAngles.shape[0]
 
-print('Loaded h5 file, now intiializing c++ object')
-
 # Initialize C++ Object.. 
-tomo_obj = astra_ctvlib.astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
-tomo_obj.initilizeInitialVolume()
+tomo_obj = mpi_astra_ctvlib.mpi_astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
+tomo_obj.initializeInitialVolume()
 
 # Load Volume and Collect Projections. 
-for s in range(Nslice):
-    tomo_obj.setOriginalVolume(original_volume[s,:,:],s)
-
-print('Loaded Test Object, now creating projections')
+for s in range(tomo_obj.NsliceLoc()):
+    tomo_obj.setOriginalVolume(original_volume[s+tomo_obj.firstSlice(),:,:], s)
 
 initialize_algorithm(tomo_obj, alg, initAlg)
 tomo_obj.create_projections()
 
-print('Starting Reconstruction')
+if tomo_obj.rank() == 0: print('Starting Reconstruction')
 rmse_vec = np.zeros(Niter)
 
 #Main Loop
 for i in tqdm(range(Niter)): 
 
     run(tomo_obj, alg)
-
     rmse_vec[i] = tomo_obj.rmse()
 
-print('RMSE: ', rmse_vec)
-print('Reconstruction Complete, Saving Data..')
-print('Save Recon :: {}'.format(saveRecon))
+
+if tomo_obj.rank() == 0: 
+    print('Reconstruction Complete, Saving Data..')
+    print('Save Recon :: {}'.format(saveRecon))
 
 #Save all the results to h5 file. 
-fDir = fName + '_' + alg
-meta = {'vol_size':vol_size,'Niter':Niter, 'initAlg':initAlg} # Metadata / Convergence Parameters
-results = {'rmse':rmse_vec} # Convergence Results (i.e. DD / TV / RMSE)
-save_results([fDir,fName], meta, results)
+fDir = 'results/' + fName + '_' + alg + '_MPI'
+meta = {'vol_size':vol_size,'Niter':Niter,'initAlg':initAlg}
+results = {'rmse':rmse_vec}
+mpi_save_results(['results', fDir, fName], tomo_obj, saveRecon, meta, results)
 
-if saveRecon: 
-    save_recon([fDir,fName], (Nslice, Nray, Nproj), tomo_obj)

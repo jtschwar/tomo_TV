@@ -43,14 +43,12 @@ mpi_astra_ctvlib::mpi_astra_ctvlib(int Ns, int Nray, int Nproj, Vec pyAngles)
     Nz = Nray;
     Nrow = Nray * Nproj;
     Ncol = Ny * Nz;
-    b.resize(Nslice, Nrow);
-    g.resize(Nslice, Nrow);
     
     // Initialize MPI
     MPI_Init(NULL, NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &nproc);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    
+
     //Calculate the number of slices for each rank.
     Nslice_loc = int(Nslice/nproc);
     first_slice = rank*Nslice_loc;
@@ -58,7 +56,11 @@ mpi_astra_ctvlib::mpi_astra_ctvlib(int Ns, int Nray, int Nproj, Vec pyAngles)
         Nslice_loc++;
         first_slice += rank%nproc; }
     last_slice = first_slice + Nslice_loc - 1;
-    
+   
+    b.resize(Nslice_loc, Nrow);
+    g.resize(Nslice_loc, Nrow);
+    deletePrev = false;
+
     //Initialize all the Slices in Recon as Zero.
     recon = Matrix3D(Nslice_loc+2,Ny,Nz); //Final Reconstruction.
     
@@ -105,9 +107,9 @@ int mpi_astra_ctvlib::get_first_slice()
     return first_slice;
 }
 
-void mpi_astra_ctvlib::initilizeInitialVolume()
+void mpi_astra_ctvlib::initializeInitialVolume()
 {
-    original_volume = Matrix3D(Nslice,Ny,Nz);
+    original_volume = Matrix3D(Nslice_loc+2,Ny,Nz);
 }
 
 void mpi_astra_ctvlib::initializeReconCopy()
@@ -161,13 +163,24 @@ void mpi_astra_ctvlib::create_projections()
     }
 }
 
+void mpi_astra_ctvlib::set_background()
+{
+    original_volume.setBackground();
+}
+
 // Add poisson noise to projections.
 void mpi_astra_ctvlib::poissonNoise(int Nc)
 {
     Mat temp_b = b;
-    float mean = b.mean();
+    float mean;
     float N = b.sum();
-    b  = b / ( b.sum() ) * Nc * b.size();
+
+    if (nproc == 1) { mean = N / b.size(); }
+    else { 
+       MPI_Allreduce(&N, &mean, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD); 
+       mean = mean /Nslice/Nrow; }    
+    b = b/mean*Nc;
+    //b  = b / ( b.sum() ) * Nc * b.size();
     std::default_random_engine generator;
     for(int i=0; i < b.size(); i++)
     {
@@ -175,25 +188,37 @@ void mpi_astra_ctvlib::poissonNoise(int Nc)
        b(i) = distribution(generator);
        
     }
-    b = b / ( Nc * b.size() ) * N;
+    // b = b / ( Nc * b.size() ) * N;
+    b = b / Nc * mean;
 }
 
-void mpi_astra_ctvlib::update_projection_angles(int Nproj, Vec pyAngles)
+void mpi_astra_ctvlib::update_projection_angles(Vec pyAngles)
 {
+    // newNProj = pyAngles.size()
+    Nrow = Ny * pyAngles.size();
+    b.resize(Nslice_loc, Nrow);
+    g.resize(Nslice_loc, Nrow);
+    
     // Specify projection matrix geometries
     float32 *angles = new float32[pyAngles.size()];
 
     for (int j = 0; j < pyAngles.size(); j++) {
         angles[j] = pyAngles(j);    }
     
+    // Delete Previous Projection Matrix Geometry and Projector. 
+    delete proj_geom, proj, sino;
+    
     // Create Projection Matrix Geometry and Projector.
-    proj_geom = new CParallelProjectionGeometry2D(Nproj, Ny, 1, angles);
+    proj_geom = new CParallelProjectionGeometry2D(pyAngles.size(), Ny, 1, angles);
     proj = new CCudaProjector2D(proj_geom,vol_geom);
     sino =  new CFloat32ProjectionData2D(proj_geom);
+    
+    deletePrev = true;
 }
 
 void mpi_astra_ctvlib::initializeSART(std::string order)
 {
+    if (deletePrev) delete algo_sart; // Delete Previous operator
     projOrder = order;
     if (rank==0) cout << "ProjectionOrder: " << projOrder << endl;
     algo_sart = new CCudaSartAlgorithm();
@@ -228,6 +253,7 @@ void mpi_astra_ctvlib::SART(float beta, int nIter)
 
 void mpi_astra_ctvlib::initializeSIRT()
 {
+    if (deletePrev) delete algo_sirt; // Delete Previous operator
     algo_sirt = new CCudaSirtAlgorithm();
     algo_sirt->initialize(proj, sino, vol);
     algo_sirt->setConstraints(true, 0, false, 1);
@@ -260,14 +286,14 @@ void mpi_astra_ctvlib::initializeFBP(std::string filter)
     // none, ram-lak, shepp-logan, cosine, hamming, hann, tukey, lanczos,
     // triangular, gaussian, barlett-hann, blackman, nuttall, blackman-harris,
     // blackman-nuttall, flat-top, kaiser, parzen
-    
+   if (deletePrev) delete algo_fbp; // Delete Previous operator
    fbfFilter = filter;
    cout << "FBP Filter: " << filter << endl;
    algo_fbp = new CCudaFilteredBackProjectionAlgorithm();
 }
 
 // Filtered Backprojection.
-void mpi_astra_ctvlib::FBP()
+void mpi_astra_ctvlib::FBP(bool apply_positivity)
 {
     E_FBPFILTER fbfFilt = convertStringToFilter(fbfFilter);
     for (int s=0; s < Nslice_loc; s++)
@@ -284,12 +310,13 @@ void mpi_astra_ctvlib::FBP()
         // Return Slice to tomo_TV
         memcpy(&recon.data[recon.index(s,0,0)], vol->getData(), sizeof(float)*Ny*Nz);
     }
+    if (apply_positivity) { recon.positivity(); }
 }
 
 // Create Local Copy of Reconstruction. 
 void mpi_astra_ctvlib::copy_recon()
 {
-    memcpy(temp_recon.data, recon.data, sizeof(float)*Nslice*Ny*Nz);
+    memcpy(temp_recon.data, recon.data, sizeof(float)*Nslice_loc*Ny*Nz);
 }
 
 // Measure the 2 norm between temporary and current reconstruction.
@@ -319,21 +346,6 @@ float mpi_astra_ctvlib::vector_2norm()
         MPI_Allreduce(&v2_loc, &v2, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
         v2 = sqrt(v2)/Nslice/Nrow;
     }
-    return v2;
-}
-
-// Measure the 2 norm for projections when data is 'dynamically' collected.
-float mpi_astra_ctvlib::dyn_vector_2norm(int dyn_ind)
-{
-    float v2, v2_loc;
-    dyn_ind *= Ny;
-    v2_loc = ( g.leftCols(dyn_ind) - b.leftCols(dyn_ind) ).norm();
-    if (nproc == 1)
-        v2 = v2_loc / g.leftCols(dyn_ind).size();
-    else
-        v2_loc = v2_loc * v2_loc;
-        MPI_Allreduce(&v2_loc, &v2, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-        v2 = sqrt(v2)/dyn_ind/Nrow;
     return v2;
 }
 
@@ -411,10 +423,10 @@ float mpi_astra_ctvlib::original_tv_3D()
     float tv_norm, tv_norm_loc;
     tv_norm_loc = cuda_tv_3D(original_volume.data, Nslice_loc, Ny, Nz, localDevice);
 
-    if (nproc == 1) { return sqrt(tv_norm_loc); }
+    if (nproc == 1) { return tv_norm_loc; }
     else { 
         MPI_Allreduce(&tv_norm_loc, &tv_norm, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-        return sqrt(tv_norm_loc);
+        return tv_norm_loc;
     }
 }
 
@@ -427,10 +439,10 @@ float mpi_astra_ctvlib::tv_gd_3D(int ng, float dPOCS)
     float tv_norm, tv_norm_loc;
     tv_norm_loc = cuda_tv_gd_3D(recon.data, ng, dPOCS, Nslice_loc, Ny, Nz, localDevice);
 
-    if (nproc == 1) { return sqrt(tv_norm_loc); }
+    if (nproc == 1) { return tv_norm_loc; }
     else {
         MPI_Allreduce(&tv_norm_loc, &tv_norm, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-        return sqrt(tv_norm);
+        return tv_norm;
     }
 
 }
@@ -445,10 +457,10 @@ float mpi_astra_ctvlib::tv_fgp_3D(int ng, float lambda)
     
     tv_norm_loc = cuda_tv_fgp_3D(recon.data, ng, lambda, Nslice_loc, Ny, Nz, localDevice);
     
-    if (nproc == 1) { return sqrt(tv_norm_loc); }
+    if (nproc == 1) { return tv_norm_loc; }
     else {
         MPI_Allreduce(&tv_norm_loc, &tv_norm, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-        return sqrt(tv_norm);
+        return tv_norm;
     }
 }
 
@@ -456,34 +468,33 @@ float mpi_astra_ctvlib::tv_fgp_3D(int ng, float lambda)
 void mpi_astra_ctvlib::save_recon(char *filename, int type=0) {
     
     if (type==0) {
-      hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
-      MPI_Info info = MPI_INFO_NULL;
-      H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, info);
-      hid_t fd = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
-      hid_t dxf_id = H5Pcreate(H5P_DATASET_XFER);
-      H5Pset_dxpl_mpio(dxf_id, H5FD_MPIO_COLLECTIVE);
-      hsize_t gdims[3] = {Nslice, Ny, Nz};
-      hsize_t ldims[3] = {Nslice_loc, Ny, Nz};
-      hsize_t offset[3] = {first_slice, 0, 0};
-      hsize_t count[3] = {1, 1, 1};
-      hid_t fspace = H5Screate_simple(3, gdims, NULL);
-      hid_t mspace = H5Screate_simple(3, ldims, NULL);
-      hid_t dset = H5Dcreate(fd, "recon", H5T_NATIVE_FLOAT, fspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-      H5Sselect_hyperslab(fspace, H5S_SELECT_SET, offset, NULL, ldims, count);
-      H5Dwrite(dset, H5T_NATIVE_FLOAT, mspace, fspace, dxf_id, &recon.data[recon.index(0,0, 0)]);
-      H5Pclose(plist_id);
-      H5Pclose(dxf_id);
-      H5Sclose(fspace);
-      H5Sclose(mspace);
-      H5Dclose(dset);
-      H5Fclose(fd);
-    } else {
-      MPI_File fh;
-      int rc= MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &fh);
-      MPI_File_write_at(fh, sizeof(float)*first_slice*Ny*Nz, &recon.data[recon.index(0,0, 0)], Nslice_loc*Ny*Nz, MPI_FLOAT, MPI_STATUS_IGNORE);
-      MPI_File_close(&fh);
-      MPI_File_sync(fh);
-    }
+        hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
+        MPI_Info info = MPI_INFO_NULL;
+        H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, info);
+        hid_t fd = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
+        hid_t dxf_id = H5Pcreate(H5P_DATASET_XFER);
+        H5Pset_dxpl_mpio(dxf_id, H5FD_MPIO_COLLECTIVE);
+        hsize_t gdims[3] = {Nslice, Ny, Nz};
+        hsize_t ldims[3] = {Nslice_loc, Ny, Nz};
+        hsize_t offset[3] = {first_slice, 0, 0};
+        hsize_t count[3] = {1, 1, 1};
+        hid_t fspace = H5Screate_simple(3, gdims, NULL);
+        hid_t mspace = H5Screate_simple(3, ldims, NULL);
+        hid_t dset = H5Dcreate(fd, "recon", H5T_NATIVE_FLOAT, fspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        H5Sselect_hyperslab(fspace, H5S_SELECT_SET, offset, NULL, ldims, count);
+        H5Dwrite(dset, H5T_NATIVE_FLOAT, mspace, fspace, dxf_id, &recon.data[recon.index(0,0, 0)]);
+        H5Pclose(plist_id);
+        H5Pclose(dxf_id);
+        H5Sclose(fspace);
+        H5Sclose(mspace);
+        H5Dclose(dset);
+        H5Fclose(fd); }
+    else {
+        MPI_File fh;
+        int rc= MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &fh);
+        MPI_File_write_at(fh, sizeof(float)*first_slice*Ny*Nz, &recon.data[recon.index(0,0, 0)], Nslice_loc*Ny*Nz, MPI_FLOAT, MPI_STATUS_IGNORE);
+        MPI_File_close(&fh);
+        MPI_File_sync(fh); }
 }
 
 // Return Reconstruction to Python.
@@ -522,12 +533,14 @@ PYBIND11_MODULE(mpi_astra_ctvlib, m)
     m.doc() = "C++ Scripts for TV-Tomography Reconstructions using ASTRA Cuda Library";
     py::class_<mpi_astra_ctvlib> mpi_astra_ctvlib(m, "mpi_astra_ctvlib");
     mpi_astra_ctvlib.def(py::init<int,int,int,Vec>());
-    mpi_astra_ctvlib.def("initilizeInitialVolume", &mpi_astra_ctvlib::initilizeInitialVolume, "Initialize Original Data");
+    mpi_astra_ctvlib.def("initializeInitialVolume", &mpi_astra_ctvlib::initializeInitialVolume, "Initialize Original Data");
+    mpi_astra_ctvlib.def("initializeReconCopy", &mpi_astra_ctvlib::initializeReconCopy, "Initialize Recon Copy");
     mpi_astra_ctvlib.def("rank", &mpi_astra_ctvlib::get_rank, "Get Rank");
     mpi_astra_ctvlib.def("nproc", &mpi_astra_ctvlib::get_nproc, "Get Number of Processes");
     mpi_astra_ctvlib.def("NsliceLoc", &mpi_astra_ctvlib::get_Nslice_loc, "Get Nslice_loc");
     mpi_astra_ctvlib.def("firstSlice", &mpi_astra_ctvlib::get_first_slice, "Get first_slice");
     mpi_astra_ctvlib.def("setTiltSeries", &mpi_astra_ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
+    mpi_astra_ctvlib.def("update_projection_angles", &mpi_astra_ctvlib::update_projection_angles, "Update Projection Angles for ASTRA");
     mpi_astra_ctvlib.def("setOriginalVolume", &mpi_astra_ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
     mpi_astra_ctvlib.def("create_projections", &mpi_astra_ctvlib::create_projections, "Create Projections from Volume");
     mpi_astra_ctvlib.def("getRecon", &mpi_astra_ctvlib::getRecon, "Return the Reconstruction to Python");
@@ -544,12 +557,13 @@ PYBIND11_MODULE(mpi_astra_ctvlib, m)
     mpi_astra_ctvlib.def("copy_recon", &mpi_astra_ctvlib::copy_recon, "Copy the reconstruction");
     mpi_astra_ctvlib.def("matrix_2norm", &mpi_astra_ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");
     mpi_astra_ctvlib.def("vector_2norm", &mpi_astra_ctvlib::vector_2norm, "Calculate L2-Norm of Projection (aka Vectors)");
-    mpi_astra_ctvlib.def("dyn_vector_2norm", &mpi_astra_ctvlib::dyn_vector_2norm, "Calculate L2-Norm of Partially Sampled Projections (aka Vectors)");
     mpi_astra_ctvlib.def("rmse", &mpi_astra_ctvlib::rmse, "Calculate reconstruction's RMSE");
     mpi_astra_ctvlib.def("original_tv", &mpi_astra_ctvlib::original_tv_3D, "Measure original TV");
     mpi_astra_ctvlib.def("tv_gd", &mpi_astra_ctvlib::tv_gd_3D, "3D TV Gradient Descent");
+    mpi_astra_ctvlib.def("tv_fgp", &mpi_astra_ctvlib::tv_fgp_3D, "3D TVMin with Fast Gradient Projection");
     mpi_astra_ctvlib.def("get_projections", &mpi_astra_ctvlib::get_projections, "Return the projection matrix to python");
     mpi_astra_ctvlib.def("get_model_projections", &mpi_astra_ctvlib::get_model_projections, "Return Reprojections to Python");
+    mpi_astra_ctvlib.def("set_background", &mpi_astra_ctvlib::set_background, "Set Zero Voxels to Background value of 1");
     mpi_astra_ctvlib.def("poissonNoise", &mpi_astra_ctvlib::poissonNoise, "Add Poisson Noise to Projections");
     mpi_astra_ctvlib.def("restart_recon", &mpi_astra_ctvlib::restart_recon, "Set all the Slices Equal to Zero");
     mpi_astra_ctvlib.def("gpuCount", &mpi_astra_ctvlib::checkNumGPUs, "Check Num GPUs available");

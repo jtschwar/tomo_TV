@@ -20,4 +20,6 @@ float cuda_rmse(float *recon, float *original, int nx, int ny, int nz, int gpuIn
 
 void cuda_positivity(float *recon, int nx, int ny, int nz, int gpuIndex=-1);
 
+void cuda_set_background(float *vol, int value, int nx, int ny, int nz, int gpuIndex=-1);
+
 #endif /* tlib_hpp */

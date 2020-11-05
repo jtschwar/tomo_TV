@@ -67,7 +67,7 @@ public:
  
 	// Initializes Measurement Matrix. 
 	astra_ctvlib(int Nslice, int Nray, int Nproj, Vec pyAngles);
-    void initilizeInitialVolume();
+    void initializeInitialVolume();
     void initializeReconCopy();
 
 	// Initialize Experimental Projections. 
@@ -88,7 +88,7 @@ public:
     void initializeFP();
     
 	// 2D Reconstructions
-    void update_projection_angles(int Nproj, Vec pyAngles);
+    void update_projection_angles(Vec pyAngles);
     void SART(float beta, int nIter=1);
     void SIRT(int nIter=1);
     void FBP(bool apply_positivity);
@@ -117,6 +117,7 @@ public:
     // Return reconstruction to python.
     void setRecon(Mat in, int s);
     Mat getRecon(int i);
+    void save_recon(char *filename);
     
     // Return projections to python
     Mat get_projections();

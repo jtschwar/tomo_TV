@@ -24,7 +24,8 @@ float Matrix3D::get_val(int i,int j,int k) {
 }
 
 int Matrix3D::index(int i, int j, int k){
-    return (ny*nz)*i + ny*j + k;
+    return (ny*nz)*i + nz*j + k;
+//    return i + nx*j + (nx*ny)*k;
 }
 
 float Matrix3D::sum() {
@@ -37,6 +38,10 @@ float Matrix3D::norm() {
 
 void Matrix3D::positivity() {
     cuda_positivity(data,nx,ny,nz);
+}
+
+void Matrix3D::setBackground(int backgroundValue) {
+    cuda_set_background(data,backgroundValue,nx,ny,nz);
 }
 
 void Matrix3D::setData(Mat inBuffer, int slice)

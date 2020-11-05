@@ -38,7 +38,10 @@ def load_data(vol_size, file_name):
 
 def load_h5_data(vol_size, file_name):
     dir = 'Tilt_Series/'
-    full_name = vol_size+'_'+file_name
+    if vol_size != '':
+        full_name = vol_size+'_'+file_name
+    else:
+        full_name = file_name
 
     file = h5py.File(dir+full_name, 'r')
     vol = file['tiltSeries']
@@ -50,9 +53,8 @@ def load_h5_data(vol_size, file_name):
 
 def mpi_save_results(fname, tomo, saveRecon, meta=None, results=None):
 
-    if tomo.rank() == 0: os.makedirs('results/'+fname[0]+'/', exist_ok=True)
-
-    fullFname = 'results/{}/{}.h5'.format(fname[0],fname[1])
+    if tomo.rank() == 0: os.makedirs(fname[0]+'/'+fname[1]+'/', exist_ok=True)
+    fullFname = '{}/{}.h5'.format(fname[0], fname[1])
 
     if saveRecon:
         tomo.saveRecon(fullFname, 0)
@@ -71,8 +73,6 @@ def mpi_save_results(fname, tomo, saveRecon, meta=None, results=None):
                 conv.create_dataset(key, dtype=np.float32, data=item)
 
         h5.close()
-
-    tomo.finalize()
 
 def save_results(fname, meta=None, results=None):
 
@@ -123,6 +123,7 @@ def save_recon(fname, meta, tomo):
 
 def run(tomo, alg, beta=1, niter=1):
 # Can Specify the Descent Parameter and nIter per slice.    
+
     if alg == 'SART':
         tomo.SART(beta,niter)
     elif alg == 'SIRT':
@@ -156,35 +157,3 @@ def check_cuda():
     except:
         print('Please have ASTRA installed!') 
 
-# 3D Data Viewer
-def sliceZ(data):
-    from pyqtgraph.Qt import QtCore, QtGui
-    import pyqtgraph as pg
-
-    ## Always start by initializing Qt (only once per application)
-    app = QtGui.QApplication([])
-
-    ## Create window with ImageView widget
-    win = QtGui.QMainWindow()
-    win.resize(800,800)
-    win.setWindowTitle('Sinogram, min: {:+.2f} & max: {:+.2f}'.format(np.min(data), np.max(data)))
-
-    cw = QtGui.QWidget()
-    win.setCentralWidget(cw)
-    l = QtGui.QGridLayout()
-    cw.setLayout(l)
-
-    imv1 = pg.ImageView()
-    l.addWidget(imv1, 0, 0)
-    win.show()
-
-    # Display Data
-    imv1.setImage(data.transpose(2,0,1))
-    imv1.setHistogramRange(np.min(data), np.max(data))
-
-    # Start Qt event loop
-    app.exec_() 
-
-
-
-    

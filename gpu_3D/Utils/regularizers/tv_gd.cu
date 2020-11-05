@@ -32,11 +32,11 @@ __global__ void tv_3D_kernel(float *vol, float *tv_recon, int nx, int ny, int nz
     int j = blockDim.y * blockIdx.y + threadIdx.y;
     int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-    int ijk = (nx*ny)*k + i + nx*j;
+    int ijk = (ny*nz)*i + nz*j + k;
     
-    int ip = (nx*ny)*k + (i+1)%nx + nx*j;
-    int jp = (nx*ny)*k + i + nx*((j+1)%ny);
-    int kp = (nx*ny)*((k+1)%nz) + i + nx*j;
+    int ip = (ny*nz)*((i+1)%nx) + nz*j + k;
+    int jp = (ny*nz)*i + nz*((j+1)%ny) + k;
+    int kp = (ny*nz)*i + nz*j + ((k+1)%nz);
 
     if ((i < nx) && (j < ny) && (k < nz)) {
         tv_recon[ijk] = sqrt(eps + ( vol[ijk] - vol[ip] ) * ( vol[ijk] - vol[ip] )
@@ -58,25 +58,25 @@ __global__ void tv_gradient_3D_kernel(float *recon, float *tv_recon, int nx, int
     int j = blockDim.y * blockIdx.y + threadIdx.y;
     int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-    int ijk = (nx*ny)*k + i + nx*j;
+    int ijk = (ny*nz)*i + nz*j + k;
 
-    int ip = (nx*ny)*k + (i+1)%nx + nx*j;
-    int im = (nx*ny)*k + (i-1+nx)%nx + nx*j;
+    int ip = (ny*nz)*((i+1)%nx) + nz*j + k;
+    int im = (ny*nz)*((i-1+nx)%nx) + nz*j + k;
 
-    int jp = (nx*ny)*k + i + nx*((j+1)%ny);
-    int jm = (nx*ny)*k + i + nx*((j-1+ny)%ny);
+    int jp = (ny*nz)*i + nz*((j+1)%ny) + k;
+    int jm = (ny*nz)*i + nz*((j-1+ny)%ny) + k;
 
-    int kp = (nx*ny)*((k+1)%nz) + i + nx*j;
-    int km = (nx*ny)*((k-1+nz)%nz) + i + nx*j;
+    int kp = (ny*nz)*i + nz*j + ((k+1)%nz);
+    int km = (ny*nz)*i + nz*j + ((k-1+nz)%nz);
 
-    int im_jp = (nx*ny)*k + (i-1+nx)%nx + nx*((j+1)%ny);
-    int ip_jm = (nx*ny)*k + (i+1)%nx + nx*((j-1+ny)%ny);
+    int im_jp = (ny*nz)*((i-1+nx)%nx) + nz*((j+1)%ny) + k;
+    int ip_jm = (ny*nz)*((i+nx)%nx) + nz*((j-1+ny)%ny) + k;
 
-    int jm_kp = (nx*ny)*((k+1)%nz) + i + nx*((j-1+ny)%ny);
-    int jp_km = (nx*ny)*((k-1+nz)%nz) + i + nx*((j+1)%ny);
+    int jm_kp = (ny*nz)*i + nz*((j-1+ny)%ny) + ((k+1)%nz);
+    int jp_km = (ny*nz)*i + nz*((j+1)%ny) + ((k-1-nz)%nz);
 
-    int im_kp = (nx*ny)*((k+1)%nz) + (i-1+nx)%nx + nx*j;
-    int ip_km = (nx*ny)*((k-1+nz)%nz) + (i+1)%nx + nx*j;
+    int im_kp = (ny*nz)*((i-1+nx)%nx) + nz*j + ((k+1)%nz);
+    int ip_km = (ny*nz)*((i+1)%nx) + nz*j + ((k-1-nz)%nz);    
 
     if ((i < nx) && (j < ny) && (k < nz)) {
 
@@ -111,7 +111,7 @@ __global__ void tv_gradient_update_3D_kernel(float *recon, float *tv_recon, floa
     int j = blockDim.y * blockIdx.y + threadIdx.y;
     int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-    int ijk = (nx*ny)*k + i + nx*j;
+    int ijk = (ny*nz)*i + nz*j + k;
 
     if ((i < nx) && (j < ny) && (k < nz)) {
 
@@ -128,7 +128,7 @@ __global__ void positivity_kernel(float *recon, int nx, int ny, int nz)
     int j = blockDim.y * blockIdx.y + threadIdx.y;
     int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-    int ijk = (nx*ny)*k + i + nx*j;
+    int ijk = (ny*nz)*i + nz*j + k;
 
     if ((i < nx) && (j < ny) && (k < nz)) {
         if (recon[ijk] < 0.0f) {
@@ -173,6 +173,15 @@ float cuda_tv_gd_3D(float *recon, int ng, float dPOCS, int nx, int ny, int nz, i
     cudaMemcpy(d_recon,recon,volSize*sizeof(float),cudaMemcpyHostToDevice);
     cudaMemset(tv_recon, 0.0f, volSize*sizeof(float));
 
+    // Measure TV
+    tv_3D_kernel<<<dimGrid,dimBlock>>>(d_recon, tv_recon, nx, ny, nz);
+    cudaDeviceSynchronize();
+    cudaPeekAtLastError();
+
+     // Measure Norm of TV - Gradient
+    thrust::device_vector<float> tv_vec(tv_recon, tv_recon + volSize);
+    tv_gpu = thrust::reduce(tv_vec.begin(), tv_vec.end(), 0.0f, binary_op);
+
     // Main Loop.
     for(int g=0; g < ng; g++)
     {   
@@ -198,18 +207,8 @@ float cuda_tv_gd_3D(float *recon, int ng, float dPOCS, int nx, int ny, int nz, i
     cudaDeviceSynchronize();
     cudaPeekAtLastError();
 
-    // Measure TV
-    tv_3D_kernel<<<dimGrid,dimBlock>>>(d_recon, tv_recon, nx, ny, nz);
-    cudaDeviceSynchronize();
-    cudaPeekAtLastError();
-
-     // Measure Norm of TV - Gradient
-    thrust::device_vector<float> tv_vec(tv_recon, tv_recon + volSize);
-    tv_gpu = thrust::reduce(tv_vec.begin(), tv_vec.end(), 0.0f, binary_op);
-
     // Copy Result Matrix from Device to Host Memory
     cudaMemcpy(recon, d_recon, volSize*sizeof(float), cudaMemcpyDeviceToHost);
-
     cudaFree(d_recon);
     cudaFree(tv_recon);
 
@@ -260,9 +259,6 @@ float cuda_tv_3D(float *recon, int nx, int ny, int nz, int gpuIndex)
      // Measure Norm of TV - Gradient
     thrust::device_vector<float> tv_vec(tv_recon, tv_recon + volSize);
     tv_gpu = thrust::reduce(tv_vec.begin(), tv_vec.end(), 0.0f, binary_op);
-
-    // Copy Result Matrix from Device to Host Memory
-    cudaMemcpy(recon, d_recon, volSize*sizeof(float), cudaMemcpyDeviceToHost);
 
     cudaFree(d_recon);
     cudaFree(tv_recon);
