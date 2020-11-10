@@ -23,7 +23,7 @@ alg = 'SART'
 initAlg = 'random'
 
 # Max Number of iterations before next projections are appended.
-max_iter = 5
+max_iter = 50
 
 # ART Parameter / Reduction.
 beta0, beta_red = 0.5, 0.99
@@ -45,11 +45,12 @@ show_live_plot, saveRecon = True, True
 
 # Experiment
 theta_min, theta_max, dtheta = -76, 76, 1
+fileExtension = '.dm4'
 
 ###################################################################
 
 # Logger to Read Directory
-tomoLogger = mpi_logger.logger(localDirectory)
+tomoLogger = mpi_logger.logger(localDirectory,fileExtension)
 tomoLogger.beginSFTP(remoteMonitorDirectory)
 tiltAngles = tomoLogger.log_tilts
 
@@ -115,24 +116,22 @@ while ii < Nproj_estimate:
     # Append Results
     fullDD, fullTV = np.append(fullDD, dd_vec), np.append(fullTV, tv_vec)
 
-    # Run Logger to see how many projections were collected since last check.
-    newData = tomoLogger.check_for_new_tilts()
+    if show_live_plot and tomo.rank() == 0: # Show live plot.
+        pr.dynamicCS_live_plot(tomo, tomoLogger, fullDD, eps, fullTV)
 
-    if newData:
+    # Run Logger to see how many projections were collected since last check.
+    if tomoLogger.check_for_new_tilts():
 
         # Checkpoint save with all the meta data.
         results = {'fullDD':fullDD, 'fullTV':fullTV}
         tomoLogger.save_results_mpi(fName, tomo, meta, results)
 
         # Update tomo (C++) with new projections / tilt Angles.
-        tomo.update_projection_angles(tomoLogger.log_tilts)
+        tomo.update_projection_angles(np.deg2rad(tomoLogger.log_tilts))
         tomoLogger.load_tilt_series_mpi(tomo)
         initialize_algorithm(tomo, alg, initAlg)
 
         ii = len(tomoLogger.log_tilts)
-
-    if show_live_plot and tomo.rank() == 0: # Show live plot.
-        pr.dynamicCS_live_plot(tomo, tomoLogger, fullDD, eps, fullTV)
 
 # Finalize and Close SFTP Connection
 if tomo.rank() == 0: 

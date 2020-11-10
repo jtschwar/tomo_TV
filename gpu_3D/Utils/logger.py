@@ -17,13 +17,14 @@ class logger:
     myPassword = 'emalemal'
     myPort = 22
 
-    def __init__(self,listenDirectory):
+    def __init__(self,listenDirectory,fileExtension):
 
         # Main listening variables
         if not os.path.exists(listenDirectory):
             os.makedirs(listenDirectory)
 
         self.listen_dir = listenDirectory
+        self.fileExt = fileExtension
         self.log_dir = self.accessLogDirectory(self.listen_dir)
         (self.log_projs,self.log_tilts) = self.accessTiltsProjsH5(self.log_dir)
         self.log_files = self.accessFilesList(self.log_dir)
@@ -46,11 +47,11 @@ class logger:
         h5_path = "{}/projs_tilts.h5".format(directory)
 
         if not os.path.exists(h5_path):
-            return ([],[])
+            self.log_projs, self.log_tilts = [], []
         else:
             h5 = h5py.File(h5_path,'r')
-            tilts = h5["tilts"][:]
-            projs = h5["projs"][:,:,:]
+            self.log_tilts = h5["tilts"][:]
+            self.log_projs = h5["projs"][:,:,:]
             h5.close()
             return (projs,tilts)
 
@@ -68,7 +69,7 @@ class logger:
     def listenFilesList(self,directory):
         """Grab current files in listen directory"""
         #files = glob.glob('/'.join((directory,'*.dm4')))
-        files = [f for f in os.listdir(directory) if f[-4:] == '.dm4']
+        files = [f for f in os.listdir(directory) if f[-len(self.fileExt):] == self.fileExt]
         files.sort(key = lambda x: x[:3])
         return files
 
@@ -80,20 +81,26 @@ class logger:
         for file in FoI:
             print("Loading {}".format(file))
             file_path = "{}/{}".format(self.listen_dir,file)
-            dmRef = dm.dmReader(file_path)
-            newProj = self.center_of_mass_align(self.background_subtract(dmRef['data']))
-            newAngle = self.acquireProjAngle(file_path)
 
-            self.log_tilts = np.append(self.log_tilts,newAngle)
-            self.log_files = np.append(self.log_files,file)
+            try: 
+                dmRef = dm.dmReader(file_path)
+                newProj = self.center_of_mass_align(self.background_subtract(dmRef['data']))
+                newAngle = self.acquireProjAngle(file_path)
 
-            # Account for Python's disdain for AxAx1 arrays (compresses to 2D)
-            if(len(self.log_projs) == 0):
-                dataDim = np.shape(newProj)
-                self.log_projs = np.zeros([dataDim[0],dataDim[1],1])
-                self.log_projs[:,:,0] = newProj
-            else:
-                self.log_projs = np.dstack((self.log_projs,newProj))
+                self.log_tilts = np.append(self.log_tilts,newAngle)
+                self.log_files = np.append(self.log_files,file)
+
+                # Account for Python's disdain for AxAx1 arrays (compresses to 2D)
+                if(len(self.log_projs) == 0):
+                    dataDim = np.shape(newProj)
+                    self.log_projs = np.zeros([dataDim[0],dataDim[1],1])
+                    self.log_projs[:,:,0] = newProj
+                else:
+                    self.log_projs = np.dstack((self.log_projs,newProj))
+
+            except:
+                print('Could not read : {}, will preceed with reconstruction and re-download on next pass'.format(file))
+                break
 
         self.CHANGE_saveAll()
 
@@ -131,7 +138,7 @@ class logger:
         for ts in range(0,seconds):
 
             # Read-in only .dm4 files for tracking changes
-            remote_filesList = [ f for f in self.sftp_connection.listdir() if f[-4:] == '.dm4']
+            remote_filesList = [ f for f in self.sftp_connection.listdir() if f[-len(self.fileExt):] == self.fileExt]
             remote_filesList.sort(key = lambda x: x[:3])
             FoI = list(set(remote_filesList)-set(self.log_files))
 
@@ -185,20 +192,19 @@ class logger:
             except: dd = np.array([])
             
             try: tv = h5['results/fullTV'][:]
-            except: tv = np.array([])
-            
+            except: tv = np.array([]) 
             h5.close()
 
             return (dd, tv)
         else:
             return np.array([], dtype=np.float32), np.array([], dtype=np.float32)
 
-    def load_tilt_series_mpi(self, tomo):
+    def load_tilt_series(self, tomo):
 
-        (_, Nray, Nproj) = self.log_projs.shape
-        b = np.zeros([tomo.NsliceLoc(), Nray * Nproj], dtype=np.float32)
-        for s in range(tomo.NsliceLoc()):
-            b[s,:] = self.log_projs[s+tomo.firstSlice(),:,:].transpose().ravel()
+        (Nslice, Nray, Nproj) = self.log_projs.shape
+        b = np.zeros([Nslice, Nray * Nproj], dtype=np.float32)
+        for s in range(Nslice):
+            b[s,:] = self.log_projs[s,:,:].transpose().ravel()
         tomo.setTiltSeries(b)
 
     def save_results(self, fname, tomo, meta=None, results=None):

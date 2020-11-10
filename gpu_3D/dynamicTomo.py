@@ -30,11 +30,12 @@ show_live_plot, saveRecon = True, True
 
 # Experiment
 theta_min, theta_max, dtheta = -76, 76, 1
+fileExtension = '.dm4'
 
 ###################################################################
 
 # Logger to Read Directory
-tomoLogger = mpi_logger.logger(localDirectory)
+tomoLogger = mpi_logger.logger(localDirectory,fileExtension)
 tomoLogger.beginSFTP(remoteMonitorDirectory)
 tiltAngles = tomoLogger.log_tilts
 
@@ -74,22 +75,21 @@ while ii < Nproj_estimate:
     # Append Results
     fullDD = np.append(fullDD, dd_vec)
 
+    if show_live_plot and tomo.rank() == 0: # Show live plot.
+         pr.dynamicSIRT_live_plot(tomo, tomoLogger, fullDD)
+
     # Run Logger to see how many projections were collected since last check.
-    newData = tomoLogger.check_for_new_tilts()
-    if newData:
+    if tomoLogger.check_for_new_tilts():
         # Checkpoint save with all the meta data.
         results = {'fullDD':fullDD}
         tomoLogger.save_results_mpi(fName, tomo, meta, results)
 
         # Update tomo (C++) with new projections / tilt Angles.
-        tomo.update_projection_angles(tomoLogger.log_tilts)
+        tomo.update_projection_angles(np.deg2rad(tomoLogger.log_tilts))
         tomoLogger.load_tilt_series_mpi(tomo)
         initialize_algorithm(tomo, alg, initAlg)
 
         ii = len(tomoLogger.log_tilts)
-
-    if show_live_plot and tomo.rank() == 0: # Show live plot.
-         pr.dynamicSIRT_live_plot(tomo, tomoLogger, fullDD)
 
 # Finalize and Close SFTP Connection
 if tomo.rank() == 0: 

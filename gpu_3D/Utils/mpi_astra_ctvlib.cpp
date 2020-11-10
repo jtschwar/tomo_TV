@@ -196,8 +196,8 @@ void mpi_astra_ctvlib::update_projection_angles(Vec pyAngles)
 {
     // newNProj = pyAngles.size()
     Nrow = Ny * pyAngles.size();
-    b.resize(Nslice_loc, Nrow);
-    g.resize(Nslice_loc, Nrow);
+    
+    b.resize(Nslice_loc, Nrow); g.resize(Nslice_loc, Nrow);
     
     // Specify projection matrix geometries
     float32 *angles = new float32[pyAngles.size()];
@@ -205,20 +205,21 @@ void mpi_astra_ctvlib::update_projection_angles(Vec pyAngles)
     for (int j = 0; j < pyAngles.size(); j++) {
         angles[j] = pyAngles(j);    }
     
-    // Delete Previous Projection Matrix Geometry and Projector. 
-    delete proj_geom, proj, sino;
+    // Delete Previous Projection Matrix Geometry and Projector.
+    proj_geom->~CParallelProjectionGeometry2D();
+    proj->~CCudaProjector2D();
+    sino->~CFloat32ProjectionData2D();
     
-    // Create Projection Matrix Geometry and Projector.
-    proj_geom = new CParallelProjectionGeometry2D(pyAngles.size(), Ny, 1, angles);
+    proj_geom = new CParallelProjectionGeometry2D(pyAngles.size(),Ny,1.0,angles);
     proj = new CCudaProjector2D(proj_geom,vol_geom);
-    sino =  new CFloat32ProjectionData2D(proj_geom);
+    sino = new CFloat32ProjectionData2D(proj_geom);
     
     deletePrev = true;
 }
 
 void mpi_astra_ctvlib::initializeSART(std::string order)
 {
-    if (deletePrev) delete algo_sart; // Delete Previous operator
+    if (deletePrev){algo_sart->~CCudaReconstructionAlgorithm2D();} // Delete Previous operator
     projOrder = order;
     if (rank==0) cout << "ProjectionOrder: " << projOrder << endl;
     algo_sart = new CCudaSartAlgorithm();
@@ -253,7 +254,7 @@ void mpi_astra_ctvlib::SART(float beta, int nIter)
 
 void mpi_astra_ctvlib::initializeSIRT()
 {
-    if (deletePrev) delete algo_sirt; // Delete Previous operator
+    if (deletePrev){algo_sirt->~CCudaReconstructionAlgorithm2D();}
     algo_sirt = new CCudaSirtAlgorithm();
     algo_sirt->initialize(proj, sino, vol);
     algo_sirt->setConstraints(true, 0, false, 1);
@@ -286,9 +287,9 @@ void mpi_astra_ctvlib::initializeFBP(std::string filter)
     // none, ram-lak, shepp-logan, cosine, hamming, hann, tukey, lanczos,
     // triangular, gaussian, barlett-hann, blackman, nuttall, blackman-harris,
     // blackman-nuttall, flat-top, kaiser, parzen
-   if (deletePrev) delete algo_fbp; // Delete Previous operator
+   if (deletePrev){algo_fbp->~CCudaReconstructionAlgorithm2D();} // Delete Previous operator
    fbfFilter = filter;
-   cout << "FBP Filter: " << filter << endl;
+   if (rank==0) cout << "FBP Filter: " << filter << endl;
    algo_fbp = new CCudaFilteredBackProjectionAlgorithm();
 }
 
@@ -518,7 +519,7 @@ Mat mpi_astra_ctvlib::get_model_projections()
 // Restart the Reconstruction (Reset to Zero). 
 void mpi_astra_ctvlib::restart_recon()
 {
-    memset(recon.data, 0, sizeof(float)*Nslice*Ny*Nz);
+    memset(recon.data, 0, sizeof(float)*Nslice_loc*Ny*Nz);
 }
 
 // Close Communicator

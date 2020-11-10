@@ -18,7 +18,7 @@ class logger:
     myPassword = 'emalemal'
     myPort = 22
 
-    def __init__(self,listenDirectory):
+    def __init__(self,listenDirectory,fileExtension):
         
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
@@ -28,6 +28,7 @@ class logger:
             os.makedirs(listenDirectory)
 
         self.listen_dir = listenDirectory
+        self.fileExt = fileExtension
         self.log_dir = self.accessLogDirectory(self.listen_dir)
         (self.log_projs,self.log_tilts) = self.accessTiltsProjsH5(self.log_dir)
         self.log_files = self.accessFilesList(self.log_dir)
@@ -50,13 +51,12 @@ class logger:
         h5_path = "{}/projs_tilts.h5".format(directory)
 
         if not os.path.exists(h5_path):
-            return ([],[])
+            self.log_projs, self.log_tilts = [], []
         else:
             h5 = h5py.File(h5_path,'r')
-            tilts = h5["tilts"][:]
-            projs = h5["projs"][:,:,:]
+            self.log_tilts = h5["tilts"][:]
+            self.log_projs = h5["projs"][:,:,:]
             h5.close()
-            return (projs,tilts)
 
     def accessFilesList(self,directory):
         """Inside given directory, access files list (.txt)"""
@@ -71,7 +71,7 @@ class logger:
 
     def listenFilesList(self,directory):
         """Grab current files in listen directory"""
-        files = [f for f in os.listdir(directory) if f[-4:] == '.dm4']
+        files = [f for f in os.listdir(directory) if f[-len(ext):] == self.fileExt]
         files.sort(key = lambda x: x[:3])
         return files
 
@@ -81,22 +81,28 @@ class logger:
         FoI = list(set(self.listen_files) - set(self.log_files))
         FoI.sort(key = lambda x: x[:3])
         for file in FoI:
-            if self.rank == 1: print("Loading {}".format(file))
+            if self.rank == 0: print("Loading {}".format(file))
             file_path = "{}/{}".format(self.listen_dir,file)
-            dmRef = dm.dmReader(file_path)
-            newProj = self.center_of_mass_align(self.background_subtract(dmRef['data']))
-            newAngle = self.acquireProjAngle(file_path)
 
-            self.log_tilts = np.append(self.log_tilts,newAngle)
-            self.log_files = np.append(self.log_files,file)
+            try: 
+                dmRef = dm.dmReader(file_path)
+                newProj = self.center_of_mass_align(self.background_subtract(dmRef['data']))
+                newAngle = self.acquireProjAngle(file_path)
 
-            # Account for Python's disdain for AxAx1 arrays (compresses to 2D)
-            if(len(self.log_projs) == 0):
-                dataDim = np.shape(newProj)
-                self.log_projs = np.zeros([dataDim[0],dataDim[1],1])
-                self.log_projs[:,:,0] = newProj
-            else:
-                self.log_projs = np.dstack((self.log_projs,newProj))
+                self.log_tilts = np.append(self.log_tilts,newAngle)
+                self.log_files = np.append(self.log_files,file)
+
+                # Account for Python's disdain for AxAx1 arrays (compresses to 2D)
+                if(len(self.log_projs) == 0):
+                    dataDim = np.shape(newProj)
+                    self.log_projs = np.zeros([dataDim[0],dataDim[1],1])
+                    self.log_projs[:,:,0] = newProj
+                else:
+                    self.log_projs = np.dstack((self.log_projs,newProj))
+
+            except:
+                if self.rank == 0: print('Could not read : {}, will preceed with reconstruction and re-download on next pass'.format(file))
+                break
 
         if self.rank == 0: self.CHANGE_saveAll()
 
@@ -107,8 +113,6 @@ class logger:
         h5=h5py.File(self.h5_path, 'w')
         h5.create_dataset('tilts',data = self.log_tilts)
         h5.create_dataset('projs',data = self.log_projs)
-
-        # Storing strings in the h5py is a headache. Encoding doesn't decode back what I want
         h5.close()
 
         with open(self.files_path, "w") as f:
@@ -126,7 +130,7 @@ class logger:
                 time.sleep(1)
             else:
                 self.CHANGE_appendAll()
-                return True;
+                return True
 
         return False
 
@@ -137,7 +141,7 @@ class logger:
         for ts in range(0,seconds):
 
             # Read-in only .dm4 files for tracking changes
-            remote_filesList = [ f for f in self.sftp_connection.listdir() if f[-4:] == '.dm4']
+            remote_filesList = [ f for f in self.sftp_connection.listdir() if f[-len(ext):] == self.fileExt]
             FoI = list(set(remote_filesList)-set(self.log_files))
 
             if len(FoI) == 0:
