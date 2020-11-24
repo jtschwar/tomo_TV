@@ -297,18 +297,17 @@ void ctvlib::loadA(Eigen::Ref<Mat> pyA)
     {
         A.coeffRef(pyA(0,i), pyA(1,i)) = pyA(2,i);
     }
-    A.makeCompressed();
 }
 
-void ctvlib::update_proj_angles(Eigen::Ref<Mat> pyA) {
-    Nrow = Ny * pyA.cols();
-    A.resize(Nrow,Ncol);
+void ctvlib::update_proj_angles(Eigen::Ref<Mat> pyA, int Nproj) {
+    Nrow = Ny * Nproj;
+    
+    A.conservativeResize(Nrow,Ncol);
     b.resize(Nslice, Nrow); g.resize(Nslice, Nrow);
     
     for (int i=0; i < pyA.cols(); i++) {
         A.coeffRef(pyA(0,i), pyA(1,i)) = pyA(2,i);
     }
-    A.makeCompressed();
 }
 
 //Measure Reconstruction's TV.
@@ -475,6 +474,7 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("initialize_original_volume", &ctvlib::initialize_original_volume, "Initialize Original Volume");
     ctvlib.def("set_original_volume", &ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
     ctvlib.def("create_projections", &ctvlib::create_projections, "Create Projections from Volume");
+    ctvlib.def("update_proj_angles", &ctvlib::update_proj_angles, "Update Algorithm with New projections");
     ctvlib.def("get_recon", &ctvlib::getRecon, "Return the Reconstruction to Python");
     ctvlib.def("ART", &ctvlib::ART, "ART Reconstruction");
     ctvlib.def("randART", &ctvlib::randART, "Stochastic ART Reconstruction");

@@ -50,7 +50,7 @@ public:
 
 	// Constructs Measurement Matrix.
     void loadA(Eigen::Ref<Mat> pyA);
-    void update_proj_angles(Eigen::Ref<Mat> pyA);
+    void update_proj_angles(Eigen::Ref<Mat> pyA, int Nproj);
 	void normalization();
     float lipschits();
 

@@ -51,8 +51,6 @@ fileExtension = '.dm4'
 # Logger to Read Directory 
 tomoLogger = logger.logger(localDirectory, fileExtension)
 tomoLogger.beginSFTP(remoteMonitorDirectory)
-tiltAngles = tomoLogger.log_tilts
-
 (Nslice, Nray, Nproj) = tomoLogger.log_projs.shape
 
 # Initialize C++ Object.. 
@@ -126,8 +124,11 @@ while ii < Nproj_estimate:
         tomoLogger.save_results(fName, tomo, meta, results)
 
         # Update tomo (C++) with new projections / tilt Angles.
-        prevTilt = tomoLogger.update_projection_angles(tomo, tomoLogger.log_tilts)
-        initialize_algorithm(tomo, alg, Nray, tomoLogger.log_tilts, prevTilt)
+        angleStart = tomoLogger.log_tilts[ii]
+        initialize_algorithm(tomo, alg, Nray, tomoLogger.log_tilts, angleStart)
+        load_exp_tilt_series(tomo, tomoLogger.log_projs)
+        # prevTilt = tomoLogger.update_projection_angles(tomo, tomoLogger.log_tilts)
+        # initialize_algorithm(tomo, alg, Nray, tomoLogger.log_tilts, prevTilt)
 
         ii = len(tomoLogger.log_tilts)
 

@@ -179,11 +179,13 @@ def run(tomo, alg, beta=1):
         tomo.ART(beta)
 
 
-def initialize_algorithm(tomo, alg, Nray, tiltAngles):
+def initialize_algorithm(tomo, alg, Nray, tiltAngles, angleStart = 0):
 
     print('Generating Measurement Matrix')
-    A = parallelRay(Nray, tiltAngles)
-    tomo.load_A(A)
+    A = parallelRay(Nray, tiltAngles, angleStart)
+
+    if angleStart == 0: tomo.load_A(A)
+    else: tomo.update_proj_angles(A, tiltAngles.shape[0])
 
     if alg == 'ART' or alg == 'randART':
         tomo.row_inner_product()
@@ -206,6 +208,7 @@ def create_projections(tomo, original_volume, SNR=0):
         tomo.poisson_noise(SNR)
 
 def load_exp_tilt_series(tomo, tiltSeries):
+    (Nslice, Nray, Nproj) = tiltSeries.shape
     b = np.zeros([Nslice, Nray*Nproj])
     for s in range(Nslice):
         b[s,:] = tiltSeries[s,:,:].transpose().ravel()
