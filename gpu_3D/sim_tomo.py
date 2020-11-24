@@ -31,33 +31,33 @@ saveRecon = True
 Nproj = tiltAngles.shape[0]
 
 # Initialize C++ Object.. 
-tomo_obj = mpi_astra_ctvlib.mpi_astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
-tomo_obj.initializeInitialVolume()
+tomo = mpi_astra_ctvlib.mpi_astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
+tomo.initialize_initial_volume()
 
 # Load Volume and Collect Projections. 
-for s in range(tomo_obj.NsliceLoc()):
-    tomo_obj.setOriginalVolume(original_volume[s+tomo_obj.firstSlice(),:,:], s)
+for s in range(tomo.NsliceLoc()):
+    tomo.set_original_volume(original_volume[s+tomo.firstSlice(),:,:], s)
 
-initialize_algorithm(tomo_obj, alg, initAlg)
-tomo_obj.create_projections()
+initialize_algorithm(tomo, alg, initAlg)
+tomo.create_projections()
 
-if tomo_obj.rank() == 0: print('Starting Reconstruction')
+if tomo.rank() == 0: print('Starting Reconstruction')
 rmse_vec = np.zeros(Niter)
 
 #Main Loop
 for i in tqdm(range(Niter)): 
 
-    run(tomo_obj, alg)
-    rmse_vec[i] = tomo_obj.rmse()
+    run(tomo, alg)
+    rmse_vec[i] = tomo.rmse()
 
 
-if tomo_obj.rank() == 0: 
+if tomo.rank() == 0: 
     print('Reconstruction Complete, Saving Data..')
     print('Save Recon :: {}'.format(saveRecon))
 
 #Save all the results to h5 file. 
-fDir = 'results/' + fName + '_' + alg + '_MPI'
+fDir = 'results/' + fName + '_' + alg 
 meta = {'vol_size':vol_size,'Niter':Niter,'initAlg':initAlg}
 results = {'rmse':rmse_vec}
-mpi_save_results(['results', fDir, fName], tomo_obj, saveRecon, meta, results)
+mpi_save_results([fDir, fName], tomo, saveRecon, meta, results)
 

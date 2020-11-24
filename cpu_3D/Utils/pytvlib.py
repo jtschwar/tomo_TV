@@ -5,73 +5,7 @@ import time, os
 from tqdm import tqdm
 import h5py
 
-def tv_derivative(recon):
-    r = np.lib.pad(recon, ((1, 1), (1, 1), (1, 1)), 'edge')
-    v = (3 * r - np.roll(r, 1, axis=0) - \
-                              np.roll(r, 1, axis=1) - np.roll(r, 1, axis=2)) / \
-        np.sqrt(1e-8 + (r - np.roll(r, 1, axis=0))**2 + (r -
-                  np.roll(r, 1, axis=1))**2 + (r - np.roll(r, 1, axis=2))**2)
-    v += (r - np.roll(r, -1, axis=0)) / \
-         np.sqrt( 1e-8 + ( np.roll(r, -1, axis=0) - r )**2 +
-            ( np.roll(r, -1, axis=0) - np.roll(r, [-1,1], axis=(0,1)) )**2 +
-            ( np.roll(r, -1, axis=0) - np.roll(r, [-1,1], axis=(0,2)) )**2 )
-    v += (r - np.roll(r, -1, axis=1)) / \
-         np.sqrt( 1e-8 + 
-                 (np.roll(r, -1, axis=1) - np.roll(r, [-1,1], axis=(1,0)))**2 +
-                 (np.roll(r, -1, axis=1) - r)**2 + 
-                 ( np.roll(r, -1, axis=1) - np.roll(r, [-1,1], axis=(1,2)))**2) 
-    v += (r - np.roll(r, -1, axis=2)) / \
-         np.sqrt(1e-8 + 
-                 (np.roll(r, -1, axis=2) - np.roll(r, [-1,1], axis=(2,0)))**2 +
-                 (np.roll(r, -1, axis=2) - np.roll(r, [-1,1], axis=(2,1)))**2 +
-                 (np.roll(r, -1, axis=2) - r)**2)
-    v = v[1:-1, 1:-1, 1:-1]
-    return v
-
-
-def tv(recon):
-    r = np.lib.pad(recon, ((1, 1), (1, 1), (1, 1)), 'edge')
-    tv = np.sqrt(1e-8 + (r - np.roll(r, 1, axis=0))**2 +
-                 (r - np.roll(r, 1, axis=1))**2 +
-                 (r - np.roll(r, 1, axis=2))**2)
-    tv = np.sum(tv[1:-1, 1:-1, 1:-1])
-    return tv
-
-def timer(t0, counter, Niter):
-    timeLeft = (time.time() - t0)/counter * (Niter - counter)
-    timeLeftMin, timeLeftSec = divmod(timeLeft, 60)
-    timeLeftHour, timeLeftMin = divmod(timeLeftMin, 60)
-    print('Estimated time to complete: %02d:%02d:%02d' % (timeLeftHour, timeLeftMin, timeLeftSec))
-
-def generate_tilt_series(volume, angles, num_tilts):
-
-    Ny = volume.shape[1]
-    Nz = volume.shape[2]
-    N = volume.shape[1]
-
-    # pad volume
-    pad_y_pre = int(np.ceil((N - Ny) / 2.0))
-    pad_y_post = int(np.floor((N - Ny) / 2.0))
-    pad_z_pre = int(np.ceil((N - Nz) / 2.0))
-    pad_z_post = int(np.floor((N - Nz) / 2.0))
-    volume_pad = np.lib.pad(
-        volume, ((0, 0), (pad_y_pre, pad_y_post), (pad_z_pre, pad_z_post)),
-        'constant')
-
-    Nslice = volume.shape[0]  # Number of slices along rotation axis.
-    tiltSeries = np.empty([Nslice, N, num_tilts], dtype=float, order='F')
-
-    for i in range(num_tilts):
-        # Rotate volume about x-axis
-        rotatedVolume = np.empty_like(volume_pad)
-        scipy.ndimage.interpolation.rotate(
-            volume_pad, angles[i], axes=(1, 2), reshape=False, order=1,
-            output=rotatedVolume)
-        # Calculate projection
-        tiltSeries[:, :, i] = np.sum(rotatedVolume, axis=2)
-    return tiltSeries
-
-def parallelRay(Nside, angles):
+def parallelRay(Nside, angles, angleStart = 0):
 
     Nray = Nside
 
@@ -96,8 +30,8 @@ def parallelRay(Nside, angles):
     vals = np.zeros((2 * Nside * Nproj * Nray), dtype=np.float32)
     idxend = 0
 
-    for i in tqdm(range(0, Nproj)): # Loop over projection angles
-        ang = angles[i] * np.pi / 180.
+    for i in tqdm(range(angleStart, Nproj)): # Loop over projection angles
+        ang = angles[i] * np.pi / 180
         # Points passed by rays at current angles
         xrayRotated = np.cos(ang) * offsets
         yrayRotated = np.sin(ang) * offsets
@@ -195,6 +129,21 @@ def rmepsilon(input):
             input = 0
     return input
 
+def load_h5_data(vol_size, file_name):
+    dir = 'Tilt_Series/'
+    if vol_size != '':
+        full_name = vol_size+'_'+file_name
+    else:
+        full_name = file_name
+
+    file = h5py.File(dir+full_name, 'r')
+    vol = file['tiltSeries']
+    angles = file['tiltAngles']
+
+    file_name = file_name.replace('.h5', '')
+
+    return (file_name, angles, vol)
+
 def load_data(vol_size, file_name):
 
     #sk-image loads tilt series as (z,y,x) so the axes need to be
@@ -219,20 +168,99 @@ def load_data(vol_size, file_name):
 
     return (file_name,tiltSeries)
 
-def save_results(fname, meta, results):
+def run(tomo, alg, beta=1):
+    # Can Specify the Descent Parameter
 
-    os.makedirs('Results/'+fname[0]+'/', exist_ok=True)
+    if alg == 'SIRT':
+        tomo.SIRT(beta)
+    elif alg == 'randART':
+        tomo.randART(beta)
+    else: 
+        tomo.ART(beta)
 
-    h5=h5py.File('Results/{}/{}.h5'.format(fname[0],fname[1]), 'w')
+
+def initialize_algorithm(tomo, alg, Nray, tiltAngles):
+
+    print('Generating Measurement Matrix')
+    A = parallelRay(Nray, tiltAngles)
+    tomo.load_A(A)
+
+    if alg == 'ART' or alg == 'randART':
+        tomo.row_inner_product()
+
+def create_projections(tomo, original_volume, SNR=0):
+
+    # If creating simulation with noise, set background value to 1.
+    if SNR != 0:
+        original_volume[original_volume == 0] = 1
+
+    # Load Volume and Collect Projections. 
+    tomo.initialize_original_volume()
+    Nslice = original_volume.shape[0]
+    for s in range(Nslice):
+        tomo.set_original_volume(original_volume[s,:,:],s)
+    tomo.create_projections()
+
+    # Apply poisson noise to volume.
+    if SNR != 0:
+        tomo.poisson_noise(SNR)
+
+def load_exp_tilt_series(tomo, tiltSeries):
+    b = np.zeros([Nslice, Nray*Nproj])
+    for s in range(Nslice):
+        b[s,:] = tiltSeries[s,:,:].transpose().ravel()
+    tomo.set_tilt_series(b)
+
+
+def save_results(fname, meta, results, tomo, saveRecon = False):
+
+    os.makedirs('results/'+fname[0]+'/', exist_ok=True)
+
+    h5=h5py.File('results/{}/{}.h5'.format(fname[0],fname[1]), 'w')
     params = h5.create_group("parameters")
     for key,item in meta.items():
         params.attrs[key] = item
 
-    conv = h5.create_group("convergence")
+    conv = h5.create_group("results")
     for key,item in results.items():
         conv.create_dataset(key, dtype=np.float32, data=item)
 
+    if saveRecon:
+
+        Nslice, Nray = tomo.Nslice(), tomo.Nray()
+        recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F')
+        for s in range(Nslice):
+            recon[s,:,:] = tomo.get_recon(s)
+        dset = h5.create_group("Reconstruction")
+        dset.create_dataset("recon", dtype=np.float32, data=recon)
+        dset.attrs["Nslice"] = Nslice
+        dset.attrs["Nray"] = Nray
+        # dset.attrs["Nproj"] = Nproj
+
     h5.close()
+
+def mpi_save_results(fname, meta, results, tomo, saveREcon = False):
+
+    if tomo.rank() == 0: os.makedirs(fname[0]+'/'+fname[1]+'/', exist_ok=True)
+    fullFname = '{}/{}.h5'.format(fname[0], fname[1])
+
+    if saveRecon:
+        tomo.saveRecon(fullFname, 0)
+
+    if tomo.rank() == 0:
+        h5=h5py.File(fullFname, 'a')
+
+        if meta != None:
+            params = h5.create_group("parameters")
+            for key,item in meta.items():
+                params.attrs[key] = item
+
+        if results != None:
+            conv = h5.create_group("results")
+            for key,item in results.items():
+                conv.create_dataset(key, dtype=np.float32, data=item)
+
+        h5.close()
 
 def save_gif(fname, meta, gif):
     h5=h5py.File('Results/{}/{}.h5'.format(fname[0],fname[1]), 'a')
@@ -240,29 +268,3 @@ def save_gif(fname, meta, gif):
     gif.create_dataset("gif", dtype=np.float32, data=gif)
     gif.attrs["img_slice"] = meta
 
-def save_recon(fname, meta, tomo):
-
-    (Nslice, Nray, Nproj) = meta
-
-    recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
-    for s in range(Nslice):
-        recon[s,:,:] = tomo.getRecon(s)
-
-    h5=h5py.File('Results/{}/{}.h5'.format(fname[0],fname[1]), 'a')
-    dset = h5.create_group("Reconstruction")
-    dset.create_dataset("recon", dtype=np.float32, data=recon)
-    dset.attrs["Nslice"] = Nslice
-    dset.attrs["Nray"] = Nray
-    dset.attrs["Nproj"] = Nproj
-
-    h5.close()
-
-# TODO :: Save Reconstruction in Parallel with MPI. 
-def save_recon_parallel(fname, meta, tomo):
-
-    h5=h5py.File('Results/{}/{}.h5'.format(fname[0],fname[1]), 'a')
-    dset = h5.create_group("Reconstruction")
-    dset.create_dataset("recon", dtype=np.float32, data=recon)
-
-    h5.close()
-    

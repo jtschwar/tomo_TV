@@ -336,8 +336,10 @@ float mpi_astra_ctvlib::matrix_2norm()
 }
 
 // Measure the 2 norm between experimental and reconstructed projections.
-float mpi_astra_ctvlib::vector_2norm()
+float mpi_astra_ctvlib::data_distance()
 {
+    forwardProjection();
+    
     float v2_loc = (g - b).norm();
     float v2;
     if (nproc==1)
@@ -534,30 +536,30 @@ PYBIND11_MODULE(mpi_astra_ctvlib, m)
     m.doc() = "C++ Scripts for TV-Tomography Reconstructions using ASTRA Cuda Library";
     py::class_<mpi_astra_ctvlib> mpi_astra_ctvlib(m, "mpi_astra_ctvlib");
     mpi_astra_ctvlib.def(py::init<int,int,int,Vec>());
-    mpi_astra_ctvlib.def("initializeInitialVolume", &mpi_astra_ctvlib::initializeInitialVolume, "Initialize Original Data");
-    mpi_astra_ctvlib.def("initializeReconCopy", &mpi_astra_ctvlib::initializeReconCopy, "Initialize Recon Copy");
+    mpi_astra_ctvlib.def("initialize_initial_volume", &mpi_astra_ctvlib::initializeInitialVolume, "Initialize Original Data");
+    mpi_astra_ctvlib.def("initialize_recon_copy", &mpi_astra_ctvlib::initializeReconCopy, "Initialize Recon Copy");
     mpi_astra_ctvlib.def("rank", &mpi_astra_ctvlib::get_rank, "Get Rank");
     mpi_astra_ctvlib.def("nproc", &mpi_astra_ctvlib::get_nproc, "Get Number of Processes");
     mpi_astra_ctvlib.def("NsliceLoc", &mpi_astra_ctvlib::get_Nslice_loc, "Get Nslice_loc");
     mpi_astra_ctvlib.def("firstSlice", &mpi_astra_ctvlib::get_first_slice, "Get first_slice");
-    mpi_astra_ctvlib.def("setTiltSeries", &mpi_astra_ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
+    mpi_astra_ctvlib.def("set_tilt_series", &mpi_astra_ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
     mpi_astra_ctvlib.def("update_projection_angles", &mpi_astra_ctvlib::update_projection_angles, "Update Projection Angles for ASTRA");
-    mpi_astra_ctvlib.def("setOriginalVolume", &mpi_astra_ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
+    mpi_astra_ctvlib.def("set_original_volume", &mpi_astra_ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
     mpi_astra_ctvlib.def("create_projections", &mpi_astra_ctvlib::create_projections, "Create Projections from Volume");
-    mpi_astra_ctvlib.def("getRecon", &mpi_astra_ctvlib::getRecon, "Return the Reconstruction to Python");
-    mpi_astra_ctvlib.def("setRecon", &mpi_astra_ctvlib::setRecon, "Return the Reconstruction to Python");
-    mpi_astra_ctvlib.def("saveRecon", &mpi_astra_ctvlib::save_recon, "Save the Reconstruction with HDF5 parallel I/O");
-    mpi_astra_ctvlib.def("initializeSART", &mpi_astra_ctvlib::initializeSART, "Generate Config File");
+    mpi_astra_ctvlib.def("get_recon", &mpi_astra_ctvlib::getRecon, "Return the Reconstruction to Python");
+    mpi_astra_ctvlib.def("set_recon", &mpi_astra_ctvlib::setRecon, "Return the Reconstruction to Python");
+    mpi_astra_ctvlib.def("save_recon", &mpi_astra_ctvlib::save_recon, "Save the Reconstruction with HDF5 parallel I/O");
+    mpi_astra_ctvlib.def("initialize_SART", &mpi_astra_ctvlib::initializeSART, "Generate Config File");
     mpi_astra_ctvlib.def("SART", &mpi_astra_ctvlib::SART, "ART Reconstruction");
-    mpi_astra_ctvlib.def("initializeSIRT", &mpi_astra_ctvlib::initializeSIRT, "Generate Config File");
+    mpi_astra_ctvlib.def("initialize_SIRT", &mpi_astra_ctvlib::initializeSIRT, "Generate Config File");
     mpi_astra_ctvlib.def("SIRT", &mpi_astra_ctvlib::SIRT, "SIRT Reconstruction");
-    mpi_astra_ctvlib.def("initializeFBP", &mpi_astra_ctvlib::initializeFBP, "Generate Config File");
+    mpi_astra_ctvlib.def("initialize_FBP", &mpi_astra_ctvlib::initializeFBP, "Generate Config File");
     mpi_astra_ctvlib.def("FBP", &mpi_astra_ctvlib::FBP, "Filtered Backprojection");
-    mpi_astra_ctvlib.def("initializeFP", &mpi_astra_ctvlib::initializeFP, "Initialize Forward Projection Operator");
-    mpi_astra_ctvlib.def("forwardProjection", &mpi_astra_ctvlib::forwardProjection, "Forward Projection");
+    mpi_astra_ctvlib.def("initialize_FP", &mpi_astra_ctvlib::initializeFP, "Initialize Forward Projection Operator");
+    mpi_astra_ctvlib.def("forward_projection", &mpi_astra_ctvlib::forwardProjection, "Forward Projection");
     mpi_astra_ctvlib.def("copy_recon", &mpi_astra_ctvlib::copy_recon, "Copy the reconstruction");
     mpi_astra_ctvlib.def("matrix_2norm", &mpi_astra_ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");
-    mpi_astra_ctvlib.def("vector_2norm", &mpi_astra_ctvlib::vector_2norm, "Calculate L2-Norm of Projection (aka Vectors)");
+    mpi_astra_ctvlib.def("data_distance", &mpi_astra_ctvlib::data_distance, "Calculate L2-Norm of Projection (aka Vectors)");
     mpi_astra_ctvlib.def("rmse", &mpi_astra_ctvlib::rmse, "Calculate reconstruction's RMSE");
     mpi_astra_ctvlib.def("original_tv", &mpi_astra_ctvlib::original_tv_3D, "Measure original TV");
     mpi_astra_ctvlib.def("tv_gd", &mpi_astra_ctvlib::tv_gd_3D, "3D TV Gradient Descent");
@@ -565,8 +567,8 @@ PYBIND11_MODULE(mpi_astra_ctvlib, m)
     mpi_astra_ctvlib.def("get_projections", &mpi_astra_ctvlib::get_projections, "Return the projection matrix to python");
     mpi_astra_ctvlib.def("get_model_projections", &mpi_astra_ctvlib::get_model_projections, "Return Reprojections to Python");
     mpi_astra_ctvlib.def("set_background", &mpi_astra_ctvlib::set_background, "Set Zero Voxels to Background value of 1");
-    mpi_astra_ctvlib.def("poissonNoise", &mpi_astra_ctvlib::poissonNoise, "Add Poisson Noise to Projections");
+    mpi_astra_ctvlib.def("poisson_noise", &mpi_astra_ctvlib::poissonNoise, "Add Poisson Noise to Projections");
     mpi_astra_ctvlib.def("restart_recon", &mpi_astra_ctvlib::restart_recon, "Set all the Slices Equal to Zero");
-    mpi_astra_ctvlib.def("gpuCount", &mpi_astra_ctvlib::checkNumGPUs, "Check Num GPUs available");
+    mpi_astra_ctvlib.def("gpu_count", &mpi_astra_ctvlib::checkNumGPUs, "Check Num GPUs available");
     mpi_astra_ctvlib.def("finalize", &mpi_astra_ctvlib::finalize, "Finalize the Communicator");
 }

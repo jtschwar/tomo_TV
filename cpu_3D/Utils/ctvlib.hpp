@@ -31,8 +31,16 @@ public:
     Mat b, g;
     SpMat M; // Diagonal Weight Matrix for SIRT;
     
-	// Initializes Measurement Matrix. 
+	// Constructor
 	ctvlib(int Nslice, int Nray, int Nproj);
+    
+    int get_Nslice();
+    int get_Nray();
+    
+    // Initialize Additional Volumes
+    void initialize_recon_copy();
+    void initialize_original_volume();
+    void initialize_tv_recon();
 
 	// Initialize Experimental Projections. 
 	void setTiltSeries(Mat in);
@@ -42,28 +50,28 @@ public:
 
 	// Constructs Measurement Matrix.
     void loadA(Eigen::Ref<Mat> pyA);
+    void update_proj_angles(Eigen::Ref<Mat> pyA);
 	void normalization();
     float lipschits();
 
 	// 2D Reconstructions
-	void ART(float beta, int dyn_ind);
-    void SIRT(float beta, int dyn_ind);
+	void ART(float beta);
+    void randART(float beta);
+    void SIRT(float beta);
     void positivity();
     
     // Stochastic Reconstruction
-    void sART(float beta, int dyn_ind);
-    std::vector<int> rand_perm(int n);
+    std::vector<int> calc_proj_order(int n);
     
 	//Forward Project Reconstruction for Data Tolerance Parameter. 
-	void forwardProjection(int dyn_ind);
+	void forwardProjection();
 
     // Acquire local copy of reconstruction.
     void copy_recon();
     
     // Measure 2-norm of projections and reconstruction.
     float matrix_2norm();
-    float vector_2norm();
-    float dyn_vector_2norm(int dyn_ind);
+    float data_distance();
     float rmse();
     
     // Total variation
@@ -71,14 +79,14 @@ public:
     float original_tv_3D();
     void tv_gd_3D(int ng, float dPOCS);
     
-    // Set Slices to Zero.
-    void restart_recon();
-    
     // Return reconstruction to python.
     Mat getRecon(int i);
     
     // Return projections to python. 
     Mat get_projections();
+    
+    // Set Slices to Zero.
+    void restart_recon();
     
 };
 

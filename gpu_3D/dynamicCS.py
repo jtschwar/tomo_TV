@@ -60,7 +60,7 @@ tiltAngles = tomoLogger.log_tilts
 tomo = mpi_astra_ctvlib.mpi_astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
 initialize_algorithm(tomo, alg, initAlg)
 tomoLogger.load_tilt_series_mpi(tomo)
-tomo.initializeReconCopy()
+tomo.initialize_recon_copy()
 
 #Store all the meta data for saving.
 fDir = fName + '_dynamicCS'
@@ -102,8 +102,7 @@ while ii < Nproj_estimate:
         if (jj == 0): dPOCS = dPOCS0
 
         # Measure difference between exp/sim projections.
-        tomo.forwardProjection()
-        dd_vec[jj] = tomo.vector_2norm()
+        dd_vec[jj] = tomo.data_distance()
 
         #TV Minimization.
         tomo.copy_recon()

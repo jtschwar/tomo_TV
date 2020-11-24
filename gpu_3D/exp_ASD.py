@@ -36,31 +36,22 @@ saveRecon = True
 ##########################################
 
 #Read Image. 
-(fName, tiltAngles, original_volume) = load_h5_data(vol_size,file_name)
-(Nslice, Nray, _) = original_volume.shape
-Nproj = tiltAngles.shape[0]
+(fName, tiltAngles, tiltSeries) = load_h5_data(vol_size,file_name)
+(Nslice, Nray, Nproj) = tiltSeries.shape
 
 # Initialize C++ Object.. 
 tomo = mpi_astra_ctvlib.mpi_astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
-tomo.initialize_initial_volume()
+initialize_algorithm(tomo, alg, initAlg)
 tomo.initialize_recon_copy()
 
-# Load Volume and Collect Projections. 
+# Create Projections Vector
+b = np.zeros([tomo.NsliceLoc(), Nray*Nproj])
 for s in range(tomo.NsliceLoc()):
-    tomo.set_original_volume(original_volume[s+tomo.firstSlice(),:,:], s)
-
-initialize_algorithm(tomo, alg, initAlg)
-
-# Add Poisson Noise to Volume
-tomo.set_background()
-tomo.create_projections()
-tomo.poissonNoise(75)
-
-#Measure Volume's Original TV
-tv0 = tomo.original_tv()
+    b[s,:] = tiltSeries[s+tomo.firstSlice(),:,:].transpose().ravel()
+tomo.set_tilt_series(b)
 
 if tomo.rank() == 0: print('Starting Reconstruction')
-rmse_vec, dd_vec, tv_vec = np.zeros(Niter), np.zeros(Niter), np.zeros(Niter)
+dd_vec, tv_vec = np.zeros(Niter), np.zeros(Niter)
 beta = beta0
 
 #Main Loop
@@ -82,8 +73,6 @@ for i in tqdm(range(Niter)):
     # Measure difference between exp / sim projections. 
     dd_vec[i] = tomo.data_distance()
 
-    rmse_vec[i] = tomo.rmse() # Measure RMSE
-
     tomo.copy_recon()
 
     # # TV Minimization
@@ -94,16 +83,13 @@ for i in tqdm(range(Niter)):
         dPOCS *= alpha_red
 
 if tomo.rank() == 0: # Print Results
-    print('RMSE: ' , rmse_vec)
-    print('(TV0: ', tv0,')TV: '   , tv_vec)
-    print('DD: '   , dd_vec)
     print('Reconstruction Complete, Saving Data..')
     print('Save Recon :: {}'.format(saveRecon))
 
 #Save all the results to h5 file. 
 fDir = 'results/' + fName + '_' + alg
 meta = {'vol_size':vol_size,'Niter':Niter,'initAlg':initAlg,'beta':beta0,'beta_red':beta_red,'eps':eps}
-meta.update({'alpha':alpha,'alpha_red':alpha_red,'tv0':tv0})
-results = {'rmse':rmse_vec,'tv':tv_vec,'dd':dd_vec}
+meta.update({'alpha':alpha,'alpha_red':alpha_red})
+results = {'tv':tv_vec,'dd':dd_vec}
 mpi_save_results([fDir, fName], tomo, saveRecon, meta, results)
 

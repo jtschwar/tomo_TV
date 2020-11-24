@@ -195,9 +195,11 @@ class logger:
             if self.rank == 0: print('Previous checkpoint found at: ', fullFname)
 
             # Load Recon to tomo
-            recon = h5['recon'][:,:,:]
+            startSlice = tomo.firstSlice()
+            endSlice = tomo.firstSlice()+tomo.NsliceLoc()
+            recon = h5['recon'][startSlice:endSlice,:,:]
             for s in range(tomo.NsliceLoc()):
-                tomo.setRecon(recon[s+tomo.firstSlice(),:,:],s)
+                tomo.setRecon(recon[s,:,:],s)
 
             # Try to load previous dd and tv if available
             try: dd = h5['results/fullDD'][:]

@@ -34,31 +34,30 @@ saveRecon = True
 (Nslice, Nray, Nproj) = tiltSeries.shape
 Nproj = tiltAngles.shape[0]
 
-# Create Projections Vector
-b = np.zeros([Nslice, Nray*Nproj])
-for s in range(Nslice):
-    b[s,:] = tiltSeries[s,:,:].transpose().ravel()
-
 # Initialize C++ Object.. 
-tomo_obj = astra_ctvlib.astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
-initialize_algorithm(tomo_obj, alg, initAlg)
-tomo_obj.setTiltSeries(b)
+tomo = astra_ctvlib.astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
+initialize_algorithm(tomo, alg, initAlg)
+
+# Create Projections Vector
+b = np.zeros([tomo.NsliceLoc(), Nray*Nproj])
+for s in range(tomo.NsliceLoc()):
+    b[s,:] = tiltSeries[s+tomo.firstSlice(),:,:].transpose().ravel()
+tomo.set_tilt_series(b)
 
 dd_vec = np.zeros(Niter)
 beta = beta0
 
-if tomo_obj.rank() == 0: print('Starting Reconstruction')
+if tomo.rank() == 0: print('Starting Reconstruction')
 
 #Main Loop
 for i in tqdm(range(Niter)): 
 
-    run(tomo_obj, alg, beta)
+    run(tomo, alg, beta)
 
     # Data Distance
-    tomo_obj.forwardProjection()
-    dd_vec[i] = tomo_obj.vector_2norm()
+    dd_vec[i] = tomo.data_distance()
 
-if tomo_obj.rank() == 0:
+if tomo.rank() == 0:
 	print('Reconstruction Complete, Saving Data..')
 	print('Save Recon :: {}'.format(saveRecon))
 
@@ -66,4 +65,4 @@ if tomo_obj.rank() == 0:
 fDir = 'results/' + fName + '_' + alg
 meta = {'vol_size':vol_size,'Niter':Niter, 'initAlg':initAlg, 'beta':beta, 'beta_red': beta_red}
 results = {'dd':dd_vec}
-mpi_save_results([fDir, fName], tomo_obj, saveRecon, meta, results)
+mpi_save_results([fDir, fName], tomo, saveRecon, meta, results)

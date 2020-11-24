@@ -1,3 +1,4 @@
+
 //
 //  tlib.cpp
 //  TV
@@ -33,22 +34,54 @@ ctvlib::ctvlib(int Ns, int Nray, int Nproj)
     Nrow = Nray*Nproj;
     Ncol = Ny*Nz;
     A.resize(Nrow,Ncol);
-    innerProduct.resize(Nrow);
-    b.resize(Nslice, Nrow);
-    g.resize(Nslice, Nrow);
+
+    b.resize(Nslice, Nrow); g.resize(Nslice, Nrow);
     
     //Initialize all the Slices in Recon as Zero.
     recon = new Mat[Nslice]; //Final Reconstruction.
-    temp_recon = new Mat[Nslice]; // Temporary copy for measuring changes in TV and ART.
-    tv_recon = new Mat[Nslice]; // Temporary copy for measuring 3D TV - Derivative. 
-    original_volume = new Mat[Nslice]; // Original Volume for Simulation Studies.
     
     // Initialize the 3D Matrices as zeros. 
     for (int i=0; i < Nslice; i++)
     {
         recon[i] = Mat::Zero(Ny, Nz);
+    }
+}
+
+int ctvlib::get_Nslice(){
+    return Nslice;
+}
+
+int ctvlib::get_Nray() {
+    return Ny;
+}
+
+// Temporary copy for measuring 3D TV - Derivative.
+void ctvlib::initialize_recon_copy() {
+    temp_recon = new Mat[Nslice];
+    
+    #pragma omp parallel for
+    for (int i = 0; i < Nslice; i++) {
         temp_recon[i] = Mat::Zero(Ny, Nz);
-        tv_recon[i] = Mat::Zero(Ny,Nz);
+    }
+}
+
+// Temporary copy for measuring 3D TV - Derivative.
+void ctvlib::initialize_original_volume() {
+    original_volume = new Mat[Nslice];
+    
+    #pragma omp parallel for
+    for (int i = 0; i < Nslice; i++) {
+        original_volume[i] = Mat::Zero(Ny, Nz);
+    }
+}
+
+// Temporary copy for measuring 3D TV - Derivative.
+void ctvlib::initialize_tv_recon() {
+    tv_recon = new Mat[Nslice];
+    
+    #pragma omp parallel for
+    for (int i = 0; i < Nslice; i++) {
+        tv_recon[i] = Mat::Zero(Ny, Nz);
     }
 }
 
@@ -96,17 +129,35 @@ void ctvlib::poissonNoise(int Nc)
        
     }
     b = b / ( Nc * b.size() ) * N;
-    temp_b.array() -= b.array();
-    float std = sqrt( ( temp_b.array() - temp_b.mean() ).square().sum() / (temp_b.size() - 1) );
+//    temp_b.array() -= b.array();
+//    float std = sqrt( ( temp_b.array() - temp_b.mean() ).square().sum() / (temp_b.size() - 1) );
 }
 
-// ART Reconstruction.
-void ctvlib::ART(float beta, int dyn_ind)
+// Regular or Stochastic ART Reconstruction.
+void ctvlib::ART(float beta)
 {
-    //No dynamic reconstruction, assume fully sampled batch.
-    if (dyn_ind == -1) { dyn_ind = Nrow; }
-    //Calculate how many projections were sampled.
-    else { dyn_ind *= Ny; }
+    #pragma omp parallel for
+    for (int s=0; s < Nslice; s++)
+    {
+        Mat& mat_slice = recon[s];
+        mat_slice.resize(mat_slice.size(),1);
+        VectorXf vec_recon = mat_slice;
+        float a;
+        for(int j = 0; j < Nrow; j++)
+        {
+            a = ( b(s,j) - A.row(j).dot(vec_recon) ) / innerProduct(j);
+            vec_recon += A.row(j).transpose() * a * beta;
+        }
+        mat_slice = vec_recon;
+        mat_slice.resize(Ny, Nz);
+    }
+    positivity();
+}
+
+// Regular or Stochastic ART Reconstruction.
+void ctvlib::randART(float beta)
+{
+    std::vector<int> A_index = calc_proj_order(Nrow);
     
     #pragma omp parallel for
     for (int s=0; s < Nslice; s++)
@@ -115,55 +166,27 @@ void ctvlib::ART(float beta, int dyn_ind)
         mat_slice.resize(mat_slice.size(),1);
         VectorXf vec_recon = mat_slice;
         float a;
-        for(int j=0; j < dyn_ind; j++)
+        for(int j = 0; j < Nrow; j++)
         {
+            j = A_index[j];
             a = ( b(s,j) - A.row(j).dot(vec_recon) ) / innerProduct(j);
             vec_recon += A.row(j).transpose() * a * beta;
         }
         mat_slice = vec_recon;
         mat_slice.resize(Ny, Nz);
     }
+    positivity();
 }
 
-// Stochastic ART Reconstruction.
-void ctvlib::sART(float beta, int dyn_ind)
-{
-    //No dynamic reconstruction, assume fully sampled batch.
-    if (dyn_ind == -1) { dyn_ind = Nrow; }
-    //Calculate how many projections were sampled.
-    else { dyn_ind *= Ny; }
-    
-    // Create a random permutation of indices from [0,dyn_ind].
-    std::vector<int> r_ind = rand_perm(dyn_ind);
-    
-    #pragma omp parallel for
-    for (int s=0; s < Nslice; s++)
-    {
-        Mat& mat_slice = recon[s];
-        mat_slice.resize(mat_slice.size(),1);
-        VectorXf vec_recon = mat_slice;
-        float a;
-        for(int j=0; j < dyn_ind; j++)
-        {
-            j = r_ind[j];
-            a = ( b(s,j) - A.row(j).dot(vec_recon) ) / innerProduct(j);
-            vec_recon += A.row(j).transpose() * a * beta;
-        }
-        mat_slice = vec_recon;
-        mat_slice.resize(Ny, Nz);
-    }
-}
-
-std::vector<int> ctvlib::rand_perm(int n)
+std::vector<int> ctvlib::calc_proj_order(int n)
 {
     std::vector<int> a(n);
-    for (int i=0; i < n; i++)
-    {
-        a[i] = i;
-    }
-    std::random_device rd;
-    std::mt19937 g(rd());
-    std::shuffle(a.begin(), a.end(), g);
+    for (int i=0; i < n; i++){ a[i] = i; }
+    
+    random_device rd;
+    mt19937 g(rd());
+    shuffle(a.begin(), a.end(), g);
+    
     return a;
 }
 
@@ -176,13 +199,8 @@ float ctvlib::lipschits()
 }
 
 // SIRT Reconstruction.
-void ctvlib::SIRT(float beta, int dyn_ind)
+void ctvlib::SIRT(float beta)
 {
-    //No dynamic reconstruction, assume fully sampled batch.
-    if (dyn_ind == -1) { dyn_ind = Nrow; }
-    //Calculate how many projections were sampled.
-    else { dyn_ind *= Ny; }
-    
     #pragma omp parallel for
     for (int s=0; s < Nslice; s++)
     {
@@ -193,6 +211,7 @@ void ctvlib::SIRT(float beta, int dyn_ind)
         mat_slice = vec_recon;
         mat_slice.resize(Ny, Nz);
     }
+    positivity();
 }
 
 // Remove Negative Voxels.
@@ -208,6 +227,7 @@ void ctvlib::positivity()
 // Row Inner Product of Measurement Matrix.
 void ctvlib::normalization()
 {
+    innerProduct.resize(Nrow);
     #pragma omp parallel for
     for (int i = 0; i < Nrow; i++)
     {
@@ -234,33 +254,22 @@ float ctvlib::matrix_2norm()
 }
 
 // Measure the 2 norm between experimental and reconstructed projections.
-float ctvlib::vector_2norm()
+float ctvlib::data_distance()
 {
+  forwardProjection();
   return (g - b).norm() / g.size(); // Nrow*Nslice,sum_{ij} M_ij^2 / Nrow*Nslice
 }
 
-// Measure the 2 norm for projections when data is 'dynamically' collected.
-float ctvlib::dyn_vector_2norm(int dyn_ind)
-{
-    dyn_ind *= Ny;
-    return ( g.leftCols(dyn_ind) - b.leftCols(dyn_ind) ).norm() / g.leftCols(dyn_ind).size();
-}
-
 // Foward project the data.
-void ctvlib::forwardProjection(int dyn_ind)
+void ctvlib::forwardProjection()
 {
-    //No dynamic reconstruction, assume fully sampled batch.
-    if (dyn_ind == -1) { dyn_ind = Nrow; }
-    //Calculate how many projections were sampled.
-    else { dyn_ind *= Ny; }
-  
     #pragma omp parallel for
     for (int s = 0; s < Nslice; s++)
     {
         Mat& mat_slice = recon[s];
         mat_slice.resize(mat_slice.size(),1);
         VectorXf vec_recon = mat_slice;
-        for (int i=0; i < dyn_ind; i++)
+        for (int i=0; i < Nrow; i++)
         {
             g(s,i) = A.row(i).dot(vec_recon);
         }
@@ -286,6 +295,17 @@ void ctvlib::loadA(Eigen::Ref<Mat> pyA)
 {
     for (int i=0; i <pyA.cols(); i++)
     {
+        A.coeffRef(pyA(0,i), pyA(1,i)) = pyA(2,i);
+    }
+    A.makeCompressed();
+}
+
+void ctvlib::update_proj_angles(Eigen::Ref<Mat> pyA) {
+    Nrow = Ny * pyA.cols();
+    A.resize(Nrow,Ncol);
+    b.resize(Nslice, Nrow); g.resize(Nslice, Nrow);
+    
+    for (int i=0; i < pyA.cols(); i++) {
         A.coeffRef(pyA(0,i), pyA(1,i)) = pyA(2,i);
     }
     A.makeCompressed();
@@ -344,9 +364,11 @@ float ctvlib::original_tv_3D()
             for (int k = 0; k < nz; k++)
             {
                 int kp = (k+1)%ny;
-                tv_recon[i](j,k) = sqrt(eps + pow( original_volume[i](j,k) - original_volume[ip](j,k) , 2)
-                                        + pow( original_volume[i](j,k) - original_volume[i](jp,k) , 2)
-                                        + pow( original_volume[i](j,k) - original_volume[i](j,kp) , 2));
+                
+                tv_recon[i](j,k) = sqrt(eps + ( original_volume[i](j,k) - original_volume[ip](j,k) ) * ( original_volume[i](j,k) - original_volume[ip](j,k) )
+                                        + ( original_volume[i](j,k) - original_volume[i](jp,k) ) * ( original_volume[i](j,k) - original_volume[i](jp,k) )
+                                        + ( original_volume[i](j,k) - original_volume[i](j,kp) ) * ( original_volume[i](j,k) - original_volume[i](j,kp) ));
+
             }
         }
     }
@@ -445,27 +467,31 @@ PYBIND11_MODULE(ctvlib, m)
     m.doc() = "C++ Scripts for TV-Tomography Reconstructions";
     py::class_<ctvlib> ctvlib(m, "ctvlib");
     ctvlib.def(py::init<int,int, int>());
-    ctvlib.def("setTiltSeries", &ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
-    ctvlib.def("setOriginalVolume", &ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
+    ctvlib.def("Nslice", &ctvlib::get_Nslice, "Get Nslice");
+    ctvlib.def("Nray", &ctvlib::get_Nray, "Get Nray");
+    ctvlib.def("set_tilt_series", &ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
+    ctvlib.def("initialize_recon_copy", &ctvlib::initialize_recon_copy, "Initialize Recon Copy");
+    ctvlib.def("initialize_tv_recon", &ctvlib::initialize_tv_recon, "Initialize TV Recon");
+    ctvlib.def("initialize_original_volume", &ctvlib::initialize_original_volume, "Initialize Original Volume");
+    ctvlib.def("set_original_volume", &ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
     ctvlib.def("create_projections", &ctvlib::create_projections, "Create Projections from Volume");
-    ctvlib.def("getRecon", &ctvlib::getRecon, "Return the Reconstruction to Python");
+    ctvlib.def("get_recon", &ctvlib::getRecon, "Return the Reconstruction to Python");
     ctvlib.def("ART", &ctvlib::ART, "ART Reconstruction");
-    ctvlib.def("sART", &ctvlib::sART, "Stochastic ART Reconstruction");
+    ctvlib.def("randART", &ctvlib::randART, "Stochastic ART Reconstruction");
     ctvlib.def("SIRT", &ctvlib::SIRT, "SIRT Reconstruction");
     ctvlib.def("lipschits", &ctvlib::lipschits, "Calculate Lipschitz Constant");
-    ctvlib.def("rowInnerProduct", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
+    ctvlib.def("row_inner_product", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
     ctvlib.def("positivity", &ctvlib::positivity, "Remove Negative Elements");
-    ctvlib.def("forwardProjection", &ctvlib::forwardProjection, "Forward Projection");
+    ctvlib.def("forward_projection", &ctvlib::forwardProjection, "Forward Projection");
     ctvlib.def("load_A", &ctvlib::loadA, "Load Measurement Matrix Created By Python");
     ctvlib.def("copy_recon", &ctvlib::copy_recon, "Copy the reconstruction");
     ctvlib.def("matrix_2norm", &ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");
-    ctvlib.def("vector_2norm", &ctvlib::vector_2norm, "Calculate L2-Norm of Projection (aka Vectors)");
-    ctvlib.def("dyn_vector_2norm", &ctvlib::dyn_vector_2norm, "Calculate L2-Norm of Partially Sampled Projections (aka Vectors)");
+    ctvlib.def("data_distance", &ctvlib::data_distance, "Calculate L2-Norm of Projection (aka Vectors)");
     ctvlib.def("rmse", &ctvlib::rmse, "Calculate reconstruction's RMSE");
     ctvlib.def("tv", &ctvlib::tv_3D, "Measure 3D TV");
     ctvlib.def("original_tv", &ctvlib::original_tv_3D, "Measure original TV");
     ctvlib.def("tv_gd", &ctvlib::tv_gd_3D, "3D TV Gradient Descent");
     ctvlib.def("get_projections", &ctvlib::get_projections, "Return the projection matrix to python");
-    ctvlib.def("poissonNoise", &ctvlib::poissonNoise, "Add Poisson Noise to Projections");
+    ctvlib.def("poisson_noise", &ctvlib::poissonNoise, "Add Poisson Noise to Projections");
     ctvlib.def("restart_recon", &ctvlib::restart_recon, "Set all the Slices Equal to Zero");
 }

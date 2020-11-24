@@ -5,12 +5,6 @@ import time, os
 from tqdm import tqdm
 import h5py
 
-def timer(t0, counter, Niter):
-    timeLeft = (time.time() - t0)/counter * (Niter - counter)
-    timeLeftMin, timeLeftSec = divmod(timeLeft, 60)
-    timeLeftHour, timeLeftMin = divmod(timeLeftMin, 60)
-    print('Estimated time to complete: %02d:%02d:%02d' % (timeLeftHour, timeLeftMin, timeLeftSec))
-
 def load_data(vol_size, file_name):
 
     #sk-image loads tilt series as (z,y,x) so the axes need to be
@@ -53,11 +47,11 @@ def load_h5_data(vol_size, file_name):
 
 def mpi_save_results(fname, tomo, saveRecon, meta=None, results=None):
 
-    if tomo.rank() == 0: os.makedirs(fname[0]+'/'+fname[1]+'/', exist_ok=True)
+    if tomo.rank() == 0: os.makedirs(fname[0], exist_ok=True)
     fullFname = '{}/{}.h5'.format(fname[0], fname[1])
 
     if saveRecon:
-        tomo.saveRecon(fullFname, 0)
+        tomo.save_recon(fullFname, 0)
 
     if tomo.rank() == 0:
         h5=h5py.File(fullFname, 'a')
@@ -107,7 +101,7 @@ def save_recon(fname, meta, tomo):
 
     recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
     for s in range(Nslice):
-        recon[s,:,:] = tomo.getRecon(s)
+        recon[s,:,:] = tomo.get_recon(s)
 
     #print(np.amin(recon))
     #print(np.amax(recon))
@@ -136,14 +130,14 @@ def initialize_algorithm(tomo, alg, initAlg=''):
 
     if alg == 'SART':
         #initAlg = {'random', 'sequential'}
-        tomo.initializeSART(initAlg)
+        tomo.initialize_SART(initAlg)
     elif alg == 'SIRT':
-        tomo.initializeSIRT()
+        tomo.initialize_SIRT()
     elif alg == 'FBF':
         #initAlg = {'ram-lak', 'shepp-logan', 'hamming', etc.}
-        tomo.initializeFBF(initAlg)
+        tomo.initialize_FBF(initAlg)
 
-    tomo.initializeFP()
+    tomo.initialize_FP()
 
 # Perform a basic functionality test for ASTRA and CUDA
 def check_cuda():

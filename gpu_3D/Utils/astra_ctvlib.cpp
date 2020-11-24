@@ -267,16 +267,10 @@ float astra_ctvlib::matrix_2norm()
 }
 
 // Measure the 2 norm between experimental and reconstructed projections.
-float astra_ctvlib::vector_2norm()
+float astra_ctvlib::data_distance()
 {
-  return (g - b).norm() / g.size(); // Nrow*Nslice,sum_{ij} M_ij^2 / Nrow*Nslice
-}
-
-// Measure the 2 norm for projections when data is 'dynamically' collected.
-float astra_ctvlib::dyn_vector_2norm(int dyn_ind)
-{
-    dyn_ind *= Ny;
-    return ( g.leftCols(dyn_ind) - b.leftCols(dyn_ind) ).norm() / g.leftCols(dyn_ind).size();
+    forwardProjection();
+    return (g - b).norm() / g.size(); // Nrow*Nslice,sum_{ij} M_ij^2 / Nrow*Nslice
 }
 
 void astra_ctvlib::initializeFP()
@@ -363,32 +357,31 @@ PYBIND11_MODULE(astra_ctvlib, m)
     m.doc() = "C++ Scripts for TV-Tomography Reconstructions using ASTRA Cuda Library";
     py::class_<astra_ctvlib> astra_ctvlib(m, "astra_ctvlib");
     astra_ctvlib.def(py::init<int,int,int,Vec>());
-    astra_ctvlib.def("initializeInitialVolume", &astra_ctvlib::initializeInitialVolume, "Initialize Original Data");
-    astra_ctvlib.def("initializeReconCopy", &astra_ctvlib::initializeReconCopy, "Initalize Copy Data of Recon");
-    astra_ctvlib.def("setTiltSeries", &astra_ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
-    astra_ctvlib.def("setOriginalVolume", &astra_ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
+    astra_ctvlib.def("initialize_initial_volume", &astra_ctvlib::initializeInitialVolume, "Initialize Original Data");
+    astra_ctvlib.def("initialize_recon_copy", &astra_ctvlib::initializeReconCopy, "Initalize Copy Data of Recon");
+    astra_ctvlib.def("set_tilt_series", &astra_ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
+    astra_ctvlib.def("set_original_volume", &astra_ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
     astra_ctvlib.def("create_projections", &astra_ctvlib::create_projections, "Create Projections from Volume");
-    astra_ctvlib.def("getRecon", &astra_ctvlib::getRecon, "Return the Reconstruction to Python");
-    astra_ctvlib.def("setRecon", &astra_ctvlib::setRecon, "Return the Reconstruction to Python");
-    astra_ctvlib.def("saveRecon", &astra_ctvlib::save_recon, "Save the Reconstruction with HDF5 parallel I/O");
-    astra_ctvlib.def("initializeSART", &astra_ctvlib::initializeSART, "Initialize SART");
+    astra_ctvlib.def("get_recon", &astra_ctvlib::getRecon, "Return the Reconstruction to Python");
+    astra_ctvlib.def("set_recon", &astra_ctvlib::setRecon, "Return the Reconstruction to Python");
+    astra_ctvlib.def("save_recon", &astra_ctvlib::save_recon, "Save the Reconstruction with HDF5 parallel I/O");
+    astra_ctvlib.def("initialize_SART", &astra_ctvlib::initializeSART, "Initialize SART");
     astra_ctvlib.def("SART", &astra_ctvlib::SART, "ART Reconstruction");
-    astra_ctvlib.def("initializeSIRT", &astra_ctvlib::initializeSIRT, "Initialize SIRT");
+    astra_ctvlib.def("initialize_SIRT", &astra_ctvlib::initializeSIRT, "Initialize SIRT");
     astra_ctvlib.def("SIRT", &astra_ctvlib::SIRT, "SIRT Reconstruction");
-    astra_ctvlib.def("initializeFBP", &astra_ctvlib::initializeFBP, "Initialize Filtered BackProjection");
+    astra_ctvlib.def("initialize_FBP", &astra_ctvlib::initializeFBP, "Initialize Filtered BackProjection");
     astra_ctvlib.def("FBP", &astra_ctvlib::FBP, "Filtered Backprojection");
-    astra_ctvlib.def("initializeFP", &astra_ctvlib::initializeFP, "Initialize Forward Projection");
-    astra_ctvlib.def("forwardProjection", &astra_ctvlib::forwardProjection, "Forward Projection");
+    astra_ctvlib.def("initialize_FP", &astra_ctvlib::initializeFP, "Initialize Forward Projection");
+    astra_ctvlib.def("forward_projection", &astra_ctvlib::forwardProjection, "Forward Projection");
     astra_ctvlib.def("copy_recon", &astra_ctvlib::copy_recon, "Copy the reconstruction");
     astra_ctvlib.def("matrix_2norm", &astra_ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");
-    astra_ctvlib.def("vector_2norm", &astra_ctvlib::vector_2norm, "Calculate L2-Norm of Projection (aka Vectors)");
-    astra_ctvlib.def("dyn_vector_2norm", &astra_ctvlib::dyn_vector_2norm, "Calculate L2-Norm of Partially Sampled Projections (aka Vectors)");
+    astra_ctvlib.def("data_distance", &astra_ctvlib::vector_2norm, "Calculate L2-Norm of Projection (aka Vectors)");
     astra_ctvlib.def("rmse", &astra_ctvlib::rmse, "Calculate reconstruction's RMSE");
     astra_ctvlib.def("original_tv", &astra_ctvlib::original_tv_3D, "Measure original TV");
     astra_ctvlib.def("tv_gd", &astra_ctvlib::tv_gd_3D, "3D TV Gradient Descent");
     astra_ctvlib.def("tv_fgp", &astra_ctvlib::tv_fgp_3D, "3D TV Fast Gradient Projection");
     astra_ctvlib.def("get_projections", &astra_ctvlib::get_projections, "Return the projection matrix to python");
     astra_ctvlib.def("get_model_projections", &astra_ctvlib::get_model_projections, "Return the re-projection matrix to python");
-    astra_ctvlib.def("poissonNoise", &astra_ctvlib::poissonNoise, "Add Poisson Noise to Projections");
+    astra_ctvlib.def("poisson_noise", &astra_ctvlib::poissonNoise, "Add Poisson Noise to Projections");
     astra_ctvlib.def("restart_recon", &astra_ctvlib::restart_recon, "Set all the Slices Equal to Zero");
 }

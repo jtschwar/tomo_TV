@@ -101,8 +101,7 @@ public:
     
     // Measure 2-norm of projections and reconstruction.
     float matrix_2norm();
-    float vector_2norm();
-    float dyn_vector_2norm(int dyn_ind);
+    float data_distance();
     float rmse();
     
     // Total variation
