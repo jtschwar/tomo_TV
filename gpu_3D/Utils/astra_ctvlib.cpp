@@ -375,7 +375,7 @@ PYBIND11_MODULE(astra_ctvlib, m)
     astra_ctvlib.def("forward_projection", &astra_ctvlib::forwardProjection, "Forward Projection");
     astra_ctvlib.def("copy_recon", &astra_ctvlib::copy_recon, "Copy the reconstruction");
     astra_ctvlib.def("matrix_2norm", &astra_ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");
-    astra_ctvlib.def("data_distance", &astra_ctvlib::vector_2norm, "Calculate L2-Norm of Projection (aka Vectors)");
+    astra_ctvlib.def("data_distance", &astra_ctvlib::data_distance, "Calculate L2-Norm of Projection (aka Vectors)");
     astra_ctvlib.def("rmse", &astra_ctvlib::rmse, "Calculate reconstruction's RMSE");
     astra_ctvlib.def("original_tv", &astra_ctvlib::original_tv_3D, "Measure original TV");
     astra_ctvlib.def("tv_gd", &astra_ctvlib::tv_gd_3D, "3D TV Gradient Descent");

@@ -353,19 +353,18 @@ void mpi_ctvlib::loadA(Eigen::Ref<Mat> pyA)
     {
         A.coeffRef(pyA(0,i), pyA(1,i)) = pyA(2,i);
     }
-    A.makeCompressed();
 }
 
-void mpi_ctvlib::update_proj_angles(Eigen::Ref<Mat> pyA)
+void mpi_ctvlib::update_proj_angles(Eigen::Ref<Mat> pyA, int Nproj)
 {
-    Nrow = Nray * pyA.cols();
-    A.resize(Nrow,Ncol);
+    Nrow = Nray * Nproj;
+    
+    A.conservativeResize(Nrow,Ncol);
     b.resize(Nslice_loc, Nrow); g.resize(Nslice_loc, Nrow);
     
     for (int i=0; i < pyA.cols(); i++) {
         A.coeffRef(pyA(0,i), pyA(1,i)) = pyA(2,i);
     }
-    A.makeCompressed();
 }
 
 void mpi_ctvlib::updateLeftSlice(Mat *vol) {
