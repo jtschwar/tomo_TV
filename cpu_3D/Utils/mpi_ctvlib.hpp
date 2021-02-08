@@ -17,17 +17,20 @@
 
 class mpi_ctvlib
 {
-public: 
-    typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Mat;
-    typedef Eigen::SparseMatrix<float, Eigen::RowMajor> SpMat;
+
+typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Mat;
+typedef Eigen::SparseMatrix<float, Eigen::RowMajor> SpMat;
+    
+public:
+    
     // Member Variables.
     Mat *recon, *temp_recon, *tv_recon, *original_volume;
-    Mat b, g;
-    SpMat A;
     Eigen::VectorXf innerProduct;
+    SpMat A, M;
+    Mat b, g;
     
-    int Nrow, Ncol, Nslice, Nslice_loc, Ny, Nz, nproc, rank, size;
-    int first_slice, last_slice;
+    unsigned int Nrow, Ncol, Nslice, Nslice_loc, Ny, Nz, first_slice, last_slice;
+    int nproc, rank, size;
     
     // Constructor and MPI Local Properties.
 	mpi_ctvlib(int Nslice, int Nray, int Nproj);
@@ -42,37 +45,41 @@ public:
     void initialize_tv_recon();
 	
     // Initialize Experimental Projections.
-	void setTiltSeries(Mat in);
-    void setOriginalVolume(Mat in, int slice);
+	void set_tilt_series(Mat in);
+    void set_original_volume(Mat in, int slice);
     void create_projections();
-    void poissonNoise(int Nc);
+    void poisson_noise(int Nc);
 
 	// Constructs Measurement Matrix.
     void loadA(Eigen::Ref<Mat> pyA);
 	void normalization();
+    float lipschits();
+    void cimminos_method();
 
+    // Dynamic Tomography, update Measurement Matrix and Weights.
+    void update_proj_angles(Eigen::Ref<Mat> pyA, int Nproj);
+    
 	// 2D Reconstructions
 	void ART(float beta);
     void SIRT(float beta);
     void positivity();
-    void lipschits();
     
     // Stochastic Reconstruction
     std::vector<int> calc_proj_order(int n);
     void randART(float beta);
     
-    void updateRightSlice(Mat *vol); 
-    void updateLeftSlice(Mat *vol);
+    void update_right_slice(Mat *vol);
+    void update_left_slice(Mat *vol);
     
 	//Forward Project Reconstruction for Data Tolerance Parameter. 
-    void forwardProjection();
+    void forward_projection();
     
     // Acquire local copy of reconstruction.
     void copy_recon();
     
     // Measure 2-norm of projections and reconstruction.
     float matrix_2norm();
-    float vector_2norm();
+    float data_distance();
     float rmse();
     
     // Total variation
@@ -81,9 +88,8 @@ public:
     void tv_gd_3D(int ng, float dPOCS);
     
     // Return reconstruction to python.
-    Mat getRecon(int i);
     void gather_recon();
-    Mat getLocRecon(int s);
+    Mat get_loc_recon(int s);
     
     // Save Recon with MPI Parallel I/O
     void save_recon(char *filename, int type);
@@ -91,7 +97,6 @@ public:
     // Return projections to python. 
     Mat get_projections();
     int mpi_finalize();
-    
     
     // Set Slices to Zero.
     void restart_recon();

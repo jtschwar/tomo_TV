@@ -25,11 +25,10 @@ public:
 
     // Member Variables.
     Mat *recon, *temp_recon, *tv_recon, *original_volume;
-    SpMat A;
-    int Nrow, Ncol, Nslice, Ny, Nz;
+    SpMat A, M; // Diagonal Weight Matrix for SIRT
+    int Nrow, Ncol, Nslice, Ny, Nz, lastRow;
     Eigen::VectorXf innerProduct;
     Mat b, g;
-    SpMat M; // Diagonal Weight Matrix for SIRT;
     
 	// Constructor
 	ctvlib(int Nslice, int Nray, int Nproj);
@@ -43,17 +42,20 @@ public:
     void initialize_tv_recon();
 
 	// Initialize Experimental Projections. 
-	void setTiltSeries(Mat in);
-    void setOriginalVolume(Mat in, int slice);
+	void set_tilt_series(Mat in);
+    void set_original_volume(Mat in, int slice);
     void create_projections();
-    void poissonNoise(int SNR);
+    void poisson_noise(int SNR);
 
 	// Constructs Measurement Matrix.
     void loadA(Eigen::Ref<Mat> pyA);
-    void update_proj_angles(Eigen::Ref<Mat> pyA, int Nproj);
 	void normalization();
     float lipschits();
+    void cimminos_method();
 
+    // Dynamic Tomography, update Measurement Matrix and Weights.
+    void update_proj_angles(Eigen::Ref<Mat> pyA, int Nproj);
+    
 	// 2D Reconstructions
 	void ART(float beta);
     void randART(float beta);
@@ -64,7 +66,7 @@ public:
     std::vector<int> calc_proj_order(int n);
     
 	//Forward Project Reconstruction for Data Tolerance Parameter. 
-	void forwardProjection();
+	void forward_projection();
 
     // Acquire local copy of reconstruction.
     void copy_recon();
@@ -80,7 +82,7 @@ public:
     void tv_gd_3D(int ng, float dPOCS);
     
     // Return reconstruction to python.
-    Mat getRecon(int i);
+    Mat get_recon(int i);
     
     // Return projections to python. 
     Mat get_projections();

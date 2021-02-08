@@ -12,30 +12,36 @@ class logger:
     Logs most recent image array
     ???Logs most recent reconstruction???
     """
-    myHostname = 'emalserver.engin.umich.edu'
-    myUsername = 'emal'
-    myPassword = 'emalemal'
-    myPort = 22
-
     def __init__(self,listenDirectory,fileExtension):
 
         # Main listening variables
         if not os.path.exists(listenDirectory):
             os.makedirs(listenDirectory)
 
-        self.listen_dir = listenDirectory
+        self.listenDir = listenDirectory
         self.fileExt = fileExtension
-        self.log_dir = self.accessLogDirectory(self.listen_dir)
-        (self.log_projs,self.log_tilts) = self.accessTiltsProjsH5(self.log_dir)
-        self.log_files = self.accessFilesList(self.log_dir)
+        self.log_dir = self.access_log_directory(self.listenDir)
+        (self.log_projs,self.log_tilts) = self.access_tilt_projs_H5(self.log_dir)
+        self.log_files = self.access_files_list(self.log_dir)
         self.files_path = '/'.join([self.log_dir, "used.txt"])
-        self.listen_files = self.listenFilesList(self.listen_dir)
-        print("Listener on {} created.".format(self.listen_dir))
+        self.listen_files = self.listen_files_list(self.listenDir)
+        print("Listener on {} created.".format(self.listenDir))
 
         # SFTP variables
         self.sftp_connection = []
 
-    def accessLogDirectory(self,directory):
+    # SFTP variables
+    def set_login_credentials(self, hostName, userName, password, port):
+        self.myHostname = hostName
+        self.myUsername = userName
+        self.myPassword = password
+        self.myPort = port
+
+        # Whether to Monitor the Data Locally or From Server
+        if userName != 'localhost': self.begin_sftp(self.remoteDir)
+        else: self.monitor_local()
+
+    def access_log_directory(self,directory):
         """Access logdirectory or create if needed"""
         logDirectory = directory +"/log"
         if not os.path.exists(logDirectory):
@@ -43,7 +49,7 @@ class logger:
 
         return logDirectory
 
-    def accessTiltsProjsH5(self,directory):
+    def access_tilt_projs_H5(self,directory):
         h5_path = "{}/projs_tilts.h5".format(directory)
 
         if not os.path.exists(h5_path):
@@ -55,7 +61,7 @@ class logger:
             h5.close()
             return (projs,tilts)
 
-    def accessFilesList(self,directory):
+    def access_files_list(self,directory):
         """Inside given directory, access files list (.txt)"""
         projPath = "used.txt"
         totalPath = '/'.join([directory,projPath])
@@ -66,7 +72,7 @@ class logger:
                 for line in f:
                     return line.split(",")
 
-    def listenFilesList(self,directory):
+    def listen_files_list(self,directory):
         """Grab current files in listen directory"""
         #files = glob.glob('/'.join((directory,'*.dm4')))
         files = [f for f in os.listdir(directory) if f[-len(self.fileExt):] == self.fileExt]
@@ -80,12 +86,12 @@ class logger:
         FoI.sort(key = lambda x: x[:3])
         for file in FoI:
             print("Loading {}".format(file))
-            file_path = "{}/{}".format(self.listen_dir,file)
+            file_path = "{}/{}".format(self.listenDir,file)
 
             try: 
                 dmRef = dm.dmReader(file_path)
                 newProj = self.center_of_mass_align(self.background_subtract(dmRef['data']))
-                newAngle = self.acquireProjAngle(file_path)
+                newAngle = self.acquire_proj_angle(file_path)
 
                 self.log_tilts = np.append(self.log_tilts,newAngle)
                 self.log_files = np.append(self.log_files,file)
@@ -117,11 +123,11 @@ class logger:
             f.write(",".join(self.log_files))
 
     def monitor_local(self,seconds=1):
-        """Return true if, within seconds, any new files exist in listen_dir
+        """Return true if, within seconds, any new files exist in listenDir
         NOTE: Lazy Scheme is used (set difference), can update """
 
         for ts in range(0,seconds):
-            self.listen_files = self.listenFilesList(self.listen_dir)
+            self.listen_files = self.listen_files_list(self.listenDir)
             FoI = list(set(self.listen_files)-set(self.log_files))
             if len(FoI) == 0:
                 time.sleep(1)
@@ -133,7 +139,7 @@ class logger:
 
     def monitor_online(self,seconds=1):
         """Return true if, within seconds, any new .dm4 exist in remote_dir
-        REQUIRES: beginSFTP has been called with appropriate directory
+        REQUIRES: begin_sftp has been called with appropriate directory
         NOTE: Lazy Scheme is used (set difference), can update """
         for ts in range(0,seconds):
 
@@ -147,16 +153,16 @@ class logger:
             else:
                 for file in FoI:
                     # Ensure local copy of data for future use
-                    self.sftp_connection.get(file,"{}/{}".format(self.listen_dir,file))
+                    self.sftp_connection.get(file,"{}/{}".format(self.listenDir,file))
 
                 # New list of local .dm4 to observe
-                self.listen_files = self.listenFilesList(self.listen_dir)
+                self.listen_files = self.listen_files_list(self.listenDir)
                 self.CHANGE_appendAll()
                 return True
 
         return False
 
-    def beginSFTP(self,remoteDirectory):
+    def begin_sftp(self,remoteDirectory):
 
         self.transport = paramiko.Transport((self.myHostname, self.myPort))
         self.transport.connect(username=self.myUsername,password=self.myPassword)
@@ -168,7 +174,7 @@ class logger:
         self.monitor_local()
         self.monitor_online()
 
-    def acquireProjAngle(self,file):
+    def acquire_proj_angle(self,file):
         """Acquires angles from metadata of .dm4 files"""
         with dm.fileDM(file) as inDM:
             alphaTag = ".ImageList.2.ImageTags.Microscope Info.Stage Position.Stage Alpha"
@@ -176,7 +182,7 @@ class logger:
 
 
     def load_results(self, fname, tomo):
-        fullFname = '{}/{}.h5'.format(self.listen_dir,fname)
+        fullFname = '{}/{}.h5'.format(self.listenDir,fname)
         if os.path.exists(fullFname):
             print('Previous checkpoint found at: ', fullFname)
 
@@ -209,7 +215,7 @@ class logger:
 
     def save_results(self, fname, tomo, meta=None, results=None):
 
-        fullFname = '{}/{}.h5'.format(self.listen_dir,fname)
+        fullFname = '{}/{}.h5'.format(self.listenDir,fname)
 
         tomo.saveRecon(fullFname, 0)
 

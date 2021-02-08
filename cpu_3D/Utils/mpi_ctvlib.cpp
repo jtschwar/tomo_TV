@@ -7,15 +7,18 @@
 //
 
 #include "mpi_ctvlib.hpp"
+
 #include <Eigen/SparseCore>
 #include <Eigen/Core>
 #include <pybind11/pybind11.h>
 #include <pybind11/eigen.h>
+
 #include <iostream>
 #include <cmath>
 #include <random>
-#include <iostream>
+
 #include <mpi.h>
+#include "hdf5.h"
 
 
 #define PI 3.14159265359
@@ -102,7 +105,7 @@ void mpi_ctvlib::initialize_original_volume() {
 }
 
 // Temporary copy for measuring 3D TV - Derivative.
-void mpi::initialize_tv_recon() {
+void mpi_ctvlib::initialize_tv_recon() {
     tv_recon = new Mat[Nslice_loc+2];
     
     #pragma omp parallel for
@@ -113,13 +116,13 @@ void mpi::initialize_tv_recon() {
 
 
 //Import tilt series (projections) from Python.
-void mpi_ctvlib::setTiltSeries(Mat in)
+void mpi_ctvlib::set_tilt_series(Mat in)
 {
     b = in;
 }
 
 // Import the original volume from python.
-void mpi_ctvlib::setOriginalVolume(Mat in, int slice)
+void mpi_ctvlib::set_original_volume(Mat in, int slice)
 {
     original_volume[slice] = in;
 }
@@ -142,7 +145,7 @@ void mpi_ctvlib::create_projections()
 }
 
 // Add poisson noise to projections.
-void mpi_ctvlib::poissonNoise(int Nc)
+void mpi_ctvlib::poisson_noise(int Nc)
 {
     Mat temp_b = b;
     float N = b.sum();
@@ -189,7 +192,7 @@ void mpi_ctvlib::ART(float beta)
 void mpi_ctvlib::randART(float beta)
 {
     // Create a random permutation of indices from [0,dyn_ind].
-    std::vector<int> A_index = calc_proj_order(Nrow, projOrder);
+    std::vector<int> A_index = calc_proj_order(Nrow);
     
     #pragma omp parallel for
     for (int s=0; s < Nslice_loc; s++)
@@ -210,7 +213,7 @@ void mpi_ctvlib::randART(float beta)
     positivity();
 }
 
-std::vector<int> mpi_ctvlib::calc_proj_order(int n, string projOrder)
+std::vector<int> mpi_ctvlib::calc_proj_order(int n)
 {
     std::vector<int> a(n);
     for (int i=0; i < n; i++){ a[i] = i; }
@@ -231,7 +234,10 @@ void mpi_ctvlib::SIRT(float beta)
         Mat& mat_slice = recon[s];
         mat_slice.resize(mat_slice.size(),1);
         VectorXf vec_recon = mat_slice;
-        vec_recon += A.transpose() * ( b.row(s).transpose() - A * vec_recon ) * beta;
+        if( M.size() > 0 ) { // Cimmino's Update
+            vec_recon += A.transpose() * M * ( b.row(s).transpose() - A * vec_recon ) * (beta / Nrow); }
+        else { // Landweber's Update
+            vec_recon += A.transpose() * ( b.row(s).transpose() - A * vec_recon ) * beta; }
         mat_slice = vec_recon;
         mat_slice.resize(Ny, Nz);
     }
@@ -239,12 +245,15 @@ void mpi_ctvlib::SIRT(float beta)
 }
 
 //Calculate Lipshits Gradient (for SIRT). 
-void mpi_ctvlib::lipschits()
+float mpi_ctvlib::lipschits()
 {
     VectorXf f(Ncol);
     f.setOnes();
-    return (A.transpose() * (A * f)).maxCoeff();
-}
+    if (M.size() > 0) { // Lipschitz Constant for Cimmino Method
+        return (A.transpose() * M * (A * f)).maxCoeff(); }
+    else { // Lipschitz Constant for Landweber Method
+        return (A.transpose() * (A * f)).maxCoeff(); }
+    }
 
 // Remove Negative Voxels.
 void mpi_ctvlib::positivity()
@@ -264,6 +273,15 @@ void mpi_ctvlib::normalization()
     for (int i = 0; i < Nrow; i++)
     {
         innerProduct(i) = A.row(i).dot(A.row(i));
+    }
+}
+
+// Calculate Weight Matrix for Cimmino Method.
+void mpi_ctvlib::cimminos_method()
+{
+    M.resize(Nrow, Nrow);
+    for (int i = 0; i < Nrow; i++) {
+        M.coeffRef(i,i) = A.row(i).dot(A.row(i));
     }
 }
 
@@ -294,7 +312,7 @@ float mpi_ctvlib::matrix_2norm()
 // Measure the 2 norm between experimental and reconstructed projections.
 float mpi_ctvlib::data_distance()
 {
-  forwardProjection();
+  forward_projection();
     
   float v2_loc = (g - b).norm();
   float v2; 
@@ -309,7 +327,7 @@ float mpi_ctvlib::data_distance()
 }
 
 // Foward project the data.
-void mpi_ctvlib::forwardProjection()
+void mpi_ctvlib::forward_projection()
 {
     #pragma omp parallel for
     for (int s = 0; s < Nslice_loc; s++)
@@ -357,21 +375,33 @@ void mpi_ctvlib::loadA(Eigen::Ref<Mat> pyA)
 
 void mpi_ctvlib::update_proj_angles(Eigen::Ref<Mat> pyA, int Nproj)
 {
-    Nrow = Nray * Nproj;
+    // Calculate new Nrow
+    Nrow = Ny * Nproj;
     
-    A.conservativeResize(Nrow,Ncol);
-    b.resize(Nslice_loc, Nrow); g.resize(Nslice_loc, Nrow);
+    // Resize Measurement Matrix and Projection Matrices.
+    A.resize(Nrow,Ncol);
+    b.resize(Nslice, Nrow); g.resize(Nslice, Nrow);
     
+    // Assign New Elements in Measurement Matrix
     for (int i=0; i < pyA.cols(); i++) {
         A.coeffRef(pyA(0,i), pyA(1,i)) = pyA(2,i);
     }
+    
+    // Assign New Elements in Measurement Matrix
+    loadA(pyA);
+    
+    // Append Weights for New Projections Angles
+    if (M.size()  > 0) {
+        cimminos_method(); }
+    else if (innerProduct.size() > 0) {
+        normalization();   }
 }
 
-void mpi_ctvlib::updateLeftSlice(Mat *vol) {
+void mpi_ctvlib::update_left_slice(Mat *vol) {
     MPI_Request request;
     int tag = 0;
     if (nproc>1) {
-        MPI_ISend(&vol[Nslice_loc-1](0, 0), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD, &request);
+        MPI_Isend(&vol[Nslice_loc-1](0, 0), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD, &request);
       MPI_Recv(&vol[Nslice_loc+1](0, 0), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Wait(&request, MPI_STATUS_IGNORE);
     } else {
@@ -380,11 +410,11 @@ void mpi_ctvlib::updateLeftSlice(Mat *vol) {
 
 }
 
-void mpi_ctvlib::updateRightSlice(Mat *vol) {
+void mpi_ctvlib::update_right_slice(Mat *vol) {
     MPI_Request request;
     int tag = 0;
     if (nproc>1) {
-      MPI_Send(&vol[0](0, 0), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, &request);
+      MPI_Isend(&vol[0](0, 0), Ny*Nz, MPI_FLOAT, (rank-1+nproc)%nproc, tag, MPI_COMM_WORLD, &request);
       MPI_Recv(&vol[Nslice_loc](0, 0), Ny*Nz, MPI_FLOAT, (rank+1)%nproc, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     } else {
       vol[Nslice_loc] = vol[0];
@@ -399,7 +429,7 @@ float mpi_ctvlib::tv_3D()
     int nx = Nslice_loc;
     int ny = Ny;
     int nz = Nz;
-    updateRightSlice(recon);
+    update_right_slice(recon);
     tv_loc = 0.0; 
     for (int i = 0; i < Nslice_loc; i++)
     {
@@ -434,7 +464,7 @@ float mpi_ctvlib::original_tv_3D()
     int nx = Nslice_loc;
     int ny = Ny;
     int nz = Nz;
-    updateRightSlice(original_volume);
+    update_right_slice(original_volume);
     tv_loc = 0.0; 
     for (int i = 0; i < Nslice_loc; i++)
     {
@@ -469,8 +499,8 @@ void mpi_ctvlib::tv_gd_3D(int ng, float dPOCS)
     int nx = Nslice_loc;
     int ny = Ny;
     int nz = Nz;
-    updateRightSlice(recon);
-    updateLeftSlice(recon);
+    update_right_slice(recon);
+    update_left_slice(recon);
    
     //Calculate TV Derivative Tensor.
     for(int g=0; g < ng; g++) {
@@ -520,15 +550,15 @@ void mpi_ctvlib::tv_gd_3D(int ng, float dPOCS)
       // Gradient Descent.
       #pragma omp parallel for
       for (int l = 0; l < nx; l++)
-        {
-	  recon[l] -= dPOCS * tv_recon[l] / tv_norm;
-        }
+      {
+          recon[l] -= dPOCS * tv_recon[l] / tv_norm;
+      }
     }
     positivity();
 }
 
 // Return Reconstruction to Python.
-Mat mpi_ctvlib::getLocRecon(int s)
+Mat mpi_ctvlib::get_loc_recon(int s)
 {
     return recon[s];
 }
@@ -551,7 +581,7 @@ void mpi_ctvlib::save_recon(char *filename, int type=0) {
         hid_t mspace = H5Screate_simple(3, ldims, NULL);
         hid_t dset = H5Dcreate(fd, "recon", H5T_NATIVE_FLOAT, fspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
         H5Sselect_hyperslab(fspace, H5S_SELECT_SET, offset, NULL, ldims, count);
-        H5Dwrite(dset, H5T_NATIVE_FLOAT, mspace, fspace, dxf_id, &recon.data[recon.index(0,0, 0)]);
+        H5Dwrite(dset, H5T_NATIVE_FLOAT, mspace, fspace, dxf_id, &recon[0](0,0));
         H5Pclose(plist_id);
         H5Pclose(dxf_id);
         H5Sclose(fspace);
@@ -561,7 +591,7 @@ void mpi_ctvlib::save_recon(char *filename, int type=0) {
     else {
         MPI_File fh;
         int rc= MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &fh);
-        MPI_File_write_at(fh, sizeof(float)*first_slice*Ny*Nz, &recon.data[recon.index(0,0, 0)], Nslice_loc*Ny*Nz, MPI_FLOAT, MPI_STATUS_IGNORE);
+        MPI_File_write_at(fh, sizeof(float)*first_slice*Ny*Nz, &recon[0](0,0), Nslice_loc*Ny*Nz, MPI_FLOAT, MPI_STATUS_IGNORE);
         MPI_File_close(&fh);
         MPI_File_sync(fh); }
 }
@@ -592,30 +622,31 @@ PYBIND11_MODULE(mpi_ctvlib, m)
     mpi_ctvlib.def("firstSlice", &mpi_ctvlib::get_first_slice, "Get first slice location");
     mpi_ctvlib.def("rank", &mpi_ctvlib::get_rank, "Get rank id");
     mpi_ctvlib.def("nproc", &mpi_ctvlib::get_nproc, "Get number of processor in current communicator");
-    mpi_ctvlib.def("set_tilt_series", &mpi_ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
+    mpi_ctvlib.def("set_tilt_series", &mpi_ctvlib::set_tilt_series, "Pass the Projections to C++ Object");
     mpi_ctvlib.def("initialize_recon_copy", &mpi_ctvlib::initialize_recon_copy, "Initialize Recon Copy");
     mpi_ctvlib.def("initialize_tv_recon", &mpi_ctvlib::initialize_tv_recon, "Initialize TV Recon");
     mpi_ctvlib.def("initialize_original_volume", &mpi_ctvlib::initialize_original_volume, "Initialize Original Volume");
-    mpi_ctvlib.def("set_original_volume", &mpi_ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
+    mpi_ctvlib.def("set_original_volume", &mpi_ctvlib::set_original_volume, "Pass the Volume to C++ Object");
     mpi_ctvlib.def("create_projections", &mpi_ctvlib::create_projections, "Create Projections from Volume");
-    mpi_ctvlib.def("get_recon", &mpi_ctvlib::getLocRecon, "Get the Local Recon from the Processor");
+    mpi_ctvlib.def("get_recon", &mpi_ctvlib::get_loc_recon, "Get the Local Recon from the Processor");
     mpi_ctvlib.def("finalize", &mpi_ctvlib::mpi_finalize, "Finalize the communicator");
     mpi_ctvlib.def("ART", &mpi_ctvlib::ART, "ART Reconstruction");
     mpi_ctvlib.def("randART", &mpi_ctvlib::randART, "Stochastic ART Reconstruction");
     mpi_ctvlib.def("SIRT", &mpi_ctvlib::SIRT, "SIRT Reconstruction");
     mpi_ctvlib.def("row_inner_product", &mpi_ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
     mpi_ctvlib.def("positivity", &mpi_ctvlib::positivity, "Remove Negative Elements");
-    mpi_ctvlib.def("forward_projection", &mpi_ctvlib::forwardProjection, "Forward Projection");
+    mpi_ctvlib.def("forward_projection", &mpi_ctvlib::forward_projection, "Forward Projection");
     mpi_ctvlib.def("load_A", &mpi_ctvlib::loadA, "Load Measurement Matrix Created By Python");
     mpi_ctvlib.def("copy_recon", &mpi_ctvlib::copy_recon, "Copy the reconstruction");
     mpi_ctvlib.def("matrix_2norm", &mpi_ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");
-    mpi_ctvlib.def("data_distance", &mpi_ctvlib::vector_2norm, "Calculate L2-Norm of Projection (aka Vectors)");
+    mpi_ctvlib.def("data_distance", &mpi_ctvlib::data_distance, "Calculate L2-Norm of Projection (aka Vectors)");
     mpi_ctvlib.def("rmse", &mpi_ctvlib::rmse, "Calculate reconstruction's RMSE");
     mpi_ctvlib.def("tv", &mpi_ctvlib::tv_3D, "Measure 3D TV");
     mpi_ctvlib.def("original_tv", &mpi_ctvlib::original_tv_3D, "Measure original TV");
     mpi_ctvlib.def("tv_gd", &mpi_ctvlib::tv_gd_3D, "3D TV Gradient Descent");
     mpi_ctvlib.def("get_projections", &mpi_ctvlib::get_projections, "Return the projection matrix to python");
-    mpi_ctvlib.def("poisson_noise", &mpi_ctvlib::poissonNoise, "Add Poisson Noise to Projections");
+    mpi_ctvlib.def("poisson_noise", &mpi_ctvlib::poisson_noise, "Add Poisson Noise to Projections");
     mpi_ctvlib.def("lipschits", &mpi_ctvlib::lipschits, "Calculate Lipschitz Constant");
+    mpi_ctvlib.def("cimminos_method", &mpi_ctvlib::cimminos_method, "Calculate Diagonal Weights for Cimmino's Method");
     mpi_ctvlib.def("restart_recon", &mpi_ctvlib::restart_recon, "Set all the Slices Equal to Zero");
 }

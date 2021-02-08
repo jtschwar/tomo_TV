@@ -5,7 +5,7 @@ import time, os
 from tqdm import tqdm
 import h5py
 
-def parallelRay(Nside, angles, angleStart = 0):
+def parallelRay(Nside, angles):
 
     Nray = Nside
 
@@ -30,7 +30,7 @@ def parallelRay(Nside, angles, angleStart = 0):
     vals = np.zeros((2 * Nside * Nproj * Nray), dtype=np.float32)
     idxend = 0
 
-    for i in tqdm(range(angleStart, Nproj)): # Loop over projection angles
+    for i in tqdm(range(Nproj)): # Loop over projection angles
         ang = angles[i] * np.pi / 180
         # Points passed by rays at current angles
         xrayRotated = np.cos(ang) * offsets
@@ -171,24 +171,22 @@ def load_data(vol_size, file_name):
 def run(tomo, alg, beta=1):
     # Can Specify the Descent Parameter
 
-    if alg == 'SIRT':
-        tomo.SIRT(beta)
-    elif alg == 'randART':
-        tomo.randART(beta)
-    else: 
-        tomo.ART(beta)
-
+    if alg == 'SIRT' or alg == 'cimminoSIRT': tomo.SIRT(beta)
+    elif alg == 'randART':                    tomo.randART(beta)
+    elif alg == 'ART':                        tomo.ART(beta)
 
 def initialize_algorithm(tomo, alg, Nray, tiltAngles, angleStart = 0):
 
     print('Generating Measurement Matrix')
-    A = parallelRay(Nray, tiltAngles, angleStart)
+    A = parallelRay(Nray, tiltAngles)
 
     if angleStart == 0: tomo.load_A(A)
     else: tomo.update_proj_angles(A, tiltAngles.shape[0])
 
     if alg == 'ART' or alg == 'randART':
         tomo.row_inner_product()
+    elif alg == 'cimminoSIRT' and angleStart == 0:
+        tomo.cimminos_method()
 
 def create_projections(tomo, original_volume, SNR=0):
 
@@ -242,7 +240,7 @@ def save_results(fname, meta, results, tomo, saveRecon = False):
 
     h5.close()
 
-def mpi_save_results(fname, meta, results, tomo, saveREcon = False):
+def mpi_save_results(fname, meta, results, tomo, saveRecon = False):
 
     if tomo.rank() == 0: os.makedirs(fname[0]+'/'+fname[1]+'/', exist_ok=True)
     fullFname = '{}/{}.h5'.format(fname[0], fname[1])

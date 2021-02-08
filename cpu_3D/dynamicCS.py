@@ -76,7 +76,7 @@ ii = len(tomoLogger.log_tilts)
 Nproj_estimate = np.arange(theta_min,theta_max,dtheta).shape[0]
 while ii < Nproj_estimate:
 
-    print('Reconstructing Tilt Angles: 0 -> ' + str(i+1) + ' / ' + str(Nproj))
+    print('Reconstructing Tilt Angles: 0 -> ' + str(ii+1) + ' / ' + str(Nproj))
 
     if alg != 'SIRT':  beta = beta0 * (1.0 - 2/3 * ii/Nproj)
 

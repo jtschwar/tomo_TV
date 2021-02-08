@@ -38,6 +38,12 @@ fileExtension = '.dm4'
 
 # Logger to Read Directory 
 tomoLogger = logger.logger(localDirectory, fileExtension)
+
+# Keep Checking Local Directory Until Data is Available 
+while True: # Emulate a do-while loop
+    tomoLogger.set_login_credentials(hostName, userName, password, port)
+    if len(tomoLogger.log_projs) != 0: break
+
 tomoLogger.beginSFTP(remoteMonitorDirectory)
 (Nslice, Nray, Nproj) = tomoLogger.log_projs.shape
 
@@ -62,7 +68,7 @@ ii = len(tomoLogger.log_tilts)
 Nproj_estimate = np.arange(theta_min,theta_max,dtheta).shape[0]
 while ii < Nproj_estimate:
 
-    print('Reconstructing Tilt Angles: 0 -> ' + str(i+1) + ' / ' + str(Nproj))
+    print('Reconstructing Tilt Angles: 0 -> ' + str(ii+1) + ' / ' + str(Nproj))
 
     if alg != 'SIRT': beta = beta0
     dd_vec = np.zeros(max_iter, dtype=np.float32)
@@ -71,6 +77,7 @@ while ii < Nproj_estimate:
     for jj in tqdm(range(max_iter)): 
 
         run(tomo, alg, beta)
+
         if alg != 'SIRT': beta *= beta_red
 
         # Measure difference between exp/sim projections.
@@ -88,8 +95,7 @@ while ii < Nproj_estimate:
         tomoLogger.save_results(fName, tomo, meta, results)
 
         # Update tomo (C++) with new projections / tilt Angles.
-        prevTilt = tomoLogger.log_tilts[ii]
-        initialize_algorithm(tomo, alg, Nray, tomoLogger.log_tilts, prevTilt)
+        initialize_algorithm(tomo, alg, Nray, tomoLogger.log_tilts, 1)
         load_exp_tilt_series(tomo, tomoLogger.log_projs)
 
         ii = len(tomoLogger.log_tilts)

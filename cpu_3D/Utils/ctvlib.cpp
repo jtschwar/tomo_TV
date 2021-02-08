@@ -34,7 +34,7 @@ ctvlib::ctvlib(int Ns, int Nray, int Nproj)
     Nrow = Nray*Nproj;
     Ncol = Ny*Nz;
     A.resize(Nrow,Ncol);
-
+    
     b.resize(Nslice, Nrow); g.resize(Nslice, Nrow);
     
     //Initialize all the Slices in Recon as Zero.
@@ -86,13 +86,13 @@ void ctvlib::initialize_tv_recon() {
 }
 
 //Import tilt series (projections) from Python.
-void ctvlib::setTiltSeries(Mat in)
+void ctvlib::set_tilt_series(Mat in)
 {
     b = in;
 }
 
 // Import the original volume from python.
-void ctvlib::setOriginalVolume(Mat in, int slice)
+void ctvlib::set_original_volume(Mat in, int slice)
 {
     original_volume[slice] = in;
 }
@@ -115,7 +115,7 @@ void ctvlib::create_projections()
 }
 
 // Add poisson noise to projections.
-void ctvlib::poissonNoise(int Nc)
+void ctvlib::poisson_noise(int Nc)
 {
     Mat temp_b = b;
     float mean = b.mean();
@@ -190,12 +190,15 @@ std::vector<int> ctvlib::calc_proj_order(int n)
     return a;
 }
 
-//Calculate Lipshits Gradient (for SIRT).
+//Calculate Lipshits Gradient (for SIRT - Landweber Method).
 float ctvlib::lipschits()
 {
     VectorXf f(Ncol);
     f.setOnes();
-    return (A.transpose() * (A * f)).maxCoeff();
+    if (M.size() > 0) { // Lipschitz Constant for Cimmino Method
+        return (A.transpose() * M * (A * f)).maxCoeff(); }
+    else { // Lipschitz Constant for Landweber Method
+        return (A.transpose() * (A * f)).maxCoeff(); }
 }
 
 // SIRT Reconstruction.
@@ -207,7 +210,10 @@ void ctvlib::SIRT(float beta)
         Mat& mat_slice = recon[s];
         mat_slice.resize(mat_slice.size(),1);
         VectorXf vec_recon = mat_slice;
-        vec_recon += A.transpose() * ( b.row(s).transpose() - A * vec_recon ) * beta;
+        if( M.size() > 0 ) { // Cimmino's Update
+            vec_recon += A.transpose() * M * ( b.row(s).transpose() - A * vec_recon ) * (beta / Nrow); }
+        else { // Landweber's Update
+            vec_recon += A.transpose() * ( b.row(s).transpose() - A * vec_recon ) * beta; }
         mat_slice = vec_recon;
         mat_slice.resize(Ny, Nz);
     }
@@ -235,6 +241,15 @@ void ctvlib::normalization()
     }
 }
 
+// Calculate Weight Matrix for Cimmino Method.
+void ctvlib::cimminos_method()
+{
+    M.resize(Nrow, Nrow);
+    for (int i = 0; i < Nrow; i++) {
+        M.coeffRef(i,i) = A.row(i).dot(A.row(i));
+    }
+}
+
 // Create Local Copy of Reconstruction. 
 void ctvlib::copy_recon()
 {
@@ -256,12 +271,12 @@ float ctvlib::matrix_2norm()
 // Measure the 2 norm between experimental and reconstructed projections.
 float ctvlib::data_distance()
 {
-  forwardProjection();
+  forward_projection();
   return (g - b).norm() / g.size(); // Nrow*Nslice,sum_{ij} M_ij^2 / Nrow*Nslice
 }
 
 // Foward project the data.
-void ctvlib::forwardProjection()
+void ctvlib::forward_projection()
 {
     #pragma omp parallel for
     for (int s = 0; s < Nslice; s++)
@@ -300,14 +315,21 @@ void ctvlib::loadA(Eigen::Ref<Mat> pyA)
 }
 
 void ctvlib::update_proj_angles(Eigen::Ref<Mat> pyA, int Nproj) {
+    // Calculate new Nrow
     Nrow = Ny * Nproj;
     
-    A.conservativeResize(Nrow,Ncol);
+    // Resize Measurement Matrix and Projection Matrices.
+    A.resize(Nrow,Ncol);
     b.resize(Nslice, Nrow); g.resize(Nslice, Nrow);
     
-    for (int i=0; i < pyA.cols(); i++) {
-        A.coeffRef(pyA(0,i), pyA(1,i)) = pyA(2,i);
-    }
+    // Assign New Elements in Measurement Matrix
+    loadA(pyA);
+    
+    // Append Weights for New Projections Angles
+    if (M.size()  > 0) {
+        cimminos_method(); }
+    else if (innerProduct.size() > 0) {
+        normalization();   }
 }
 
 //Measure Reconstruction's TV.
@@ -440,7 +462,7 @@ void ctvlib::tv_gd_3D(int ng, float dPOCS)
 }
 
 // Return Reconstruction to Python.
-Mat ctvlib::getRecon(int s)
+Mat ctvlib::get_recon(int s)
 {
     return recon[s];
 }
@@ -468,21 +490,22 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def(py::init<int,int, int>());
     ctvlib.def("Nslice", &ctvlib::get_Nslice, "Get Nslice");
     ctvlib.def("Nray", &ctvlib::get_Nray, "Get Nray");
-    ctvlib.def("set_tilt_series", &ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
+    ctvlib.def("set_tilt_series", &ctvlib::set_tilt_series, "Pass the Projections to C++ Object");
     ctvlib.def("initialize_recon_copy", &ctvlib::initialize_recon_copy, "Initialize Recon Copy");
     ctvlib.def("initialize_tv_recon", &ctvlib::initialize_tv_recon, "Initialize TV Recon");
     ctvlib.def("initialize_original_volume", &ctvlib::initialize_original_volume, "Initialize Original Volume");
-    ctvlib.def("set_original_volume", &ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
+    ctvlib.def("set_original_volume", &ctvlib::set_original_volume, "Pass the Volume to C++ Object");
     ctvlib.def("create_projections", &ctvlib::create_projections, "Create Projections from Volume");
     ctvlib.def("update_proj_angles", &ctvlib::update_proj_angles, "Update Algorithm with New projections");
-    ctvlib.def("get_recon", &ctvlib::getRecon, "Return the Reconstruction to Python");
+    ctvlib.def("get_recon", &ctvlib::get_recon, "Return the Reconstruction to Python");
     ctvlib.def("ART", &ctvlib::ART, "ART Reconstruction");
     ctvlib.def("randART", &ctvlib::randART, "Stochastic ART Reconstruction");
     ctvlib.def("SIRT", &ctvlib::SIRT, "SIRT Reconstruction");
     ctvlib.def("lipschits", &ctvlib::lipschits, "Calculate Lipschitz Constant");
     ctvlib.def("row_inner_product", &ctvlib::normalization, "Calculate the Row Inner Product for Measurement Matrix");
+    ctvlib.def("cimminos_method", &ctvlib::cimminos_method, "Calculate Diagonal Weights for Cimmino's Method");
     ctvlib.def("positivity", &ctvlib::positivity, "Remove Negative Elements");
-    ctvlib.def("forward_projection", &ctvlib::forwardProjection, "Forward Projection");
+    ctvlib.def("forward_projection", &ctvlib::forward_projection, "Forward Projection");
     ctvlib.def("load_A", &ctvlib::loadA, "Load Measurement Matrix Created By Python");
     ctvlib.def("copy_recon", &ctvlib::copy_recon, "Copy the reconstruction");
     ctvlib.def("matrix_2norm", &ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");
@@ -492,6 +515,6 @@ PYBIND11_MODULE(ctvlib, m)
     ctvlib.def("original_tv", &ctvlib::original_tv_3D, "Measure original TV");
     ctvlib.def("tv_gd", &ctvlib::tv_gd_3D, "3D TV Gradient Descent");
     ctvlib.def("get_projections", &ctvlib::get_projections, "Return the projection matrix to python");
-    ctvlib.def("poisson_noise", &ctvlib::poissonNoise, "Add Poisson Noise to Projections");
+    ctvlib.def("poisson_noise", &ctvlib::poisson_noise, "Add Poisson Noise to Projections");
     ctvlib.def("restart_recon", &ctvlib::restart_recon, "Set all the Slices Equal to Zero");
 }
