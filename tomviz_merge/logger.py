@@ -34,12 +34,12 @@ class logger:
             print("Loading {}".format(file))
             filePath = "{}/{}".format(self.listenDir, file)
 
-            try:
-                self.log_files = np.append(self.log_files, file)
+            try: 
 
                 (newProj, newAngle) = self.read_projection_image(filePath)
 
                 self.log_tilts = np.append(self.log_tilts, newAngle)
+
                 newProj = self.center_of_mass_align(self.background_subtract(newProj))
 
                 # Account for Python's disdain for AxAx1 arrays 
@@ -50,10 +50,13 @@ class logger:
                     self.log_projs[:,:,0] = newProj
                 else:
                     self.log_projs = np.dstack((self.log_projs, newProj))
+                    np.save('tiltSeries.npy', self.log_projs)
 
-            except:
+                self.log_files = np.append(self.log_files, file)
+
+            except: 
                 print('Could not read : {}, will preceed with reconstruction\
-                       and re-download on next pass'.format(file))
+                        and re-download on next pass'.format(file))
                 break
 
     def monitor(self, seconds=1):
@@ -66,7 +69,7 @@ class logger:
             if len(FoI) == 0:
                 time.sleep(1)
             else:
-                self.CHANGE_appendAll()
+                self.CHANGE_appendAll() # Can be probamatic for first iter..
                 return True;
 
         return False
@@ -119,9 +122,11 @@ class logger:
     def background_subtract(self, image):
 
         (Nx, Ny) = image.shape
-        XRANGE = np.array([0, int(Nx//4)], dtype=int)
-        YRANGE = np.array([0, int(Ny//4)], dtype=int)
+        XRANGE = np.array([0, int(Nx//16)], dtype=int)
+        YRANGE = np.array([0, int(Ny//16)], dtype=int)
 
         image -= np.average(image[XRANGE[0]:XRANGE[1], YRANGE[0]:YRANGE[1]])
+
+        image[image < 0] = 0
 
         return image

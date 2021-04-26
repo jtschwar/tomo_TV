@@ -192,13 +192,14 @@ void ctvlib::loadA(Eigen::Ref<Mat> pyA)
 }
 
 void ctvlib::update_proj_angles(Eigen::Ref<Mat> pyA, int Nproj) {
+    
     Nrow = Ny * Nproj;
     
-    A.conservativeResize(Nrow,Ncol);
+    A.resize(Nrow, Ncol);
     b.resize(Nslice, Nrow); g.resize(Nslice, Nrow);
     
     for (int i=0; i < pyA.cols(); i++) {
-        A.coeffRef(pyA(0,i), pyA(1,i)) = pyA(2,i);
+        A.coeffRef(pyA(0,i), pyA(1,i)) += pyA(2,i);
     }
 }
 

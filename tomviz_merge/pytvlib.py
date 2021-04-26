@@ -2,7 +2,7 @@ from skimage import io
 import numpy as np
 import time, os
 
-def parallelRay(Nside, angles, angleStart = 0):
+def parallelRay(Nside, angles):
 
     Nray = Nside
 
@@ -28,7 +28,7 @@ def parallelRay(Nside, angles, angleStart = 0):
     idxend = 0
 
     # Loop over projection angles
-    for i in range(angleStart, Nproj): 
+    for i in range(Nproj): 
         ang = angles[i] * np.pi / 180
         # Points passed by rays at current angles
         xrayRotated = np.cos(ang) * offsets
@@ -139,10 +139,12 @@ def initialize_algorithm(tomo, alg, Nray, tiltAngles, angleStart = 0):
 
     # Initialize / Update Iterative Algorithm
     if alg != 'WBP':
-        A = parallelRay(Nray, tiltAngles, angleStart)
+        A = parallelRay(Nray, tiltAngles)
 
         if angleStart == 0: tomo.load_A(A)
-        else: tomo.update_proj_angles(A, tiltAngles.shape[0])
+        else: 
+            tomo.update_proj_angles(A, tiltAngles.shape[0])
+            tomo.restart_recon()
 
         if alg == 'ART' or alg == 'randART':
             tomo.row_inner_product()
@@ -154,7 +156,6 @@ def get_recon(meta, tomo):
     recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F')
     for s in range(Nslice):
         recon[s, :, :] = tomo.get_recon(s).reshape(Nray, Nray)
-
     return recon
 
 def timer(t0, counter, maxIter):

@@ -14,7 +14,7 @@
       "name" : "localDirectory",
       "label" : "Local Monitoring Directory",
       "type" : "string",
-      "default" : "/Users/hovdengroup/Desktop/real_time_test"
+      "default" : ""
     },
     {
       "name" : "alg",
@@ -32,7 +32,7 @@
       "name" : "maxIter",
       "label" : "Total Iterations",
       "type" : "int",
-      "default" : 25
+      "default" : 50
     },
     {
       "name" : "fileExt",

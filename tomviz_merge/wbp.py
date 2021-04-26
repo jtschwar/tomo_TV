@@ -62,7 +62,7 @@ class wbp:
 
 		# Normalize
 	    reconSlice = reconSlice * np.pi / 2 / self.Nproj
-	    recon[recon < 0] = 0
+	    reconSlice[reconSlice < 0] = 0
 	    return reconSlice
 
 

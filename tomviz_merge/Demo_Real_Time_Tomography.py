@@ -18,7 +18,7 @@ class DemoRealTimeTomography4(tomviz.operators.CancelableOperator):
         # Used for simulated datasets (original volume / object is provided)
 
         # Parse Inputs 
-        fileExtensions = ('dm4', 'ser')
+        fileExtensions = ('dm4', 'dm3', 'ser', 'tif')
         algorithms = ('ART', 'randART', 'SIRT', 'WBP')
         alg = algorithms[alg]
 
@@ -48,7 +48,6 @@ class DemoRealTimeTomography4(tomviz.operators.CancelableOperator):
         # Generate measurement matrix (if Iterative Algorithm)
         self.progress.message = 'Generating measurement matrix'
         initialize_algorithm(tomo, alg, Nray, tomoLogger.log_tilts)
-        prevTilt = np.int(tomoLogger.log_tilts[-1])
         
         # Descent Parameter Initialization
         if alg == 'SIRT': beta = 1/tomo.lipschits()
@@ -90,14 +89,14 @@ class DemoRealTimeTomography4(tomviz.operators.CancelableOperator):
 
                 # Update tomo (C++) with new projections / tilt Angles.
                 self.progress.message = 'Generating measurement matrix'
+                prevTilt = np.int(tomoLogger.log_tilts[-1])
                 initialize_algorithm(tomo, alg, Nray, \
                                      tomoLogger.log_tilts, prevTilt)
-                prevTilt = np.int(tomoLogger.log_tilts[-1])
                 tomoLogger.load_tilt_series(tomo, alg)
 
-                # Recalculate Lipschitz Constant.
+                # Recalculate Lipschitz Constant or Reset Descent Parameter
                 if alg == 'SIRT': beta = 1/tomo.lipschits()
-                elif alg == artBool: beta = beta0
+                elif artBool: beta = beta0
 
         # One last update of the child data.
         child.active_scalars = get_recon((Nslice, Nray), tomo) 
