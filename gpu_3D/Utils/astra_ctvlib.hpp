@@ -23,6 +23,7 @@
 #include <astra/ParallelProjectionGeometry2D.h>
 #include <astra/CudaProjector2D.h>
 
+#include <astra/CudaBackProjectionAlgorithm.h>
 #include <astra/CudaForwardProjectionAlgorithm.h>
 #include <astra/CudaFilteredBackProjectionAlgorithm.h>
 #include <astra/CudaSartAlgorithm.h>
@@ -40,8 +41,9 @@ public:
 
     // Eigen - tomoTV Member Variables.
     Matrix3D recon, temp_recon, original_volume;
-    int Nrow, Ncol, Nslice, Ny, Nz;
-    Eigen::VectorXf innerProduct;
+    int Nrow, Ncol, Nslice, Nproj, Ny, Nz;
+    Eigen::VectorXf innerProduct, updateCHEM, xx, Ax, outProj, outVol;
+    float L_Aps;
     Mat b, g;
     
     // Astra Member Variables
@@ -57,6 +59,7 @@ public:
     // Cuda Projector and Forward Projection Operator. 
     CCudaProjector2D *proj;
     CCudaForwardProjectionAlgorithm *algo_fp;
+    CCudaBackProjectionAlgorithm *algo_bp;
     CCudaSartAlgorithm *algo_sart;
     CCudaSirtAlgorithm *algo_sirt;
     CCudaFilteredBackProjectionAlgorithm *algo_fbp;
@@ -67,6 +70,7 @@ public:
  
 	// Initializes Measurement Matrix. 
 	astra_ctvlib(int Nslice, int Nray, int Nproj, Vec pyAngles);
+    astra_ctvlib(int Nslice, int Nray, Vec pyAngles);
     void initializeInitialVolume();
     void initializeReconCopy();
 
@@ -79,20 +83,26 @@ public:
     void poissonNoise(int SNR);
 
 	// Compute Lipschitz Constant (SIRT Reconstruction).
-    float lipschits();
+    void lipschitz();
     
     // Generate Config File for Reconstruction Operators
     void initializeSIRT();
     void initializeSART(std::string projOrder);
     void initializeFBP(std::string filter);
     void initializeFP();
+    void initializeBP();
     
 	// 2D Reconstructions
     void update_projection_angles(Vec pyAngles);
     void SART(float beta, int nIter=1);
     void SIRT(int nIter=1);
     void FBP(bool apply_positivity);
-    
+
+    Vec forward_projection(const Vec &inVol);
+    Vec back_projection(const Vec &inProj);
+
+    float poisson_ML(float lambda);
+
 	//Forward Project Reconstruction for Data Tolerance Parameter. 
 	void forwardProjection();
 

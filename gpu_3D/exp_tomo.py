@@ -1,7 +1,7 @@
 # General 3D - SIRT Reconstruction with Positivity Constraint. 
 
-from pytvlib import *
-import mpi_astra_ctvlib
+from Utils.pytvlib import *
+import astra_ctvlib
 import numpy as np
 import time
 from tqdm import tqdm
@@ -35,19 +35,17 @@ saveRecon = True
 Nproj = tiltAngles.shape[0]
 
 # Initialize C++ Object.. 
-tomo = astra_ctvlib.astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
+tomo = astra_ctvlib.astra_ctvlib(Nslice, Nray, np.deg2rad(tiltAngles))
 initialize_algorithm(tomo, alg, initAlg)
 
 # Create Projections Vector
-b = np.zeros([tomo.NsliceLoc(), Nray*Nproj])
-for s in range(tomo.NsliceLoc()):
-    b[s,:] = tiltSeries[s+tomo.firstSlice(),:,:].transpose().ravel()
+b = np.zeros([Nslice(), Nray*Nproj])
+for s in range(Nslice()):
+    b[s,:] = tiltSeries[s,:,:].transpose().ravel()
 tomo.set_tilt_series(b)
 
 dd_vec = np.zeros(Niter)
 beta = beta0
-
-if tomo.rank() == 0: print('Starting Reconstruction')
 
 #Main Loop
 for i in tqdm(range(Niter)): 
@@ -57,12 +55,8 @@ for i in tqdm(range(Niter)):
     # Data Distance
     dd_vec[i] = tomo.data_distance()
 
-if tomo.rank() == 0:
-	print('Reconstruction Complete, Saving Data..')
-	print('Save Recon :: {}'.format(saveRecon))
-
 #Save all the results to h5 file. 
 fDir = 'results/' + fName + '_' + alg
 meta = {'vol_size':vol_size,'Niter':Niter, 'initAlg':initAlg, 'beta':beta, 'beta_red': beta_red}
 results = {'dd':dd_vec}
-mpi_save_results([fDir, fName], tomo, saveRecon, meta, results)
+save_results([fDir, fName], tomo, saveRecon, meta, results)

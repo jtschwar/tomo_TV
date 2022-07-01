@@ -34,16 +34,15 @@ namespace py = pybind11;
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Mat;
 typedef Eigen::VectorXf Vec;
 
-astra_ctvlib::astra_ctvlib(int Ns, int Nray, int Nproj, Vec pyAngles)
+astra_ctvlib::astra_ctvlib(int Ns, int Nray, Vec pyAngles)
 {
     //Intialize all the Member variables.
-    Nslice = Ns;
-    Ny = Nray;
-    Nz = Nray;
+    Nproj = pyAngles.size();
+    Nslice = Ns; Ny = Nray; Nz = Nray;
     Nrow = Nray*Nproj;
     Ncol = Ny*Nz;
-    b.resize(Nslice, Nrow);
-    g.resize(Nslice, Nrow);
+    
+    b.resize(Nslice, Nrow); g.resize(Nslice, Nrow);
     
     //Initialize all the Slices in Recon as Zero.
     recon = Matrix3D(Ns,Ny,Nz); //Final Reconstruction.
@@ -72,10 +71,7 @@ astra_ctvlib::astra_ctvlib(int Ns, int Nray, int Nproj, Vec pyAngles)
      proj = new CCudaProjector2D(proj_geom,vol_geom);
 }
 
-void astra_ctvlib::initializeInitialVolume()
-{
-    original_volume = Matrix3D(Nslice,Ny,Nz);
-}
+void astra_ctvlib::initializeInitialVolume() { original_volume = Matrix3D(Nslice,Ny,Nz); }
 
 void astra_ctvlib::initializeReconCopy()
 {
@@ -83,21 +79,12 @@ void astra_ctvlib::initializeReconCopy()
 }
 
 //Import tilt series (projections) from Python.
-void astra_ctvlib::setTiltSeries(Mat in)
-{
-    b = in;
-}
+void astra_ctvlib::setTiltSeries(Mat in) { b = in; }
 
 // Import the original volume from python.
-void astra_ctvlib::setOriginalVolume(Mat inBuffer, int slice)
-{
-    original_volume.setData(inBuffer,slice);
-}
+void astra_ctvlib::setOriginalVolume(Mat inBuffer, int slice) { original_volume.setData(inBuffer,slice); }
 
-void astra_ctvlib::setRecon(Mat inBuffer, int slice)
-{
-    recon.setData(inBuffer,slice);
-}
+void astra_ctvlib::setRecon(Mat inBuffer, int slice) { recon.setData(inBuffer,slice); }
 
 // Create projections from Volume (for simulation studies)
 void astra_ctvlib::create_projections()
@@ -221,6 +208,67 @@ void astra_ctvlib::SIRT(int nIter)
     }
 }
 
+// Estimate Lipschitz for ML-Poisson 
+void astra_ctvlib::lipschitz() {
+    Vec cc(Nrow); cc.setOnes();
+    L_Aps = back_projection(forward_projection(cc)).maxCoeff();
+}
+
+// Forward Projection (ML-Poisson)
+Vec astra_ctvlib::forward_projection(const Vec &inVol)
+{
+    // Copy Data to Astra
+    vol->copyData((float32*) &inVol(0));
+
+    // Forward Project
+    algo_fp->initialize(proj,vol,sino);
+    algo_fp->run();
+
+    memcpy(&outProj(0), sino->getData(), sizeof(float)*Nrow);
+
+    return outProj;
+}
+
+// Backproject the data (HAADF Volume).
+Vec astra_ctvlib::back_projection(const Vec &inProj)
+{   // Copy Data to Astra
+    sino->copyData((float32*) &inProj(0));
+
+    // Back Project
+    algo_bp->initialize(proj,sino,vol);
+    algo_bp->run();
+
+    // Return data from Astra
+    memcpy(&outVol(0), vol->getData(), sizeof(float)*Ny*Nz);
+
+    return outVol;
+}
+
+float astra_ctvlib::poisson_ML(float lambda)
+{
+    float cost = 0;
+    float eps = 1e-6;
+    
+    for (int s=0; s<Nslice; s++) {
+
+        memcpy(&xx(0), &recon.data[recon.index(s,0,0)], sizeof(float)*Ny*Nz);
+
+        // Poisson-ML
+        Ax = forward_projection(xx);
+        updateCHEM = back_projection((Ax - b.row(s).transpose()).array() / (Ax.array() + eps).array() );
+        
+        // Update along the gradient direction
+        xx -= lambda/L_Aps * updateCHEM;
+
+        memcpy(&recon.data[recon.index(s,0,0)], &xx(0), sizeof(float)*Ny*Nz);
+        
+        // Measure Data Fidelity
+        cost += ( Ax.array() - b.row(s).transpose().array() * (Ax.array() + eps).log().array() ).sum();  
+    }
+
+    return cost;
+}
+
 void astra_ctvlib::initializeFBP(std::string filter)
 {
     // Possible Inputs for FilterType:
@@ -273,11 +321,11 @@ float astra_ctvlib::data_distance()
     return (g - b).norm() / g.size(); // Nrow*Nslice,sum_{ij} M_ij^2 / Nrow*Nslice
 }
 
-void astra_ctvlib::initializeFP()
-{
-    // Forward Projection Operator
-    algo_fp = new CCudaForwardProjectionAlgorithm();
-}
+// Initialize the Forward Projection Operator
+void astra_ctvlib::initializeFP() { algo_fp = new CCudaForwardProjectionAlgorithm(); }
+
+// Initialize the Back Projection Operator
+void astra_ctvlib::initializeBP() { algo_bp = new CCudaBackProjectionAlgorithm(); }
 
 // Foward project the data.
 void astra_ctvlib::forwardProjection()
@@ -294,27 +342,15 @@ void astra_ctvlib::forwardProjection()
 }
 
 // Measure the RMSE (simulation studies)
-float astra_ctvlib::rmse()
-{
-    return sqrt(cuda_rmse(recon.data, original_volume.data, Nslice, Ny, Nz) / (Nslice * Ny * Nz));
-}
+float astra_ctvlib::rmse() { return sqrt(cuda_rmse(recon.data, original_volume.data, Nslice, Ny, Nz) / (Nslice * Ny * Nz)); }
 
 //Measure Original Volume's TV.
-float astra_ctvlib::original_tv_3D()
-{
-    return cuda_tv_3D(original_volume.data, Nslice, Ny, Nz);
-}
+float astra_ctvlib::original_tv_3D() { return cuda_tv_3D(original_volume.data, Nslice, Ny, Nz); }
 
 // TV Minimization (Gradient Descent)
-float astra_ctvlib::tv_gd_3D(int ng, float dPOCS)
-{
-    return cuda_tv_gd_3D(recon.data, ng, dPOCS, Nslice, Ny, Nz);
-}
+float astra_ctvlib::tv_gd_3D(int ng, float dPOCS) { return cuda_tv_gd_3D(recon.data, ng, dPOCS, Nslice, Ny, Nz); }
 
-float astra_ctvlib::tv_fgp_3D(int ng, float lambda)
-{ 
-    return cuda_tv_fgp_3D(recon.data, ng, lambda, Nslice, Ny, Nz);
-}
+float astra_ctvlib::tv_fgp_3D(int ng, float lambda) {  return cuda_tv_fgp_3D(recon.data, ng, lambda, Nslice, Ny, Nz); }
 
 // Save Reconstruction with Parallel MPI - I/O
 void astra_ctvlib::save_recon(char *filename) {
@@ -329,34 +365,22 @@ void astra_ctvlib::save_recon(char *filename) {
 }
 
 // Return Reconstruction to Python.
-Mat astra_ctvlib::getRecon(int slice)
-{
-    return recon.getData(slice);
-}
+Mat astra_ctvlib::getRecon(int slice) { return recon.getData(slice); }
 
 //Return the projections.
-Mat astra_ctvlib::get_projections()
-{
-    return b;
-}
+Mat astra_ctvlib::get_projections() { return b; }
 
-Mat astra_ctvlib::get_model_projections()
-{
-    return g;
-}
+Mat astra_ctvlib::get_model_projections() { return g; }
 
 // Restart the Reconstruction (Reset to Zero). 
-void astra_ctvlib::restart_recon()
-{
-    memset(recon.data, 0, sizeof(float)*Nslice*Ny*Nz);
-}
+void astra_ctvlib::restart_recon() { memset(recon.data, 0, sizeof(float)*Nslice*Ny*Nz); }
 
 //Python functions for astra_ctvlib module.
 PYBIND11_MODULE(astra_ctvlib, m)
 {
     m.doc() = "C++ Scripts for TV-Tomography Reconstructions using ASTRA Cuda Library";
     py::class_<astra_ctvlib> astra_ctvlib(m, "astra_ctvlib");
-    astra_ctvlib.def(py::init<int,int,int,Vec>());
+    astra_ctvlib.def(py::init<int,int,Vec>());
     astra_ctvlib.def("initialize_initial_volume", &astra_ctvlib::initializeInitialVolume, "Initialize Original Data");
     astra_ctvlib.def("initialize_recon_copy", &astra_ctvlib::initializeReconCopy, "Initalize Copy Data of Recon");
     astra_ctvlib.def("set_tilt_series", &astra_ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
@@ -372,6 +396,8 @@ PYBIND11_MODULE(astra_ctvlib, m)
     astra_ctvlib.def("initialize_FBP", &astra_ctvlib::initializeFBP, "Initialize Filtered BackProjection");
     astra_ctvlib.def("FBP", &astra_ctvlib::FBP, "Filtered Backprojection");
     astra_ctvlib.def("initialize_FP", &astra_ctvlib::initializeFP, "Initialize Forward Projection");
+    astra_ctvlib.def("initialize_BP", &astra_ctvlib::initializeBP, "Initialize Back Projection");
+    astra_ctvlib.def("poisson_ML", &astra_ctvlib::poisson_ML, "Poisson ML Reconstruction");
     astra_ctvlib.def("forward_projection", &astra_ctvlib::forwardProjection, "Forward Projection");
     astra_ctvlib.def("copy_recon", &astra_ctvlib::copy_recon, "Copy the reconstruction");
     astra_ctvlib.def("matrix_2norm", &astra_ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");

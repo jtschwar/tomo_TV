@@ -40,7 +40,7 @@ saveRecon = True
 (Nslice, Nray, Nproj) = tiltSeries.shape
 
 # Initialize C++ Object.. 
-tomo = mpi_astra_ctvlib.mpi_astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
+tomo = mpi_astra_ctvlib.mpi_astra_ctvlib(Nslice, Nray, np.deg2rad(tiltAngles))
 initialize_algorithm(tomo, alg, initAlg)
 tomo.initialize_recon_copy()
 

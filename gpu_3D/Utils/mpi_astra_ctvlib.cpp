@@ -35,7 +35,7 @@ namespace py = pybind11;
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Mat;
 typedef Eigen::VectorXf Vec;
 
-mpi_astra_ctvlib::mpi_astra_ctvlib(int Ns, int Nray, int Nproj, Vec pyAngles)
+mpi_astra_ctvlib::mpi_astra_ctvlib(int Ns, int Nray, Vec pyAngles)
 {
     //Intialize all the Member variables.
     Nslice = Ns;
@@ -43,6 +43,8 @@ mpi_astra_ctvlib::mpi_astra_ctvlib(int Ns, int Nray, int Nproj, Vec pyAngles)
     Nz = Nray;
     Nrow = Nray * Nproj;
     Ncol = Ny * Nz;
+
+    Nproj = pyAngles.size();
     
     // Initialize MPI
     MPI_Init(NULL, NULL);
@@ -535,7 +537,7 @@ PYBIND11_MODULE(mpi_astra_ctvlib, m)
 {
     m.doc() = "C++ Scripts for TV-Tomography Reconstructions using ASTRA Cuda Library";
     py::class_<mpi_astra_ctvlib> mpi_astra_ctvlib(m, "mpi_astra_ctvlib");
-    mpi_astra_ctvlib.def(py::init<int,int,int,Vec>());
+    mpi_astra_ctvlib.def(py::init<int,int,Vec>());
     mpi_astra_ctvlib.def("initialize_initial_volume", &mpi_astra_ctvlib::initializeInitialVolume, "Initialize Original Data");
     mpi_astra_ctvlib.def("initialize_recon_copy", &mpi_astra_ctvlib::initializeReconCopy, "Initialize Recon Copy");
     mpi_astra_ctvlib.def("rank", &mpi_astra_ctvlib::get_rank, "Get Rank");

@@ -42,7 +42,7 @@ tiltAngles = tomoLogger.log_tilts
 (Nslice, Nray, Nproj) = tomoLogger.log_projs.shape
 
 # Initialize C++ Object..
-tomo = mpi_astra_ctvlib.mpi_astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
+tomo = mpi_astra_ctvlib.mpi_astra_ctvlib(Nslice, Nray, np.deg2rad(tiltAngles))
 initialize_algorithm(tomo, alg, initAlg)
 tomoLogger.load_tilt_series_mpi(tomo)
 

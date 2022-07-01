@@ -2,7 +2,7 @@
 
 import mpi_astra_ctvlib
 from tqdm import tqdm
-from pytvlib import *
+from Utils.pytvlib import *
 import numpy as np
 check_cuda()
 ########################################
@@ -31,7 +31,7 @@ saveRecon = True
 Nproj = tiltAngles.shape[0]
 
 # Initialize C++ Object.. 
-tomo = mpi_astra_ctvlib.mpi_astra_ctvlib(Nslice, Nray, Nproj, np.deg2rad(tiltAngles))
+tomo = mpi_astra_ctvlib.mpi_astra_ctvlib(Nslice, Nray, np.deg2rad(tiltAngles))
 tomo.initialize_initial_volume()
 
 # Load Volume and Collect Projections. 
