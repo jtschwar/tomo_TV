@@ -7,7 +7,9 @@ MPIGPUCONFIG = mpi_astra_ctvlib`python3-config --extension-suffix`
 
 all: shared_library astra_ctvlib mpi_astra_ctvlib  
 
-shared_library: 
+shared_library:
+	cd container; make; cd ..
+	cd regularizers; make; cd .. 
 	g++ -shared container/*.o regularizers/*.o -o aux_func.so
 
 astra_ctvlib: astra_ctvlib.cpp astra_ctvlib.hpp

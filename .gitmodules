@@ -1,3 +1,6 @@
 [submodule "thirdparty/eigen"]
 	path = thirdparty/eigen
 	url = https://gitlab.com/libeigen/eigen.git
+[submodule "thirdparty/astra-toolbox"]
+	path = thirdparty/astra-toolbox
+	url = https://github.com/jtschwar/astra-toolbox.git
