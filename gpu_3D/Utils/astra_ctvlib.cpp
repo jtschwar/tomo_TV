@@ -34,6 +34,17 @@ namespace py = pybind11;
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Mat;
 typedef Eigen::VectorXf Vec;
 
+astra_ctvlib::astra_ctvlib(int Ns, int Nray)
+{
+    //Intialize all the Member variables.
+    Nslice = Ns;
+    Ny = Nray;
+    Nz = Nray;
+
+    //Initialize all the Slices in Recon as Zero.
+    recon = Matrix3D(Ns,Ny,Nz); //Final Reconstruction.
+}
+
 astra_ctvlib::astra_ctvlib(int Ns, int Nray, Vec pyAngles)
 {
     //Intialize all the Member variables.
@@ -380,6 +391,7 @@ PYBIND11_MODULE(astra_ctvlib, m)
 {
     m.doc() = "C++ Scripts for TV-Tomography Reconstructions using ASTRA Cuda Library";
     py::class_<astra_ctvlib> astra_ctvlib(m, "astra_ctvlib");
+    astra_ctvlib.def(py::init<int,int>());
     astra_ctvlib.def(py::init<int,int,Vec>());
     astra_ctvlib.def("initialize_initial_volume", &astra_ctvlib::initializeInitialVolume, "Initialize Original Data");
     astra_ctvlib.def("initialize_recon_copy", &astra_ctvlib::initializeReconCopy, "Initalize Copy Data of Recon");

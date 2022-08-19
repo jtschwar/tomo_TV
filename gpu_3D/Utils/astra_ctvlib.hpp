@@ -69,7 +69,7 @@ public:
     std::string projOrder;
  
 	// Initializes Measurement Matrix. 
-	astra_ctvlib(int Nslice, int Nray, int Nproj, Vec pyAngles);
+	astra_ctvlib(int Nslice, int Nray);
     astra_ctvlib(int Nslice, int Nray, Vec pyAngles);
     void initializeInitialVolume();
     void initializeReconCopy();
