@@ -4,7 +4,9 @@ include ./make.inc
 
 PYCONFIG = ctvlib`python3-config --extension-suffix`
 MPICONFIG = mpi_ctvlib`python3-config --extension-suffix`
+
 all: ctvlib mpi_ctvlib
+
 ctvlib: ctvlib.cpp  ctvlib.hpp
 	$(CXX) $(CXXFLAGS) $(EIGEN) $(PYBIND11) ctvlib.cpp -o $(PYCONFIG)
 
