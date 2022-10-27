@@ -27,7 +27,7 @@ Instructructions for building can be found in [BUILDING.MD](BUILDING.md).
 tomo_TV can be used by running in parallel across multiple GPU devices on a personal computer or compute nodes in a high-performance computing cluster. In order to initiate a parallel run on multiple GPUs, MPI needs to be available. 
 
 ## References
-If you use tomo_TV for your research, we would appreciate it if you refer to the following papers:
+If you use tomo_TV for your research, we would appreciate it if ygou refer to the following papers:
 
 - [Real-time 3D analysis during electron tomography using tomviz](https://www.nature.com/articles/s41467-022-32046-0)
      
