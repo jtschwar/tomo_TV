@@ -28,6 +28,7 @@
 #include <astra/CudaFilteredBackProjectionAlgorithm.h>
 #include <astra/CudaSartAlgorithm.h>
 #include <astra/CudaSirtAlgorithm.h>
+#include <astra/CudaGglsAlgorithm.h>
 
 using namespace astra;
 
@@ -91,16 +92,20 @@ public:
     void initializeFBP(std::string filter);
     void initializeFP();
     void initializeBP();
+    void initializeCGLS();
     
 	// 2D Reconstructions
     void update_projection_angles(Vec pyAngles);
     void SART(float beta, int nIter=1);
     void SIRT(int nIter=1);
     void FBP(bool apply_positivity);
+    void CGLS(int nIter=1);
 
+    // Forward And Back-Projection Operator
     Vec forward_projection(const Vec &inVol);
     Vec back_projection(const Vec &inProj);
 
+    // Reconstruct with Maximum-Likelihood (KL-Divergence)
     float poisson_ML(float lambda);
 
 	//Forward Project Reconstruction for Data Tolerance Parameter. 

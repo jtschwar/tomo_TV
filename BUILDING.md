@@ -1,10 +1,11 @@
-To clone the repositiory run: 
+# Building tomo_TV
 
-` git clone --recursive https://github.com/jtschwar/tomo_TV.git`
-     
-The list of python dependencies is stored in the requirements text file. They can all be installed with the following code:
-   
-   `pip install -r requirements.txt`
+This project serves as a wrapper around [ASTRA-toolbox](https://github.com/astra-toolbox/astra-toolbox) for GPU acccelerated and custom written parallel C++ reconstraction algorithms. In both cases, we recommend using the GNU GCC compiler, any version above 4.0 will be suitable for compiling these scripts. To install the C++ accelerated scripts:
+
+```cd cpu_3D/Utils/
+make ctvlib```
+
+To compile multi-mode scripts compile the mpi_ctvlib instead (assuming MPI is available).
 
 tomo_TV uses the Eigen library for C++ linear algebra and sparse computations (available as a thirdparty submodule). 
 

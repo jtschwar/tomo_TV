@@ -219,6 +219,32 @@ void astra_ctvlib::SIRT(int nIter)
     }
 }
 
+void astra_ctvlib::initializeCGLS()
+{
+    algo_cgls = new CCudaCglsAlgorithm();
+    algo_cgls->initialize(proj, sino, vol);
+    algo_cgls-setConstraints(true, 0, false, 1);
+}
+
+void astra_ctliv::CGLS(int nIter)
+{
+    int sliceInd;
+    for (int s=0; s < Nslice; s++)
+    {
+        // Pass 2D Slice and Sinogram (Measurements) to ASTRA
+        sliceInd = recon.index(s,0,0);
+        sino->copyData((float32*) &b(s,0));
+        vol->copyData( (float32*) &recon.data[sliceInd] );
+
+        // CGLS Reconstruction
+        algo_cgls->updateSlice(sino, vol);
+        algo_cgls->run(nIter);
+        
+        // Return Slice to tomo_TV
+        memcpy(&recon.data[sliceInd], vol->getData(), sizeof(float)*Ny*Nz);
+    }
+}
+
 // Estimate Lipschitz for ML-Poisson 
 void astra_ctvlib::lipschitz() {
     Vec cc(Nrow); cc.setOnes();
@@ -401,14 +427,16 @@ PYBIND11_MODULE(astra_ctvlib, m)
     astra_ctvlib.def("get_recon", &astra_ctvlib::getRecon, "Return the Reconstruction to Python");
     astra_ctvlib.def("set_recon", &astra_ctvlib::setRecon, "Return the Reconstruction to Python");
     astra_ctvlib.def("save_recon", &astra_ctvlib::save_recon, "Save the Reconstruction with HDF5 parallel I/O");
+    astra_ctvlib.def("initialize_FP", &astra_ctvlib::initializeFP, "Initialize Forward Projection");
+    astra_ctvlib.def("initialize_BP", &astra_ctvlib::initializeBP, "Initialize Back Projection");
     astra_ctvlib.def("initialize_SART", &astra_ctvlib::initializeSART, "Initialize SART");
     astra_ctvlib.def("SART", &astra_ctvlib::SART, "ART Reconstruction");
     astra_ctvlib.def("initialize_SIRT", &astra_ctvlib::initializeSIRT, "Initialize SIRT");
     astra_ctvlib.def("SIRT", &astra_ctvlib::SIRT, "SIRT Reconstruction");
     astra_ctvlib.def("initialize_FBP", &astra_ctvlib::initializeFBP, "Initialize Filtered BackProjection");
     astra_ctvlib.def("FBP", &astra_ctvlib::FBP, "Filtered Backprojection");
-    astra_ctvlib.def("initialize_FP", &astra_ctvlib::initializeFP, "Initialize Forward Projection");
-    astra_ctvlib.def("initialize_BP", &astra_ctvlib::initializeBP, "Initialize Back Projection");
+    astra_ctvlib.def("initialize_CGLS", &astra_ctvlib::initializeCGLS, "Initialize Conjugate Gradient Method for Least Squares");
+    astra_ctvlib.def("CGLS", &astra_ctvlib::CGLS, "Conjugate Gradient Method for Least Squares");
     astra_ctvlib.def("poisson_ML", &astra_ctvlib::poisson_ML, "Poisson ML Reconstruction");
     astra_ctvlib.def("forward_projection", &astra_ctvlib::forwardProjection, "Forward Projection");
     astra_ctvlib.def("copy_recon", &astra_ctvlib::copy_recon, "Copy the reconstruction");
