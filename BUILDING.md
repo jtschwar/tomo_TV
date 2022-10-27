@@ -4,9 +4,7 @@ This project serves as a wrapper around [ASTRA-toolbox](https://github.com/astra
 
     cd cpu_3D/Utils/
     make ctvlib
-    mkdir paraview-build
-    cd paraview-build
-    
+
 To compile multi - nodal scripts compile the mpi_ctvlib instead (assuming MPI is available).
 
 # Compiling GPU Accelerated Reconstruction Scripts

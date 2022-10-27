@@ -24,7 +24,7 @@ For GPU accelerated reconstruction algorithms, we recomend using a Linux operati
 Instructructions for building can be found in [BUILDING.MD](BUILDING.md).
 
 ## Multi-GPU Capabilities
-tomo_TV can be used by running in parallel across multiple GPU devices on a personal computer or compute nodes in a high-performance computing cluster. In order to initiate a parallel run on multiple GPUs, see this demo. 
+tomo_TV can be used by running in parallel across multiple GPU devices on a personal computer or compute nodes in a high-performance computing cluster. In order to initiate a parallel run on multiple GPUs, MPI needs to be available. 
 
 ## References
 If you use tomo_TV for your research, we would appreciate it if you refer to the following papers:
