@@ -4,25 +4,18 @@ C++ toolbox for Total Varation tomographic reconstruction. Specifically, this re
 
 # Features
 
-2D and 3D reconstruction algorithms implemented purely in C++ wrapped in Python functions.  These scripts can either perform simulations (sim)  or reconstruct experimental (exp) projections . 
+2D and 3D reconstruction algorithms implemented purely in C++ wrapped in Python functions.  These scripts can either perform simulations (sim) or reconstruct experimental (exp) projections. 
 
 # Installation
 
-To clone the repositiory run: 
+For GPU accelerated reconstruction algorithms, we recomend using a Linux operating system. C++ accelerated operations is available on all three operating systems (Windows, macOS, and Linux). 
 
-` git clone --recursive https://github.com/jtschwar/tomo_TV.git`
-     
-The list of python dependencies is stored in the requirements text file. They can all be installed with the following code:
-   
-   `pip install -r requirements.txt`
+[Instructructions for building](BUILDING.md) can be found in the BUILDING.MD document.
 
-tomo_TV uses the Eigen library for C++ linear algebra and sparse computations (available as a thirdparty submodule). 
+# References
+If you use tomo_TV for your research, we would appreciate it if you refer to the following papers:
 
-# Compiling GPU Projection Operators and Reconstruction Scripts
-
-For GPU accelerated forward and back-projection operators, we utilize the ASTRA toolbox (https://github.com/astra-toolbox/astra-toolbox). Tomo_tv uses a couple custom written C++ scripts to link the two packages together. Replace the \*.cpp / \*.hpp and follow the compilation directions on the github repository to build the source files. Once all the necessary dependencies are compiled, move to tomo_TV/gpu_3D/Utils to find the Makefile. Open make.inc and specify the paths for the ASTRA, CUDA and HDF5 libraries.
-
-To run the scripts enter : `mpirun -n XX python3 dynamicTomo.py` where XX is the number of cores or GPUs available. \\
+- [Real-time 3D analysis during electron tomography using tomviz](https://www.nature.com/articles/s41467-022-32046-0)
      
 # Contribute
 
@@ -31,3 +24,7 @@ Issue Tracker:  https://github.com/jtschwar/tomo_TV/issues
 Feel free to open an issue if you have any comments or concerns. 
     
     
+# Contact
+
+email: [jtschw@umich.edu](jtschw@umich.edu)
+webiste: [https://jtschwar.github.io](https://jtschwar.github.io)
