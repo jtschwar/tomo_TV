@@ -1,6 +1,6 @@
 # tomo_TV
 
-Python and C++ toolbox for tomographic data processing and developing iterative reconstruction algorithms. Specifically, this repository provides a selection of various data models and regularizers for simple python development. Also contains GPU accelerated support for experiments where data 'dynamically' collected to facilitate real-time analysis of tomograms. 
+Python and C++ toolbox for tomographic data processing and developing iterative reconstruction algorithms. Specifically, this repository provides a selection of various data models and regularizers for simple python development. Tomo_TV also contains supports experiments where data is 'dynamically' collected to facilitate real-time analysis of tomograms. 
 
 ## Features
 
