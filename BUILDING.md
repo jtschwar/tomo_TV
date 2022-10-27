@@ -2,14 +2,20 @@
 
 This project serves as a wrapper around [ASTRA-toolbox](https://github.com/astra-toolbox/astra-toolbox) for GPU acccelerated and custom written parallel C++ reconstraction algorithms. In both cases, we recommend using the GNU GCC compiler, any version above 4.8 that supports [OpenMP](https://gcc.gnu.org/wiki/openmp) is suitable for compiling these scripts. To install the C++ accelerated scripts:
 
+## Compiling C++ Accelerated Reconstruction Scripts
+
+Compiling the C++ scripts is straightforward assuming GCC is avaiable and all the thirdparty dependencies are cloned. Simply move the Utility folder and compile the core script.
+
     cd cpu_3D/Utils/
     make ctvlib
 
-On MacOS: the build command requires passing of the `-undefined dynamic_lookup` flag.  If you're compiling the C++ for any other operating system remove that flag from line. M1 and any future architectures requires the passing of an additional  `-mcpu=apple-m1` flag. 
+On MacOS: the build command requires passing of the `-undefined dynamic_lookup` flag.  If you're compiling the C++ for any other operating system remove that flag from line. M1 and any future architectures requires the passing of an additional  `-mcpu=apple-m1` flag. You can append these flags in the `CXXFLAGS` variable in make.inc. 
 
-To compile multi - nodal scripts compile the mpi_ctvlib instead (assuming MPI is available).
+Compiling ctvlib will create a shared object file in the following format: (ctvlib.cpython-3X-___.so). You can now import ctvlib as a python module and initialize it as a class. Refer to the demo jupyter-notebook for  more details. 
 
-# Compiling GPU Accelerated Reconstruction Scripts
+To compile multi - nodal scripts compile the mpi_ctvlib library instead (assuming MPI is available).
+
+## Compiling GPU Accelerated Reconstruction Scripts
 
 For GPU accelerated forward and back-projection operators, we first will need to be in the ASTRA-toolbox folder in `thirdparty/astra-toolbox`. Tomo_tv uses a couple custom written C++ scripts to link the two packages together. Complete the following steps to build Astra from source:
 
@@ -44,7 +50,7 @@ Complete the process by running:
 
 This will create a shared object file in the following format: (astra_ctvlib.cpython-3X-___.so). The final step requires linking the shared libraries and adding the necessary modules to the python path. Refer to `setup_tomo_tv.sh` for a sample shell script. 
 
-# Compiling Multi-GPU or Mutli-Node (HPC) Support
+## Compiling Multi-GPU or Mutli-Node (HPC) Support
 
 Multi-GPU parallel scripts requires parallel HDF5 as an additional dependency. 
 
