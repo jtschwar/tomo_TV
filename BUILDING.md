@@ -21,7 +21,7 @@ For GPU accelerated forward and back-projection operators, we first will need to
 
     cd thirdparty/astra-toolbox/build/linux
     ./autogen.sh
-    .configure --with-cuda=/path/to/cuda --with-python --with-install-type=prefix --prefix=/path/to/astra
+    ./configure --with-cuda=/path/to/cuda --with-python --with-install-type=prefix --prefix=/path/to/astra
     make all
 
 To get your cuda path run: `whereis cuda`. You'll also need to specify the path where you would like to build the Astra libary. I'd recommend spefcifying the path to where tomo_TV is located. Example: `/path/to/tomo_TV/astra`.
