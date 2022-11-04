@@ -17,7 +17,11 @@ To compile multi - nodal scripts compile the mpi_ctvlib library instead (assumin
 
 ## Compiling GPU Accelerated Reconstruction Scripts
 
-For GPU accelerated forward and back-projection operators, we first will need to be in the ASTRA-toolbox folder in `thirdparty/astra-toolbox`. Tomo_tv uses a couple custom written C++ scripts to link the two packages together. Complete the following steps to build Astra from source:
+For GPU accelerated forward and back-projection operators, we first will need to be in the ASTRA-toolbox folder in `thirdparty/astra-toolbox`. Tomo_tv uses a couple custom written C++ scripts to link the two packages together.
+
+Note: boost is a requirement for astra. Run `sudo apt-get install libboost-all-dev` to install boost or compile it from source (https://www.boost.org/doc/libs/1_43_0/more/getting_started/unix-variants.html).  
+
+Complete the following steps to build Astra from source:
 
     cd thirdparty/astra-toolbox/build/linux
     ./autogen.sh
