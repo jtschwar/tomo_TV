@@ -30,7 +30,7 @@ Complete the following steps to build Astra from source:
 
 To get your cuda path run: `whereis cuda`. You'll also need to specify the path where you would like to build the Astra libary. I'd recommend spefcifying the path to where tomo_TV is located. Example: `/path/to/tomo_TV/astra`.
 
-After the configuration compeletes, add `--prefix=/path/to/astra` to the end of Line 507 in the Makefile where `/path/to/astra` is the path specified as the prefix in the above (e.g. `/path/to/tomo_TV/astra`). 
+After the configuration compeletes, add `--prefix=/path/to/astra` to the end of Line 508 in the Makefile where `/path/to/astra` is the path specified as the prefix in the above (e.g. `/path/to/tomo_TV/astra`). 
 
 Finish installing the package.
 
