@@ -70,6 +70,7 @@ public:
     CCudaSartAlgorithm *algo_sart;
     CCudaSirtAlgorithm *algo_sirt;
     CCudaFilteredBackProjectionAlgorithm *algo_fbp;
+    CCudaCglsAlgorithm *algo_cgls;
 
     // Auxilary variables for Sart and FBP.
     std::string fbfFilter;
