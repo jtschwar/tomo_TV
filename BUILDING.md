@@ -41,7 +41,7 @@ This will install the Python package to /path/to/astra
 Once Astra is available, now let's compile tomo_TV. 
 
     cd tomo_TV/gpu_3D/Utils
-    make shared library
+    make shared_library
 
 Before compiling astra_ctvlib we'll need to specify the paths for ASTRA and CUDA. Open make.inc and edit the following lines 
 
