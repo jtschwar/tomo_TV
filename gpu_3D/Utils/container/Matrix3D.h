@@ -10,7 +10,8 @@ typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Ma
     
 public:
     
-    int nx, ny, nz, size, gpuIndex;
+    int nx, ny, nz, size;
+    int gpuIndex = -1;
     
     float *data;
     

@@ -28,7 +28,7 @@
 #include <astra/CudaFilteredBackProjectionAlgorithm.h>
 #include <astra/CudaSartAlgorithm.h>
 #include <astra/CudaSirtAlgorithm.h>
-#include <astra/CudaGglsAlgorithm.h>
+#include <astra/CudaCglsAlgorithm.h>
 
 using namespace astra;
 
@@ -42,9 +42,15 @@ public:
 
     // Eigen - tomoTV Member Variables.
     Matrix3D recon, temp_recon, original_volume;
+
     int Nrow, Ncol, Nslice, Nproj, Ny, Nz;
+    int gpuID = -1;
+
+    // Intermediate Reconstruction Variables
     Eigen::VectorXf innerProduct, updateCHEM, xx, Ax, outProj, outVol;
     float L_Aps;
+
+    // Raw Data and Reprojection
     Mat b, g;
     
     // Astra Member Variables
@@ -78,7 +84,8 @@ public:
 	// Initialize Experimental Projections. 
 	void setTiltSeries(Mat in);
     void setOriginalVolume(Mat in, int slice);
-    
+    int get_gpu_id();         void set_gpu_id(int id);
+
     // Create Projections and Add Poisson Noise (Simulations)
     void create_projections();
     void poissonNoise(int SNR);

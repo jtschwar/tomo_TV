@@ -82,12 +82,16 @@ astra_ctvlib::astra_ctvlib(int Ns, int Nray, Vec pyAngles)
      proj = new CCudaProjector2D(proj_geom,vol_geom);
 }
 
+void astra_ctvlib::set_gpu_id(int id){ 
+    gpuID = id;
+    recon.gpuIndex = id; }
+
+int astra_ctvlib::get_gpu_id() { return gpuID; }
+
 void astra_ctvlib::initializeInitialVolume() { original_volume = Matrix3D(Nslice,Ny,Nz); }
 
-void astra_ctvlib::initializeReconCopy()
-{
-    temp_recon =  Matrix3D(Nslice,Ny,Nz); // Temporary copy for measuring changes in TV and ART.
-}
+// Temporary copy for measuring changes in TV and ART.
+void astra_ctvlib::initializeReconCopy() { temp_recon =  Matrix3D(Nslice,Ny,Nz); }
 
 //Import tilt series (projections) from Python.
 void astra_ctvlib::setTiltSeries(Mat in) { b = in; }
@@ -166,6 +170,7 @@ void astra_ctvlib::initializeSART(std::string order)
     algo_sart = new CCudaSartAlgorithm();
     algo_sart->initialize(proj,sino,vol);
     algo_sart->setConstraints(true, 0, false, 1);
+    if (recon.gpuIndex != -1){algo_sart->setGPUIndex(recon.gpuIndex); }
 }
 
 // ART Reconstruction.
@@ -197,6 +202,7 @@ void astra_ctvlib::initializeSIRT()
     algo_sirt = new CCudaSirtAlgorithm();
     algo_sirt->initialize(proj, sino, vol);
     algo_sirt->setConstraints(true, 0, false, 1);
+    if (recon.gpuIndex != -1){algo_sirt->setGPUIndex(recon.gpuIndex);}
 }
 
 // SIRT Reconstruction.
@@ -223,10 +229,11 @@ void astra_ctvlib::initializeCGLS()
 {
     algo_cgls = new CCudaCglsAlgorithm();
     algo_cgls->initialize(proj, sino, vol);
-    algo_cgls-setConstraints(true, 0, false, 1);
+    algo_cgls->setConstraints(true, 0, false, 1);
+    if (recon.gpuIndex != -1){algo_cgls->setGPUIndex(recon.gpuIndex); }
 }
 
-void astra_ctliv::CGLS(int nIter)
+void astra_ctlib::CGLS(int nIter)
 {
     int sliceInd;
     for (int s=0; s < Nslice; s++)
@@ -251,6 +258,11 @@ void astra_ctvlib::lipschitz() {
     L_Aps = back_projection(forward_projection(cc)).maxCoeff();
 }
 
+void astra_ctvlib::initializeFP() {
+    algo_fp = new CCudaForwardProjectionAlgorithm();
+    algo_fp->initialize(proj,vol,sino);
+}
+
 // Forward Projection (ML-Poisson)
 Vec astra_ctvlib::forward_projection(const Vec &inVol)
 {
@@ -258,12 +270,18 @@ Vec astra_ctvlib::forward_projection(const Vec &inVol)
     vol->copyData((float32*) &inVol(0));
 
     // Forward Project
-    algo_fp->initialize(proj,vol,sino);
+    // algo_fp->initialize(proj,vol,sino);
+    algo_fp->updateSlice(sino,vol);
     algo_fp->run();
 
     memcpy(&outProj(0), sino->getData(), sizeof(float)*Nrow);
 
     return outProj;
+}
+
+void astra_ctvlib::initializeBP() {
+    algo_bp = new CCudaBackProjectionAlgorithm();
+    algo_bp->initialize(proj,sino,vol);
 }
 
 // Backproject the data (HAADF Volume).
@@ -272,7 +290,8 @@ Vec astra_ctvlib::back_projection(const Vec &inProj)
     sino->copyData((float32*) &inProj(0));
 
     // Back Project
-    algo_bp->initialize(proj,sino,vol);
+    // algo_bp->initialize(proj,sino,vol);
+    algo_bp->updateSlice(sino,vol);
     algo_bp->run();
 
     // Return data from Astra
@@ -358,26 +377,6 @@ float astra_ctvlib::data_distance()
     return (g - b).norm() / g.size(); // Nrow*Nslice,sum_{ij} M_ij^2 / Nrow*Nslice
 }
 
-// Initialize the Forward Projection Operator
-void astra_ctvlib::initializeFP() { algo_fp = new CCudaForwardProjectionAlgorithm(); }
-
-// Initialize the Back Projection Operator
-void astra_ctvlib::initializeBP() { algo_bp = new CCudaBackProjectionAlgorithm(); }
-
-// Foward project the data.
-void astra_ctvlib::forwardProjection()
-{
-    for (int s=0; s < Nslice; s++) {
-        vol->copyData((float32*) &recon.data[recon.index(s,0,0)]);
-
-        // Forward Project
-        algo_fp->initialize(proj,vol,sino);
-        algo_fp->run();
-        
-        memcpy(&g(s,0), sino->getData(), sizeof(float)*Nrow);
-    }
-}
-
 // Measure the RMSE (simulation studies)
 float astra_ctvlib::rmse() { return sqrt(cuda_rmse(recon.data, original_volume.data, Nslice, Ny, Nz) / (Nslice * Ny * Nz)); }
 
@@ -427,6 +426,8 @@ PYBIND11_MODULE(astra_ctvlib, m)
     astra_ctvlib.def("get_recon", &astra_ctvlib::getRecon, "Return the Reconstruction to Python");
     astra_ctvlib.def("set_recon", &astra_ctvlib::setRecon, "Return the Reconstruction to Python");
     astra_ctvlib.def("save_recon", &astra_ctvlib::save_recon, "Save the Reconstruction with HDF5 parallel I/O");
+    astra_ctvlib.def("get_gpu_id", &astra_ctvlib::get_gpu_id, "Get the GPU ID");
+    astra_ctvlib.def("set_gpu", &astra_ctvlib::set_gpu_id, "Set the GPU ID");
     astra_ctvlib.def("initialize_FP", &astra_ctvlib::initializeFP, "Initialize Forward Projection");
     astra_ctvlib.def("initialize_BP", &astra_ctvlib::initializeBP, "Initialize Back Projection");
     astra_ctvlib.def("initialize_SART", &astra_ctvlib::initializeSART, "Initialize SART");
