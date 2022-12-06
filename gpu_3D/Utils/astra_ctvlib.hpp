@@ -47,8 +47,8 @@ public:
     int gpuID = -1;
 
     // Intermediate Reconstruction Variables
-    Eigen::VectorXf innerProduct, updateCHEM, xx, Ax, outProj, outVol;
-    float L_Aps;
+    Eigen::VectorXf innerProduct, updateML, xx, Ax, outProj, outVol;
+    float L_Aml;
 
     // Raw Data and Reprojection
     Mat b, g;
@@ -91,15 +91,16 @@ public:
     void poissonNoise(int SNR);
 
 	// Compute Lipschitz Constant (SIRT Reconstruction).
-    void lipschitz();
+    // void lipschitz();
+    // void initializeFP();
+    // void initializeBP();
     
     // Generate Config File for Reconstruction Operators
     void initializeSIRT();
     void initializeSART(std::string projOrder);
     void initializeFBP(std::string filter);
-    void initializeFP();
-    void initializeBP();
     void initializeCGLS();
+    void initializePoissonML();
     
 	// 2D Reconstructions
     void update_projection_angles(Vec pyAngles);
