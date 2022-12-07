@@ -24,7 +24,6 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include "hdf5.h"
 
 using namespace astra;
 using namespace Eigen;
@@ -393,18 +392,6 @@ float astra_ctvlib::tv_gd_3D(int ng, float dPOCS) { return cuda_tv_gd_3D(recon.d
 
 float astra_ctvlib::tv_fgp_3D(int ng, float lambda) {  return cuda_tv_fgp_3D(recon.data, ng, lambda, Nslice, Ny, Nz); }
 
-// Save Reconstruction with Parallel MPI - I/O
-void astra_ctvlib::save_recon(char *filename) {
-    hid_t fd = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-    hsize_t dims[3] = {Nslice, Ny, Nz};
-    hid_t dataspace = H5Screate_simple(3, dims, NULL);
-    hid_t dset = H5Dcreate(fd, "recon", H5T_NATIVE_FLOAT, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    H5Dwrite(dset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &recon.data[recon.index(0,0, 0)]);
-    H5Dclose(dset);
-    H5Sclose(dataspace);
-    H5Fclose(fd);
-}
-
 // Return Reconstruction to Python.
 Mat astra_ctvlib::getRecon(int slice) { return recon.getData(slice); }
 
@@ -430,7 +417,6 @@ PYBIND11_MODULE(astra_ctvlib, m)
     astra_ctvlib.def("create_projections", &astra_ctvlib::create_projections, "Create Projections from Volume");
     astra_ctvlib.def("get_recon", &astra_ctvlib::getRecon, "Return the Reconstruction to Python");
     astra_ctvlib.def("set_recon", &astra_ctvlib::setRecon, "Return the Reconstruction to Python");
-    astra_ctvlib.def("save_recon", &astra_ctvlib::save_recon, "Save the Reconstruction with HDF5 parallel I/O");
     astra_ctvlib.def("get_gpu_id", &astra_ctvlib::get_gpu_id, "Get the GPU ID");
     astra_ctvlib.def("set_gpu", &astra_ctvlib::set_gpu_id, "Set the GPU ID");
     astra_ctvlib.def("initialize_SART", &astra_ctvlib::initializeSART, "Initialize SART");
@@ -456,3 +442,15 @@ PYBIND11_MODULE(astra_ctvlib, m)
     astra_ctvlib.def("poisson_noise", &astra_ctvlib::poissonNoise, "Add Poisson Noise to Projections");
     astra_ctvlib.def("restart_recon", &astra_ctvlib::restart_recon, "Set all the Slices Equal to Zero");
 }
+
+// Save Reconstruction with Parallel MPI - I/O
+// void astra_ctvlib::save_recon(char *filename) {
+//     hid_t fd = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+//     hsize_t dims[3] = {Nslice, Ny, Nz};
+//     hid_t dataspace = H5Screate_simple(3, dims, NULL);
+//     hid_t dset = H5Dcreate(fd, "recon", H5T_NATIVE_FLOAT, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+//     H5Dwrite(dset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &recon.data[recon.index(0,0, 0)]);
+//     H5Dclose(dset);
+//     H5Sclose(dataspace);
+//     H5Fclose(fd);
+// }
