@@ -231,7 +231,7 @@ void astra_ctvlib::initializeCGLS()
     if (recon.gpuIndex != -1){algo_cgls->setGPUIndex(recon.gpuIndex); }
 }
 
-void astra_ctlib::CGLS(int nIter)
+void astra_ctvlib::CGLS(int nIter)
 {
     int sliceInd;
     for (int s=0; s < Nslice; s++)
@@ -414,6 +414,7 @@ PYBIND11_MODULE(astra_ctvlib, m)
     astra_ctvlib.def("initialize_recon_copy", &astra_ctvlib::initializeReconCopy, "Initalize Copy Data of Recon");
     astra_ctvlib.def("set_tilt_series", &astra_ctvlib::setTiltSeries, "Pass the Projections to C++ Object");
     astra_ctvlib.def("set_original_volume", &astra_ctvlib::setOriginalVolume, "Pass the Volume to C++ Object");
+    astra_ctvlib.def("update_projections")
     astra_ctvlib.def("create_projections", &astra_ctvlib::create_projections, "Create Projections from Volume");
     astra_ctvlib.def("get_recon", &astra_ctvlib::getRecon, "Return the Reconstruction to Python");
     astra_ctvlib.def("set_recon", &astra_ctvlib::setRecon, "Return the Reconstruction to Python");
