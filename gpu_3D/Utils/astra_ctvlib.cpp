@@ -381,6 +381,21 @@ float astra_ctvlib::data_distance()
     return (g - b).norm() / g.size(); // Nrow*Nslice,sum_{ij} M_ij^2 / Nrow*Nslice
 }
 
+// Foward project the data.
+void astra_ctvlib::forwardProjection()
+{
+    for (int s=0; s < Nslice; s++) {
+        vol->copyData((float32*) &recon.data[recon.index(s,0,0)]);
+
+        // Forward Project
+        algo_fp->updateSlice(sino, vol);
+        // algo_fp->initialize(proj,vol,sino);
+        algo_fp->run();
+        
+        memcpy(&g(s,0), sino->getData(), sizeof(float)*Nrow);
+    }
+}
+
 // Measure the RMSE (simulation studies)
 float astra_ctvlib::rmse() { return sqrt(cuda_rmse(recon.data, original_volume.data, Nslice, Ny, Nz) / (Nslice * Ny * Nz)); }
 
