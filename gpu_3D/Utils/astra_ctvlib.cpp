@@ -272,6 +272,18 @@ void astra_ctvlib::initializePoissonML() {
     L_Aml = back_projection(forward_projection(cc)).maxCoeff();
 }
 
+// Initialize the Forward Projection Operator
+void astra_ctvlib::initializeFP() { 
+    algo_fp = new CCudaForwardProjectionAlgorithm(); 
+    algo_fp->initialize(proj,vol,sino);
+}
+
+// Initialize the Back Projection Operator
+void astra_ctvlib::initializeBP() { 
+    algo_bp = new CCudaBackProjectionAlgorithm(); 
+    algo_bp->initialize(proj,sino,vol);
+}
+
 // Forward Projection (ML-Poisson)
 Vec astra_ctvlib::forward_projection(const Vec &inVol)
 {
@@ -441,6 +453,8 @@ PYBIND11_MODULE(astra_ctvlib, m)
     astra_ctvlib.def("SIRT", &astra_ctvlib::SIRT, "SIRT Reconstruction");
     astra_ctvlib.def("initialize_FBP", &astra_ctvlib::initializeFBP, "Initialize Filtered BackProjection");
     astra_ctvlib.def("FBP", &astra_ctvlib::FBP, "Filtered Backprojection");
+    astra_ctvlib.def("initialize_FP", &astra_ctvlib::initializeFP, "Initialize Forward Projection");
+    astra_ctvlib.def("initialize_BP", &astra_ctvlib::initializeBP, "Initialize Back Projection");
     astra_ctvlib.def("initialize_CGLS", &astra_ctvlib::initializeCGLS, "Initialize Conjugate Gradient Method for Least Squares");
     astra_ctvlib.def("CGLS", &astra_ctvlib::CGLS, "Conjugate Gradient Method for Least Squares");
     astra_ctvlib.def("initialize_poisson_ML", &astra_ctvlib::initializePoissonML, "Poisson ML Reconstruction");    

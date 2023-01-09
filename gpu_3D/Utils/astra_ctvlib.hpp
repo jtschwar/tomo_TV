@@ -93,13 +93,13 @@ public:
 
 	// Compute Lipschitz Constant (SIRT Reconstruction).
     // void lipschitz();
-    // void initializeFP();
-    // void initializeBP();
     
     // Generate Config File for Reconstruction Operators
     void initializeSIRT();
     void initializeSART(std::string projOrder);
     void initializeFBP(std::string filter);
+    void initializeFP();
+    void initializeBP();
     void initializeCGLS();
     void initializePoissonML();
     
