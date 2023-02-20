@@ -13,7 +13,7 @@ Python and C++ toolbox for tomographic data processing and developing iterative 
 * ASD - POCS [doi: 10.1088/0031-9155/53/17/021](https://iopscience.iop.org/article/10.1088/0031-9155/53/17/021)
 * (TODO: OGM and FASTA )
 
-We provide a sample jupyter notebook (demo.ipynb) outlining the reconstruction process for all these algorithms.
+We provide a sample jupyter notebook ([demo.ipynb](demo.ipynb)) which outlines the reconstruction process for all these algorithms both with simulated and experimental datasets. 
 
 ## Installation
 
