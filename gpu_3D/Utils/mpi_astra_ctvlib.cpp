@@ -39,12 +39,10 @@ mpi_astra_ctvlib::mpi_astra_ctvlib(int Ns, int Nray, Vec pyAngles)
 {
     //Intialize all the Member variables.
     Nslice = Ns;
-    Ny = Nray;
-    Nz = Nray;
+    Ny = Nray;                      Nz = Nray;
+    Nproj = pyAngles.size();
     Nrow = Nray * Nproj;
     Ncol = Ny * Nz;
-
-    Nproj = pyAngles.size();
     
     // Initialize MPI
     MPI_Init(NULL, NULL);
@@ -59,13 +57,14 @@ mpi_astra_ctvlib::mpi_astra_ctvlib(int Ns, int Nray, Vec pyAngles)
         first_slice += rank%nproc; }
     last_slice = first_slice + Nslice_loc - 1;
    
-    b.resize(Nslice_loc, Nrow);
-    g.resize(Nslice_loc, Nrow);
+    b.resize(Nslice_loc, Nrow);     g.resize(Nslice_loc, Nrow);
     deletePrev = false;
 
     //Initialize all the Slices in Recon as Zero.
     recon = Matrix3D(Nslice_loc+2,Ny,Nz); //Final Reconstruction.
     
+    // INITIALIZE ASTRA OBJECTS.
+
     // Create volume (2D) Geometry
     vol_geom = new CVolumeGeometry2D(Ny,Nz);
     
@@ -91,36 +90,26 @@ mpi_astra_ctvlib::mpi_astra_ctvlib(int Ns, int Nray, Vec pyAngles)
      checkNumGPUs();
 }
 
-int mpi_astra_ctvlib::get_rank() {
-    return rank;
-}
+// Return Rank to Python
+int mpi_astra_ctvlib::get_rank() {  return rank;  }
 
-int mpi_astra_ctvlib::get_nproc() {
-    return nproc;
-}
+// Return Number of processors to Python
+int mpi_astra_ctvlib::get_nproc() { return nproc; }
 
-int mpi_astra_ctvlib::get_Nslice_loc()
-{
-    return Nslice_loc;
-}
+// Get Number of Local Slices
+int mpi_astra_ctvlib::get_Nslice_loc() { return Nslice_loc; }
 
-int mpi_astra_ctvlib::get_first_slice()
-{
-    return first_slice;
-}
+// Get Index for First Slice (Global Reduction)
+int mpi_astra_ctvlib::get_first_slice() { return first_slice; }
 
-void mpi_astra_ctvlib::initializeInitialVolume()
-{
-    original_volume = Matrix3D(Nslice_loc+2,Ny,Nz);
-}
+// Inialize Initial Volume for Simulation Studies
+void mpi_astra_ctvlib::initializeInitialVolume() { original_volume = Matrix3D(Nslice_loc+2,Ny,Nz); }
 
-void mpi_astra_ctvlib::initializeReconCopy()
-{
-    temp_recon =  Matrix3D(Nslice_loc+2,Ny,Nz); // Temporary copy for measuring changes in TV and ART.
-}
+// Temporary copy for measuring changes in TV and ART.
+void mpi_astra_ctvlib::initializeReconCopy() { temp_recon =  Matrix3D(Nslice_loc+2,Ny,Nz);  }
 
-void mpi_astra_ctvlib::checkNumGPUs()
-{
+// Check to see How Many GPUs are Available
+void mpi_astra_ctvlib::checkNumGPUs() {
     if (nproc > 1) {
         cudaGetDeviceCount(&nDevices);
         localDevice = rank % nDevices;
@@ -128,27 +117,18 @@ void mpi_astra_ctvlib::checkNumGPUs()
     else { localDevice = -1; }
 }
 
-
 //Import tilt series (projections) from Python.
-void mpi_astra_ctvlib::setTiltSeries(Mat in)
-{
-    b = in;
-}
+void mpi_astra_ctvlib::setTiltSeries(Mat in) { b = in; }
 
 // Import the original volume from python.
-void mpi_astra_ctvlib::setOriginalVolume(Mat inBuffer, int slice)
-{
-    original_volume.setData(inBuffer,slice);
-}
+void mpi_astra_ctvlib::setOriginalVolume(Mat inBuffer, int slice) {
+    original_volume.setData(inBuffer,slice); }
 
-void mpi_astra_ctvlib::setRecon(Mat inBuffer, int slice)
-{
-    recon.setData(inBuffer,slice);
-}
+void mpi_astra_ctvlib::setRecon(Mat inBuffer, int slice) {
+    recon.setData(inBuffer,slice); }
 
 // Create projections from Volume (for simulation studies)
-void mpi_astra_ctvlib::create_projections()
-{
+void mpi_astra_ctvlib::create_projections() {
     int sliceInd;
     for (int s=0; s < Nslice_loc; s++) {
         
@@ -165,10 +145,8 @@ void mpi_astra_ctvlib::create_projections()
     }
 }
 
-void mpi_astra_ctvlib::set_background()
-{
-    original_volume.setBackground();
-}
+void mpi_astra_ctvlib::set_background() {
+    original_volume.setBackground(); }
 
 // Add poisson noise to projections.
 void mpi_astra_ctvlib::poissonNoise(int Nc)
@@ -219,8 +197,7 @@ void mpi_astra_ctvlib::update_projection_angles(Vec pyAngles)
     deletePrev = true;
 }
 
-void mpi_astra_ctvlib::initializeSART(std::string order)
-{
+void mpi_astra_ctvlib::initializeSART(std::string order) {
     if (deletePrev){algo_sart->~CCudaReconstructionAlgorithm2D();} // Delete Previous operator
     projOrder = order;
     if (rank==0) cout << "ProjectionOrder: " << projOrder << endl;
@@ -231,8 +208,7 @@ void mpi_astra_ctvlib::initializeSART(std::string order)
 }
 
 // ART Reconstruction.
-void mpi_astra_ctvlib::SART(float beta, int nIter)
-{
+void mpi_astra_ctvlib::SART(float beta, int nIter) {
     int Nproj = Nrow / Ny;
     algo_sart->updateProjOrder(projOrder);
     
@@ -254,8 +230,7 @@ void mpi_astra_ctvlib::SART(float beta, int nIter)
     }
 }
 
-void mpi_astra_ctvlib::initializeSIRT()
-{
+void mpi_astra_ctvlib::initializeSIRT() {
     if (deletePrev){algo_sirt->~CCudaReconstructionAlgorithm2D();}
     algo_sirt = new CCudaSirtAlgorithm();
     algo_sirt->initialize(proj, sino, vol);
@@ -264,8 +239,7 @@ void mpi_astra_ctvlib::initializeSIRT()
 }
 
 // SIRT Reconstruction.
-void mpi_astra_ctvlib::SIRT(int nIter)
-{
+void mpi_astra_ctvlib::SIRT(int nIter) {
     int sliceInd;
     for (int s=0; s < Nslice_loc; s++)
     {
@@ -283,8 +257,7 @@ void mpi_astra_ctvlib::SIRT(int nIter)
     }
 }
 
-void mpi_astra_ctvlib::initializeFBP(std::string filter)
-{
+void mpi_astra_ctvlib::initializeFBP(std::string filter) {
     // Possible Inputs for FilterType:
     // none, ram-lak, shepp-logan, cosine, hamming, hann, tukey, lanczos,
     // triangular, gaussian, barlett-hann, blackman, nuttall, blackman-harris,
@@ -296,8 +269,7 @@ void mpi_astra_ctvlib::initializeFBP(std::string filter)
 }
 
 // Filtered Backprojection.
-void mpi_astra_ctvlib::FBP(bool apply_positivity)
-{
+void mpi_astra_ctvlib::FBP(bool apply_positivity) {
     E_FBPFILTER fbfFilt = convertStringToFilter(fbfFilter);
     for (int s=0; s < Nslice_loc; s++)
     {
@@ -317,14 +289,12 @@ void mpi_astra_ctvlib::FBP(bool apply_positivity)
 }
 
 // Create Local Copy of Reconstruction. 
-void mpi_astra_ctvlib::copy_recon()
-{
+void mpi_astra_ctvlib::copy_recon() {
     memcpy(temp_recon.data, recon.data, sizeof(float)*Nslice_loc*Ny*Nz);
 }
 
 // Measure the 2 norm between temporary and current reconstruction.
-float mpi_astra_ctvlib::matrix_2norm()
-{
+float mpi_astra_ctvlib::matrix_2norm() {
     float L2, L2_loc;
     
     L2_loc = cuda_euclidean_dist(recon.data, temp_recon.data, Nslice_loc, Ny, Nz, localDevice);
@@ -338,8 +308,7 @@ float mpi_astra_ctvlib::matrix_2norm()
 }
 
 // Measure the 2 norm between experimental and reconstructed projections.
-float mpi_astra_ctvlib::data_distance()
-{
+float mpi_astra_ctvlib::data_distance() {
     forwardProjection();
     
     float v2_loc = (g - b).norm();
@@ -354,15 +323,13 @@ float mpi_astra_ctvlib::data_distance()
     return v2;
 }
 
-void mpi_astra_ctvlib::initializeFP()
-{
+void mpi_astra_ctvlib::initializeFP() {
     // Forward Projection Operator
     algo_fp = new CCudaForwardProjectionAlgorithm();
 }
 
 // Foward project the data.
-void mpi_astra_ctvlib::forwardProjection()
-{
+void mpi_astra_ctvlib::forwardProjection() {
     for (int s=0; s < Nslice_loc; s++) {
         
         vol->copyData((float32*) &recon.data[recon.index(s,0,0)]);
@@ -376,8 +343,7 @@ void mpi_astra_ctvlib::forwardProjection()
 }
 
 // Measure the RMSE (simulation studies)
-float mpi_astra_ctvlib::rmse()
-{
+float mpi_astra_ctvlib::rmse() {
     float rmse, rmse_loc;
     rmse_loc = 0.0;
 
@@ -420,9 +386,9 @@ void mpi_astra_ctvlib::updateRightSlice(Matrix3D vol) {
 }
 
 //Measure Original Volume's TV.
-float mpi_astra_ctvlib::original_tv_3D()
-{
+float mpi_astra_ctvlib::original_tv_3D() {
     float rmse, rmse_loc;
+    updateLeftSlice(original_volume);
     updateRightSlice(original_volume);
 
     float tv_norm, tv_norm_loc;
@@ -436,10 +402,10 @@ float mpi_astra_ctvlib::original_tv_3D()
 }
 
 // TV Minimization (Gradient Descent)
-float mpi_astra_ctvlib::tv_gd_3D(int ng, float dPOCS)
-{
-    updateRightSlice(recon);
+float mpi_astra_ctvlib::tv_gd_3D(int ng, float dPOCS) {
+    
     updateLeftSlice(recon);
+    updateRightSlice(recon);
 
     float tv_norm, tv_norm_loc;
     tv_norm_loc = cuda_tv_gd_3D(recon.data, ng, dPOCS, Nslice_loc, Ny, Nz, localDevice);
@@ -453,8 +419,8 @@ float mpi_astra_ctvlib::tv_gd_3D(int ng, float dPOCS)
 }
 
 // Minimize Total Variation with Fast Gradient Projection Method
-float mpi_astra_ctvlib::tv_fgp_3D(int ng, float lambda)
-{
+float mpi_astra_ctvlib::tv_fgp_3D(int ng, float lambda) {
+    
     updateRightSlice(recon);
     updateLeftSlice(recon);
 
@@ -503,34 +469,19 @@ void mpi_astra_ctvlib::save_recon(char *filename, int type=0) {
 }
 
 // Return Reconstruction to Python.
-Mat mpi_astra_ctvlib::getRecon(int slice)
-{
-    return recon.getData(slice);
-}
+Mat mpi_astra_ctvlib::getRecon(int slice) { return recon.getData(slice); }
 
 //Return the projections.
-Mat mpi_astra_ctvlib::get_projections()
-{
-    return b;
-}
+Mat mpi_astra_ctvlib::get_projections() { return b; }
                            
 // Get the model (re)-projections
-Mat mpi_astra_ctvlib::get_model_projections()
-{
-    return g;
-}
+Mat mpi_astra_ctvlib::get_model_projections() { return g; }
 
 // Restart the Reconstruction (Reset to Zero). 
-void mpi_astra_ctvlib::restart_recon()
-{
-    memset(recon.data, 0, sizeof(float)*Nslice_loc*Ny*Nz);
-}
+void mpi_astra_ctvlib::restart_recon() { memset(recon.data, 0, sizeof(float)*Nslice_loc*Ny*Nz); }
 
 // Close Communicator
-void mpi_astra_ctvlib::finalize()
-{
-    MPI_Finalize();
-}
+void mpi_astra_ctvlib::finalize() { MPI_Finalize(); }
 
 //Python functions for mpi_astra_ctvlib module.
 PYBIND11_MODULE(mpi_astra_ctvlib, m)

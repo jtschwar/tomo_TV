@@ -28,13 +28,20 @@ public:
     // Calculate Index
     int index(int i, int j, int k);
 
-    float norm();
+    // Calculate L2 and L1 Norms for Volume
+    float norm();   float l1_norm();
 
+    // Sum All the Values in the Reconstruction
     float sum();
 
+    // Apply Positivity (Remove Negative Voxels)
     void positivity();
 
+    // Set Background Equal to Value
     void setBackground(int backgroundValue=1);
+
+    // Apply Softhreshold Operation to Volume
+    void soft_threshold(float lambda);
 };
 
 #endif

@@ -5,13 +5,15 @@ Python and C++ toolbox for tomographic data processing and developing iterative 
 ## Features
 
 2D and 3D reconstruction algorithms implemented purely in C++ wrapped in Python functions.  These scripts can either perform simulations (sim) or reconstruct experimental (exp) projections. Available algorithms include:
-* FBP
-* SIRT
-* SART
-* CGLS
-* ASD - POCS 
+* Filtered Backprojection (FBP)
+* Simultaneous Iterative/Algebraic Reconstruction Technique (SIRT/SART)
+* Conjugate Gradient - Least Squares (CGLS)
 * KL-Divergence / Expectation Maximization for Poisson Limited Datasets
-* (TODO: FISTA and FASTA)
+* FISTA [doi: 10.1137/080716542](https://epubs.siam.org/doi/10.1137/080716542)
+* ASD - POCS [doi: 10.1088/0031-9155/53/17/021](https://iopscience.iop.org/article/10.1088/0031-9155/53/17/021)
+* (TODO: OGM and FASTA )
+
+We provide a sample jupyter notebook (demo.ipynb) outlining the reconstruction process for all these algorithms.
 
 ## Installation
 

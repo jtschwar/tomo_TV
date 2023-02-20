@@ -1,9 +1,46 @@
 from skimage import io
-import scipy.ndimage
 import numpy as np
-import time, os
-from tqdm import tqdm
-import h5py
+import os, h5py
+
+def initialize_algorithm(tomo, alg, initAlg=''):
+
+    if alg == 'SIRT' or alg == 'sirt':     tomo.initialize_SIRT()
+    elif alg == 'CGLS' or alg == 'cgls':   tomo.initialize_CGLS()
+    elif alg == 'FISTA' or alg == 'fista': tomo.initialize_fista()
+    elif alg == 'poisson_ML' or alg == 'kl-divergence': 
+                                           tomo.initialize_poisson_ML()
+    #initAlg = {'random', 'sequential'}
+    elif alg == 'SART' or alg == 'sart':   tomo.initialize_SART(initAlg)
+    elif alg == 'asd-pocs' or alg == 'ASD-POCS': 
+                                            tomo.initialize_SART(initAlg)
+    #initAlg = {'ram-lak', 'shepp-logan', 'hamming', etc.}
+    elif alg == 'FBP' or alg == 'WBP' or alg == 'fbp' or alg == 'wbp':  
+                                            tomo.initialize_FBP(initAlg)
+    tomo.initialize_FP()
+
+def run(tomo, alg, beta=1, niter=1):
+# Can Specify the Descent Parameter and nIter per slice.    
+
+    if alg == 'SIRT' or alg == 'sirt':     tomo.SIRT(niter)
+    elif alg == 'CGLS' or alg == 'cgls':   tomo.CGLS(niter)
+    elif alg == 'SART' or alg == 'sart':   tomo.SART(beta,niter)
+    elif alg == 'FISTA' or alg == 'fista': tomo.SIRT(niter)
+    elif alg == 'FBP' or alg == 'fbp':     tomo.FBP(True)
+    elif alg == 'WBP' or alg == 'wbp':     tomo.FBP(True)
+    elif alg == 'poisson_ML' or alg == 'kl-divergence': 
+                                    return tomo.poisson_ML(beta)
+
+# Perform a basic functionality test for ASTRA and CUDA
+def check_cuda():
+    try:
+        import astra
+        import sys
+        if not astra.use_cuda():
+             print('No GPU support available')
+             print('Please have a GPU to run these scripts')
+             exit(1)
+    except:
+        print('Please have ASTRA installed!') 
 
 def load_data(vol_size, file_name):
 
@@ -115,39 +152,4 @@ def save_recon(fname, meta, tomo):
 
     h5.close()
 
-def run(tomo, alg, beta=1, niter=1):
-# Can Specify the Descent Parameter and nIter per slice.    
-
-    if alg == 'SART':
-        tomo.SART(beta,niter)
-    elif alg == 'SIRT':
-        tomo.SIRT(niter)
-    elif alg == 'FBF':
-        # Apply Positivity Always (?)
-        tomo.FBF(True)
-
-def initialize_algorithm(tomo, alg, initAlg=''):
-
-    if alg == 'SART':
-        #initAlg = {'random', 'sequential'}
-        tomo.initialize_SART(initAlg)
-    elif alg == 'SIRT':
-        tomo.initialize_SIRT()
-    elif alg == 'FBF':
-        #initAlg = {'ram-lak', 'shepp-logan', 'hamming', etc.}
-        tomo.initialize_FBF(initAlg)
-
-    tomo.initialize_FP()
-
-# Perform a basic functionality test for ASTRA and CUDA
-def check_cuda():
-    try:
-        import astra
-        import sys
-        if not astra.use_cuda():
-             print('No GPU support available')
-             print('Please have a GPU to run these scripts')
-             exit(1)
-    except:
-        print('Please have ASTRA installed!') 
 

@@ -8,6 +8,15 @@ struct square
         }
 };
 
+template <typename T>
+struct absolute_value 
+{
+  __host__ __device__ 
+    T operator()(const T &x) const {
+        return x < T(0) ? -x : x;
+    }
+};
+
 /*checks CUDA call, should be used in functions returning <int> value
 if error happens, writes to standard error and explicitly returns -1*/
 #define CHECK(call)                                                            \

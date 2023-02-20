@@ -33,8 +33,8 @@ namespace py = pybind11;
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Mat;
 typedef Eigen::VectorXf Vec;
 
-astra_ctvlib::astra_ctvlib(int Ns, int Nray)
-{
+// Initialize Empty Volume (Useful for Bare Regularization)
+astra_ctvlib::astra_ctvlib(int Ns, int Nray) {
     //Intialize all the Member variables.
     Nslice = Ns;
     Ny = Nray;
@@ -44,6 +44,7 @@ astra_ctvlib::astra_ctvlib(int Ns, int Nray)
     recon = Matrix3D(Ns,Ny,Nz); //Final Reconstruction.
 }
 
+// Tomography Constructor
 astra_ctvlib::astra_ctvlib(int Ns, int Nray, Vec pyAngles)
 {
     //Intialize all the Member variables.
@@ -52,6 +53,7 @@ astra_ctvlib::astra_ctvlib(int Ns, int Nray, Vec pyAngles)
     Nrow = Nray*Nproj;
     Ncol = Ny*Nz;
     
+    // Measured and Reprojected Matrices
     b.resize(Nslice, Nrow); g.resize(Nslice, Nrow);
     
     //Initialize all the Slices in Recon as Zero.
@@ -81,12 +83,15 @@ astra_ctvlib::astra_ctvlib(int Ns, int Nray, Vec pyAngles)
      proj = new CCudaProjector2D(proj_geom,vol_geom);
 }
 
-void astra_ctvlib::set_gpu_id(int id){ 
+// Set the GPU Index
+void astra_ctvlib::set_gpu_id(int id) { 
     gpuID = id;
     recon.gpuIndex = id; }
 
+// Get the GPU Index
 int astra_ctvlib::get_gpu_id() { return gpuID; }
 
+// Inialize Initial Volume for Simulation Studies
 void astra_ctvlib::initializeInitialVolume() { original_volume = Matrix3D(Nslice,Ny,Nz); }
 
 // Temporary copy for measuring changes in TV and ART.
@@ -101,17 +106,15 @@ void astra_ctvlib::setOriginalVolume(Mat inBuffer, int slice) { original_volume.
 void astra_ctvlib::setRecon(Mat inBuffer, int slice) { recon.setData(inBuffer,slice); }
 
 // Create projections from Volume (for simulation studies)
-void astra_ctvlib::create_projections()
-{
+void astra_ctvlib::create_projections() {
      // Forward Projection Operator
      algo_fp = new CCudaForwardProjectionAlgorithm();
 
-    int sliceInd;
+    // int sliceInd;
     for (int s=0; s < Nslice; s++) {
         
         // Pass Input Volume to Astra
-        sliceInd = original_volume.index(s,0,0);
-        vol->copyData( (float32*) &original_volume.data[sliceInd] );
+        vol->copyData( (float32*) &original_volume.data[original_volume.index(s,0,0)] );
 
         // Forward Project
         algo_fp->initialize(proj,vol,sino);
@@ -122,29 +125,11 @@ void astra_ctvlib::create_projections()
     }
 }
 
-// Add poisson noise to projections.
-void astra_ctvlib::poissonNoise(int Nc)
-{
-    Mat temp_b = b;
-    float mean = b.mean();
-    float N = b.sum();
-    b  = b / ( b.sum() ) * Nc * b.size();
-    std::default_random_engine generator;
-    for(int i=0; i < b.size(); i++)
-    {
-       std::poisson_distribution<int> distribution(b(i));
-       b(i) = distribution(generator);
-       
-    }
-    b = b / ( Nc * b.size() ) * N;
-}
-
-void astra_ctvlib::update_projection_angles(Vec pyAngles)
-{
+// Update Proejction Angles
+void astra_ctvlib::update_projection_angles(Vec pyAngles) {
     // newNProj = pyAngles.size()
     Nrow = Ny * pyAngles.size();
-    b.resize(Nslice, Nrow);
-    g.resize(Nslice, Nrow);
+    b.resize(Nslice, Nrow); g.resize(Nslice, Nrow);
     
     // Specify projection matrix geometries
     float32 *angles = new float32[pyAngles.size()];
@@ -159,10 +144,10 @@ void astra_ctvlib::update_projection_angles(Vec pyAngles)
     proj_geom = new CParallelProjectionGeometry2D(pyAngles.size(), Ny, 1, angles);
     proj = new CCudaProjector2D(proj_geom,vol_geom);
     sino =  new CFloat32ProjectionData2D(proj_geom);
+    Nproj = pyAngles.size();
 }
 
-void astra_ctvlib::initializeSART(std::string order)
-{
+void astra_ctvlib::initializeSART(std::string order) {
     projOrder = order;
     cout << "ProjectionOrder: " << projOrder << endl;
  
@@ -173,31 +158,26 @@ void astra_ctvlib::initializeSART(std::string order)
 }
 
 // ART Reconstruction.
-void astra_ctvlib::SART(float beta, int nIter)
-{
+void astra_ctvlib::SART(float beta, int nIter) {
     int Nproj = Nrow / Ny;
     algo_sart->updateProjOrder(projOrder);
     
-    int sliceInd;
     for (int s=0; s < Nslice; s++) {
         // Pass 2D Slice and Sinogram (Measurements) to ASTRA.
-        sliceInd = recon.index(s,0,0);
         sino->copyData((float32*) &b(s,0));
-        vol->copyData( (float32*) &recon.data[sliceInd] );
+        vol->copyData( (float32*) &recon.data[recon.index(s,0,0)] );
 
         // SART Reconstruction
         if (beta != 1) { algo_sart->setRelaxationParameter(beta); }
         algo_sart->updateSlice(sino, vol);
-    
         algo_sart->run(Nproj * nIter);
         
         // Return Slice to tomo_TV
-        memcpy(&recon.data[sliceInd], vol->getData(), sizeof(float)*Ny*Nz);
+        memcpy(&recon.data[recon.index(s,0,0)], vol->getData(), sizeof(float)*Ny*Nz);
     }
 }
 
-void astra_ctvlib::initializeSIRT()
-{
+void astra_ctvlib::initializeSIRT() {
     algo_sirt = new CCudaSirtAlgorithm();
     algo_sirt->initialize(proj, sino, vol);
     algo_sirt->setConstraints(true, 0, false, 1);
@@ -205,88 +185,73 @@ void astra_ctvlib::initializeSIRT()
 }
 
 // SIRT Reconstruction.
-void astra_ctvlib::SIRT(int nIter)
-{
-    int sliceInd;
-    for (int s=0; s < Nslice; s++)
-    {
+void astra_ctvlib::SIRT(int nIter) {
+
+    for (int s=0; s < Nslice; s++) {
         // Pass 2D Slice and Sinogram (Measurements) to ASTRA
-        sliceInd = recon.index(s,0,0);
         sino->copyData((float32*) &b(s,0));
-        vol->copyData( (float32*) &recon.data[sliceInd] );
+        if (momentum) { vol->copyData( (float32*) &yk.data[yk.index(s,0,0)] ); }
+        else       { vol->copyData( (float32*) &recon.data[recon.index(s,0,0)] ); }
 
         // SIRT Reconstruction
         algo_sirt->updateSlice(sino, vol);
         algo_sirt->run(nIter);
         
         // Return Slice to tomo_TV
-        memcpy(&recon.data[sliceInd], vol->getData(), sizeof(float)*Ny*Nz);
+        if (momentum) { memcpy(&yk.data[yk.index(s,0,0)], vol->getData(), sizeof(float)*Ny*Nz); }
+        else       { memcpy(&recon.data[recon.index(s,0,0)], vol->getData(), sizeof(float)*Ny*Nz); }
     }
 }
 
-void astra_ctvlib::initializeCGLS()
-{
+void astra_ctvlib::initializeCGLS() {
     algo_cgls = new CCudaCglsAlgorithm();
     algo_cgls->initialize(proj, sino, vol);
     if (recon.gpuIndex != -1){algo_cgls->setGPUIndex(recon.gpuIndex); }
 }
 
-void astra_ctvlib::CGLS(int nIter)
-{
-    int sliceInd;
-    for (int s=0; s < Nslice; s++)
-    {
+// Conjugate Gradient Least Squares Algorithm
+void astra_ctvlib::CGLS(int nIter) {
+    for (int s=0; s < Nslice; s++) {
         // Pass 2D Slice and Sinogram (Measurements) to ASTRA
-        sliceInd = recon.index(s,0,0);
         sino->copyData((float32*) &b(s,0));
-        vol->copyData( (float32*) &recon.data[sliceInd] );
+        vol->copyData( (float32*) &recon.data[recon.index(s,0,0)] );
 
         // CGLS Reconstruction
-        algo_cgls->updateSlice(sino, vol);
+        algo_cgls->initialize(proj, sino, vol);
         algo_cgls->run(nIter);
         
         // Return Slice to tomo_TV
-        memcpy(&recon.data[sliceInd], vol->getData(), sizeof(float)*Ny*Nz);
+        memcpy(&recon.data[recon.index(s,0,0)], vol->getData(), sizeof(float)*Ny*Nz);
     }
     recon.positivity(); // Non-negativity
 }
 
 void astra_ctvlib::initializePoissonML() {
     
-    // Initialize Forward Projection Operator
-    algo_fp = new CCudaForwardProjectionAlgorithm(); 
-    algo_fp->initialize(proj,vol,sino);
-
-    // Initialize BackProjection Operator
-    algo_bp = new CCudaBackProjectionAlgorithm(); 
-    algo_bp->initialize(proj,sino,vol);
+    // Initialize the Forward and Back-Projection Operators
+    initializeFP(); initializeBP();
 
     // Reshape Intermediate Variables 
     xx.resize(Ny*Nz); Ax.resize(Nrow);
     updateML.resize(xx.size());
 
-    outProj.resize(Nrow); outVol.resize(Ny*Ny);
-
     // Estimate Lipschitz Parameter
     Vec cc(xx.size()); cc.setOnes();
     L_Aml = back_projection(forward_projection(cc)).maxCoeff();
+
+    // Normalize the tilt series. 
+    if (b.maxCoeff() > 1) { b = b.array() / b.maxCoeff(); }
 }
 
 // Initialize the Forward Projection Operator
 void astra_ctvlib::initializeFP() { 
     algo_fp = new CCudaForwardProjectionAlgorithm(); 
-    algo_fp->initialize(proj,vol,sino);
-}
-
-// Initialize the Back Projection Operator
-void astra_ctvlib::initializeBP() { 
-    algo_bp = new CCudaBackProjectionAlgorithm(); 
-    algo_bp->initialize(proj,sino,vol);
-}
+    algo_fp->initialize(proj,vol,sino);             
+    if (recon.gpuIndex != -1){ algo_fp->setGPUIndex(recon.gpuIndex); } 
+    outProj.resize(Nrow);          }
 
 // Forward Projection (ML-Poisson)
-Vec astra_ctvlib::forward_projection(const Vec &inVol)
-{
+Vec astra_ctvlib::forward_projection(const Vec &inVol) {
     // Copy Data to Astra
     vol->copyData((float32*) &inVol(0));
 
@@ -295,13 +260,19 @@ Vec astra_ctvlib::forward_projection(const Vec &inVol)
     algo_fp->run();
 
     memcpy(&outProj(0), sino->getData(), sizeof(float)*Nrow);
-
     return outProj;
 }
 
+// Initialize the Back Projection Operator
+void astra_ctvlib::initializeBP() { 
+    algo_bp = new CCudaBackProjectionAlgorithm(); 
+    algo_bp->initialize(proj,sino,vol);
+    if (recon.gpuIndex != -1){ algo_bp->setGPUIndex(recon.gpuIndex); } 
+    outVol.resize(Ny*Ny);           }
+
 // Backprojection.
-Vec astra_ctvlib::back_projection(const Vec &inProj)
-{   // Copy Data to Astra
+Vec astra_ctvlib::back_projection(const Vec &inProj) {   
+    // Copy Data to Astra
     sino->copyData((float32*) &inProj(0));
 
     // Back Project
@@ -310,15 +281,12 @@ Vec astra_ctvlib::back_projection(const Vec &inProj)
 
     // Return data from Astra
     memcpy(&outVol(0), vol->getData(), sizeof(float)*Ny*Nz);
-
     return outVol;
 }
 
-float astra_ctvlib::poisson_ML(float lambda)
-{
-    float cost = 0;
-    float eps = 1e-1;
+float astra_ctvlib::poisson_ML(float lambda) {
     
+    float cost = 0; float eps = 1e-1;
     for (int s=0; s<Nslice; s++) {
 
         memcpy(&xx(0), &recon.data[recon.index(s,0,0)], sizeof(float)*Ny*Nz);
@@ -330,19 +298,17 @@ float astra_ctvlib::poisson_ML(float lambda)
         // Update along the gradient direction
         xx -= (lambda / L_Aml) * updateML;
 
+        // Return Slice to Reconstruction
         memcpy(&recon.data[recon.index(s,0,0)], &xx(0), sizeof(float)*Ny*Nz);
         
         // Measure Data Fidelity
         cost += ( Ax.array() - b.row(s).transpose().array() * (Ax.array() + eps).log().array() ).sum();  
     }
-
     recon.positivity();
-
     return cost; 
 }
 
-void astra_ctvlib::initializeFBP(std::string filter)
-{
+void astra_ctvlib::initializeFBP(std::string filter) {
     // Possible Inputs for FilterType:
     // none, ram-lak, shepp-logan, cosine, hamming, hann, tukey, lanczos,
     // triangular, gaussian, barlett-hann, blackman, nuttall, blackman-harris,
@@ -351,21 +317,20 @@ void astra_ctvlib::initializeFBP(std::string filter)
    fbfFilter = filter;
    cout << "FBP Filter: " << filter << endl;
    algo_fbp = new CCudaFilteredBackProjectionAlgorithm();
+   if (recon.gpuIndex != -1){ algo_fbp->setGPUIndex(recon.gpuIndex); }
 }
 
 // Filtered Backprojection.
-void astra_ctvlib::FBP(bool apply_positivity)
-{
+void astra_ctvlib::FBP(bool apply_positivity) {
+
     E_FBPFILTER fbfFilt = convertStringToFilter(fbfFilter);
-    for (int s=0; s < Nslice; s++)
-    {
+    for (int s=0; s < Nslice; s++) {
         // Pass 2D Slice and Sinogram (Measurements) to ASTRA.
         sino->copyData((float32*) &b(s,0));
         vol->copyData((float32*) &recon.data[recon.index(s,0,0)]);
 
         // FBF Reconstruction
         algo_fbp->initialize(sino,vol,fbfFilt);
-       
         algo_fbp->run();
         
         // Return Slice to tomo_TV
@@ -374,28 +339,74 @@ void astra_ctvlib::FBP(bool apply_positivity)
     if (apply_positivity) { recon.positivity(); }
 }
 
-// Create Local Copy of Reconstruction. 
-void astra_ctvlib::copy_recon()
-{
-    memcpy(temp_recon.data, recon.data, sizeof(float)*Nslice*Ny*Nz);
+// Initialize Additional Reconstruction Volumes for FISTA Algorithm
+void astra_ctvlib::initialize_fista() {
+    
+    // Boolean for FISTA Input / Output
+    momentum = true;
+
+    // Initialize Intermediate Variables 
+    yk =  Matrix3D(Nslice,Ny,Nz);
+    recon_old =  Matrix3D(Nslice,Ny,Nz); 
+    
+    // Copy Data Respectively
+    memcpy(yk.data, recon.data, sizeof(float)*Nslice*Ny*Nz);
+    memcpy(recon_old.data, recon.data, sizeof(float)*Nslice*Ny*Nz);
+
+    // Initialize SIRT As Forward Projection
+    initializeSIRT(); initializeFP(); initializeBP();
+
+    // Reshape Intermediate Variables 
+    xx.resize(Ny*Nz); Ax.resize(Nrow);
+
+    // Initialize Lipschitz Parameter
+    lipschitz();
 }
+
+// Return the Estimated Lipschitz Parameter
+float astra_ctvlib::get_lipschitz() { return L_A; }
+
+// Set Mometum Bool to False (Return to Regular Tomography)
+void astra_ctvlib::remove_momentum() { momentum = false; }
+
+// Nesterov Momentum and Updating Previous Updates
+void astra_ctvlib::fista_nesterov_momentum(float beta) { 
+    memcpy(recon.data, yk.data, sizeof(float)*Nslice*Ny*Nz);
+    cuda_nesterov_momentum(yk.data, recon.data, recon_old.data, beta, Nslice, Ny, Nz);  
+    memcpy(recon_old.data, recon.data, sizeof(float)*Nslice*Ny*Nz); }
+
+void astra_ctvlib::least_squares() {
+    float cost = 0;
+    for (int s=0; s<Nslice; s++){
+
+        if (momentum) { memcpy(&xx(0), &yk.data[yk.index(s,0,0)], sizeof(float)*Ny*Nz); }
+        else          { memcpy(&xx(0), &recon.data[recon.index(s,0,0)], sizeof(float)*Ny*Nz); }
+
+        // Gradient Update
+        Ax = forward_projection(xx);
+        xx -= (2/L_A) * back_projection(Ax - b.row(s).transpose());
+
+        // Return Slice and Measure Cost Function
+        if (momentum) { memcpy(&yk.data[yk.index(s,0,0)], &xx(0), sizeof(float)*Ny*Nz); }
+        else          { memcpy(&recon.data[recon.index(s,0,0)], &xx(0), sizeof(float)*Ny*Nz);  }     
+    }
+    return cost;
+}
+
+// Create Local Copy of Reconstruction. 
+void astra_ctvlib::copy_recon() { memcpy(temp_recon.data, recon.data, sizeof(float)*Nslice*Ny*Nz); }
 
 // Measure the 2 norm between temporary and current reconstruction.
-float astra_ctvlib::matrix_2norm()
-{
-    return sqrt(cuda_euclidean_dist(recon.data, temp_recon.data, Nslice, Ny, Nz));
-}
+float astra_ctvlib::matrix_2norm() { return sqrt(cuda_euclidean_dist(recon.data, temp_recon.data, Nslice, Ny, Nz)); }
 
 // Measure the 2 norm between experimental and reconstructed projections.
-float astra_ctvlib::data_distance()
-{
+float astra_ctvlib::data_distance() {
     forwardProjection();
-    return (g - b).norm() / g.size(); // Nrow*Nslice,sum_{ij} M_ij^2 / Nrow*Nslice
-}
+    return (g - b).norm() / g.size();  } // Nrow*Nslice,sum_{ij} M_ij^2 / Nrow*Nslice
+// return (g - b).norm();          }
 
 // Foward project the data.
-void astra_ctvlib::forwardProjection()
-{
+void astra_ctvlib::forwardProjection() {
     for (int s=0; s < Nslice; s++) {
         vol->copyData((float32*) &recon.data[recon.index(s,0,0)]);
 
@@ -411,24 +422,53 @@ void astra_ctvlib::forwardProjection()
 // Measure the RMSE (simulation studies)
 float astra_ctvlib::rmse() { return sqrt(cuda_rmse(recon.data, original_volume.data, Nslice, Ny, Nz) / (Nslice * Ny * Nz)); }
 
+// Measure Reconstruction's L1 Norm
+float astra_ctvlib::l1_norm() { return recon.l1_norm(); }
+
+// Soft Threshold Operator
+void astra_ctvlib::soft_threshold(float lambda){ 
+    if (momentum) { yk.soft_threshold(lambda); yk.positivity(); }
+    else          { recon.soft_threshold(lambda); recon.positivity(); }  }
+
+//Measure Reconstruction's TV.
+float astra_ctvlib::tv_3D() { return cuda_tv_3D(recon.data, Nslice, Ny, Nz); }
+
 //Measure Original Volume's TV.
 float astra_ctvlib::original_tv_3D() { return cuda_tv_3D(original_volume.data, Nslice, Ny, Nz); }
 
 // TV Minimization (Gradient Descent)
 float astra_ctvlib::tv_gd_3D(int ng, float dPOCS) { return cuda_tv_gd_3D(recon.data, ng, dPOCS, Nslice, Ny, Nz); }
 
+// TV Minimization (Gradient Projection Method)
 float astra_ctvlib::tv_fgp_3D(int ng, float lambda) {  return cuda_tv_fgp_3D(recon.data, ng, lambda, Nslice, Ny, Nz); }
 
 // Return Reconstruction to Python.
 Mat astra_ctvlib::getRecon(int slice) { return recon.getData(slice); }
 
-//Return the projections.
+//Return the Experimental projections.
 Mat astra_ctvlib::get_projections() { return b; }
 
+// Return the Model Reprojections from the Volume.
 Mat astra_ctvlib::get_model_projections() { return g; }
 
 // Restart the Reconstruction (Reset to Zero). 
 void astra_ctvlib::restart_recon() { memset(recon.data, 0, sizeof(float)*Nslice*Ny*Nz); }
+
+// Add poisson noise to projections.
+void astra_ctvlib::poissonNoise(int Nc) {
+    Mat temp_b = b;
+    float mean = b.mean();
+    float N = b.sum();
+    b  = b / ( b.sum() ) * Nc * b.size();
+    std::default_random_engine generator;
+    for(int i=0; i < b.size(); i++)
+    {
+       std::poisson_distribution<int> distribution(b(i));
+       b(i) = distribution(generator);
+       
+    }
+    b = b / ( Nc * b.size() ) * N;
+}
 
 //Python functions for astra_ctvlib module.
 PYBIND11_MODULE(astra_ctvlib, m)
@@ -460,6 +500,11 @@ PYBIND11_MODULE(astra_ctvlib, m)
     astra_ctvlib.def("initialize_poisson_ML", &astra_ctvlib::initializePoissonML, "Poisson ML Reconstruction");    
     astra_ctvlib.def("poisson_ML", &astra_ctvlib::poisson_ML, "Poisson ML Reconstruction");
     astra_ctvlib.def("forward_projection", &astra_ctvlib::forwardProjection, "Forward Projection");
+    astra_ctvlib.def("soft_threshold",&astra_ctvlib::soft_threshold,"Soft Thresholding Operator");
+    astra_ctvlib.def("l1_norm",&astra_ctvlib::l1_norm, "L1 Norm");
+    astra_ctvlib.def("initialize_fista", &astra_ctvlib::initialize_fista, "Initialize FISTA");
+    astra_ctvlib.def("get_lipschitz", &astra_ctvlib::get_lipschitz, "Get the Lipschitz Parameter");
+    astra_ctvlib.def("fista_momentum", &astra_ctvlib::fista_nesterov_momentum,"Fista Momentum Acceleration");
     astra_ctvlib.def("copy_recon", &astra_ctvlib::copy_recon, "Copy the reconstruction");
     astra_ctvlib.def("matrix_2norm", &astra_ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");
     astra_ctvlib.def("data_distance", &astra_ctvlib::data_distance, "Calculate L2-Norm of Projection (aka Vectors)");

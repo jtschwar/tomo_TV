@@ -61,18 +61,37 @@ __global__ void cuda_background_kernel(float *vol, int value, int nx, int ny, in
     }
 }
 
+__global__ void cuda_soft_thresholding(float *vol, float lambda, int nx, int ny, int nz)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    int j = blockDim.y * blockIdx.y + threadIdx.y;
+    int k = blockDim.z * blockIdx.z + threadIdx.z;
+
+    int ijk = (ny*nz)*i + nz*j + k;
+    if ((i < nx) && (j < ny) && (k < nz)) {
+        float value = fabs(vol[ijk]); 
+        vol[ijk] = signbit(lambda-value)*copysign(value-lambda,vol[ijk]); 
+    }
+}
+
+__global__ void nesterov_momentum_kernel(float *yk, float *xk, float *xk_old, float beta, int nx, int ny, int nz)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    int j = blockDim.y * blockIdx.y + threadIdx.y;
+    int k = blockDim.z * blockIdx.z + threadIdx.z;
+
+    int ijk = (ny*nz)*i + nz*j + k;
+    if ((i < nx) && (j < ny) && (k < nz)) {
+        yk[ijk] = xk[ijk] + beta * (xk[ijk] - xk_old[ijk]); }
+}
+
 // MAIN HOST FUNCTION //
 float cuda_norm(float *input, int nx, int ny, int nz, int gpuIndex)
 {
     // Set GPU Index
     if (gpuIndex != -1) {
         cudaSetDevice(gpuIndex);
-        cudaError_t err = cudaGetLastError();
-
-        // Ignore errors caused by calling cudaSetDevice multiple times
-        if (err != cudaSuccess && err != cudaErrorSetOnActiveProcess)
-            return false;
-    }
+        cudaError_t err = cudaGetLastError();   }
 
     int volSize = nx * ny * nz;
     float *d_input;
@@ -96,17 +115,41 @@ float cuda_norm(float *input, int nx, int ny, int nz, int gpuIndex)
 }
 
 // MAIN HOST FUNCTION //
+float cuda_l1_norm(float *input, int nx, int ny, int nz, int gpuIndex)
+{
+    // Set GPU Index
+    if (gpuIndex != -1) {
+        cudaSetDevice(gpuIndex);
+        cudaError_t err = cudaGetLastError();   }
+
+    int volSize = nx * ny * nz;
+    float *d_input;
+    float norm;
+
+    /*allocate space for volume on device*/
+    cudaMalloc((void**)&d_input,volSize*sizeof(float));
+    cudaMemcpy(d_input,input,volSize*sizeof(float),cudaMemcpyHostToDevice);
+
+    // Measure Norm of Input Volume
+    absolute_value<float>   unary_op; 
+    thrust::plus<float>  binary_op;
+    thrust::device_vector<float> input_vec(d_input, d_input + volSize);
+    norm = thrust::transform_reduce(input_vec.begin(), input_vec.end(), unary_op, 0.0f, binary_op);
+    cudaDeviceSynchronize();
+    cudaPeekAtLastError();
+
+    cudaFree(d_input);
+
+    return norm;
+}
+
+// MAIN HOST FUNCTION //
 float cuda_sum(float *input, int nx, int ny, int nz, int gpuIndex)
 {
     // Set GPU Index
     if (gpuIndex != -1) {
         cudaSetDevice(gpuIndex);
-        cudaError_t err = cudaGetLastError();
-
-        // Ignore errors caused by calling cudaSetDevice multiple times
-        if (err != cudaSuccess && err != cudaErrorSetOnActiveProcess)
-            return false;
-    }
+        cudaError_t err = cudaGetLastError();   }
 
     int volSize = nx * ny * nz;
     float *d_input;
@@ -133,12 +176,7 @@ float cuda_rmse(float *recon, float *original, int nx, int ny, int nz, int gpuIn
     // Set GPU Index
     if (gpuIndex != -1) {
         cudaSetDevice(gpuIndex);
-        cudaError_t err = cudaGetLastError();
-
-        // Ignore errors caused by calling cudaSetDevice multiple times
-        if (err != cudaSuccess && err != cudaErrorSetOnActiveProcess)
-            return false;
-    }
+        cudaError_t err = cudaGetLastError();   }
 
     int volSize = nx * ny * nz;
     float *d_recon, *d_original, *d_diff;
@@ -184,12 +222,7 @@ float cuda_euclidean_dist(float *vol1, float *vol2, int nx, int ny, int nz, int 
     // Set GPU Index
     if (gpuIndex != -1) {
         cudaSetDevice(gpuIndex);
-        cudaError_t err = cudaGetLastError();
-
-        // Ignore errors caused by calling cudaSetDevice multiple times
-        if (err != cudaSuccess && err != cudaErrorSetOnActiveProcess)
-            return false;
-    }
+        cudaError_t err = cudaGetLastError();   }
 
     int volSize = nx * ny * nz;
     float *d_vol1, *d_vol2, *d_diff;
@@ -230,13 +263,12 @@ float cuda_euclidean_dist(float *vol1, float *vol2, int nx, int ny, int nz, int 
     return L2;
 }
 
-void cuda_positivity(float *recon, int nx, int ny, int nz, int gpuIndex)
-{
+void cuda_positivity(float *recon, int nx, int ny, int nz, int gpuIndex)    {
+
     // Set GPU Index
     if (gpuIndex != -1) {
         cudaSetDevice(gpuIndex);
-        cudaError_t err = cudaGetLastError();
-    }
+        cudaError_t err = cudaGetLastError();   }
 
     int volSize = nx * ny * nz;
     float *d_recon;
@@ -260,13 +292,11 @@ void cuda_positivity(float *recon, int nx, int ny, int nz, int gpuIndex)
     cudaDeviceSynchronize();
 }
 
-void cuda_set_background(float *vol, int value, int nx, int ny, int nz, int gpuIndex)
-{
+void cuda_set_background(float *vol, int value, int nx, int ny, int nz, int gpuIndex)   {
         // Set GPU Index
     if (gpuIndex != -1) {
         cudaSetDevice(gpuIndex);
-        cudaError_t err = cudaGetLastError();
-    }
+        cudaError_t err = cudaGetLastError();   }
 
     int volSize = nx * ny * nz;
     float *d_vol;
@@ -287,5 +317,69 @@ void cuda_set_background(float *vol, int value, int nx, int ny, int nz, int gpuI
 
     cudaMemcpy(vol, d_vol, volSize*sizeof(float), cudaMemcpyDeviceToHost);
     cudaFree(d_vol);
+    cudaDeviceSynchronize();
+}
+
+
+void cuda_soft_threshold(float *vol, float lambda, int nx, int ny, int nz, int gpuIndex) {
+    // Set GPU Index
+    if (gpuIndex != -1) {
+        cudaSetDevice(gpuIndex);
+        cudaError_t err = cudaGetLastError();   }
+
+    int volSize = nx * ny * nz;
+    float *d_vol;
+
+    // Block
+    dim3 dimBlock(BLKXSIZE,BLKXSIZE, BLKXSIZE);
+
+    // Grid
+    dim3 dimGrid(idivup(nx,BLKXSIZE), idivup(ny,BLKXSIZE), idivup(nz,BLKXSIZE));
+
+    // allocate space for volume on device
+    cudaMalloc((void**)&d_vol,volSize*sizeof(float));
+    cudaMemcpy(d_vol, vol, volSize*sizeof(float), cudaMemcpyHostToDevice);
+
+    cuda_soft_thresholding<<<dimGrid,dimBlock>>>(d_vol, lambda, nx, ny, nz);
+    cudaDeviceSynchronize(); cudaPeekAtLastError();
+
+    cudaMemcpy(vol, d_vol, volSize*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaFree(d_vol);
+    cudaDeviceSynchronize();
+}
+
+void cuda_nesterov_momentum(float *yt, float *xt, float *xt_old, float beta, int nx, int ny, int nz, int gpuIndex)
+{
+    // Set GPU Index
+    if (gpuIndex != -1) {
+        cudaSetDevice(gpuIndex);
+        cudaError_t err = cudaGetLastError();   }
+
+    int volSize = nx * ny * nz;
+    float *d_yt, *d_xt, *d_xt_old;
+
+    // Block
+    dim3 dimBlock(BLKXSIZE,BLKXSIZE, BLKXSIZE);
+
+    // Grid
+    dim3 dimGrid(idivup(nx,BLKXSIZE), idivup(ny,BLKXSIZE), idivup(nz,BLKXSIZE));
+
+    // allocate space for volume on device
+    cudaMalloc((void**)&d_yt,volSize*sizeof(float));
+    cudaMalloc((void**)&d_xt,volSize*sizeof(float));
+    cudaMalloc((void**)&d_xt_old,volSize*sizeof(float));
+
+    cudaMemcpy(d_yt,yt,volSize*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_xt,xt,volSize*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_xt_old,xt_old,volSize*sizeof(float),cudaMemcpyHostToDevice);
+
+    nesterov_momentum_kernel<<<dimGrid,dimBlock>>>(d_yt, d_xt, d_xt_old, beta, nx, ny, nz);
+    cudaDeviceSynchronize(); cudaPeekAtLastError();
+
+    cudaMemcpy(yt, d_yt, volSize*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(xt, d_xt, volSize*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(xt_old, d_xt_old, volSize*sizeof(float), cudaMemcpyDeviceToHost);
+    
+    cudaFree(d_yt); cudaFree(d_xt); cudaFree(d_xt_old);
     cudaDeviceSynchronize();
 }

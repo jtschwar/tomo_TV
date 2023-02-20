@@ -196,7 +196,7 @@ float cuda_tv_fgp_3D(float *vol, int iter, float lambdaPar, int dimX, int dimY, 
         cudaSetDevice(gpuIndex);
         cudaError_t err = cudaGetLastError();
     
-	// Ignore errors caused by calling cudaSetDevice multiple times
+        // Ignore errors caused by calling cudaSetDevice multiple times
         if (err != cudaSuccess && err != cudaErrorSetOnActiveProcess)
             return false;
     }

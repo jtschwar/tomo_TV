@@ -34,3 +34,4 @@ if error happens, writes to standard error and explicitly returns -1*/
         return -1;                                                                \
     }                                                                          \
 }
+
