@@ -139,9 +139,6 @@ def save_recon(fname, meta, tomo):
     recon = np.zeros([Nslice, Nray, Nray], dtype=np.float32, order='F') 
     for s in range(Nslice):
         recon[s,:,:] = tomo.get_recon(s)
-
-    #print(np.amin(recon))
-    #print(np.amax(recon))
  
     h5=h5py.File('results/{}/{}.h5'.format(fname[0],fname[1]), 'a')
     dset = h5.create_group("Reconstruction")

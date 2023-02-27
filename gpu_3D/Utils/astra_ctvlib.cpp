@@ -360,7 +360,8 @@ void astra_ctvlib::initialize_fista() {
     xx.resize(Ny*Nz); Ax.resize(Nrow);
 
     // Initialize Lipschitz Parameter
-    lipschitz();
+    Vec cc(Ny*Nz); cc.setOnes();
+    L_A = (back_projection(forward_projection(cc))).maxCoeff();  
 }
 
 // Return the Estimated Lipschitz Parameter
@@ -384,7 +385,7 @@ void astra_ctvlib::least_squares() {
 
         // Gradient Update
         Ax = forward_projection(xx);
-        xx -= (2/L_A) * back_projection(Ax - b.row(s).transpose());
+        xx -= (1/L_A) * back_projection(Ax - b.row(s).transpose());
 
         // Return Slice and Measure Cost Function
         if (momentum) { memcpy(&yk.data[yk.index(s,0,0)], &xx(0), sizeof(float)*Ny*Nz); }
@@ -452,7 +453,13 @@ Mat astra_ctvlib::get_projections() { return b; }
 Mat astra_ctvlib::get_model_projections() { return g; }
 
 // Restart the Reconstruction (Reset to Zero). 
-void astra_ctvlib::restart_recon() { memset(recon.data, 0, sizeof(float)*Nslice*Ny*Nz); }
+void astra_ctvlib::restart_recon() { 
+    memset(recon.data, 0, sizeof(float)*Nslice*Ny*Nz); 
+    if (momentum) {
+        memset(yk.data, 0, sizeof(float)*Nslice*Ny*Nz);
+        memset(recon_old.data, 0, sizeof(float)*Nslice*Ny*Nz); 
+    }
+}
 
 // Add poisson noise to projections.
 void astra_ctvlib::poissonNoise(int Nc) {
@@ -505,6 +512,7 @@ PYBIND11_MODULE(astra_ctvlib, m)
     astra_ctvlib.def("initialize_fista", &astra_ctvlib::initialize_fista, "Initialize FISTA");
     astra_ctvlib.def("get_lipschitz", &astra_ctvlib::get_lipschitz, "Get the Lipschitz Parameter");
     astra_ctvlib.def("fista_momentum", &astra_ctvlib::fista_nesterov_momentum,"Fista Momentum Acceleration");
+    astra_ctvlib.def("remove_momentum", %astra_ctvlib::remove_momentum,"Remove Momentum from Optimization");
     astra_ctvlib.def("copy_recon", &astra_ctvlib::copy_recon, "Copy the reconstruction");
     astra_ctvlib.def("matrix_2norm", &astra_ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");
     astra_ctvlib.def("data_distance", &astra_ctvlib::data_distance, "Calculate L2-Norm of Projection (aka Vectors)");
