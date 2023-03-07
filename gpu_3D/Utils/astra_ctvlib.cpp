@@ -379,7 +379,6 @@ void astra_ctvlib::fista_nesterov_momentum(float beta) {
     memcpy(recon_old.data, recon.data, sizeof(float)*Nslice*Ny*Nz); }
 
 void astra_ctvlib::least_squares() {
-    float cost = 0;
     for (int s=0; s<Nslice; s++){
 
         if (momentum) { memcpy(&xx(0), &yk.data[yk.index(s,0,0)], sizeof(float)*Ny*Nz); }
@@ -393,7 +392,7 @@ void astra_ctvlib::least_squares() {
         if (momentum) { memcpy(&yk.data[yk.index(s,0,0)], &xx(0), sizeof(float)*Ny*Nz); }
         else          { memcpy(&recon.data[recon.index(s,0,0)], &xx(0), sizeof(float)*Ny*Nz);  }     
     }
-    return cost;
+    // return cost;
 }
 
 // Create Local Copy of Reconstruction. 
