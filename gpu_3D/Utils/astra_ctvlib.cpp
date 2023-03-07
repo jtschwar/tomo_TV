@@ -248,7 +248,8 @@ void astra_ctvlib::initializeFP() {
     algo_fp = new CCudaForwardProjectionAlgorithm(); 
     algo_fp->initialize(proj,vol,sino);             
     if (recon.gpuIndex != -1){ algo_fp->setGPUIndex(recon.gpuIndex); } 
-    outProj.resize(Nrow);          }
+    outProj.resize(Nrow);          
+}
 
 // Forward Projection (ML-Poisson)
 Vec astra_ctvlib::forward_projection(const Vec &inVol) {
@@ -268,7 +269,8 @@ void astra_ctvlib::initializeBP() {
     algo_bp = new CCudaBackProjectionAlgorithm(); 
     algo_bp->initialize(proj,sino,vol);
     if (recon.gpuIndex != -1){ algo_bp->setGPUIndex(recon.gpuIndex); } 
-    outVol.resize(Ny*Ny);           }
+    outVol.resize(Ny*Ny);          
+}
 
 // Backprojection.
 Vec astra_ctvlib::back_projection(const Vec &inProj) {   
@@ -512,7 +514,7 @@ PYBIND11_MODULE(astra_ctvlib, m)
     astra_ctvlib.def("initialize_fista", &astra_ctvlib::initialize_fista, "Initialize FISTA");
     astra_ctvlib.def("get_lipschitz", &astra_ctvlib::get_lipschitz, "Get the Lipschitz Parameter");
     astra_ctvlib.def("fista_momentum", &astra_ctvlib::fista_nesterov_momentum,"Fista Momentum Acceleration");
-    astra_ctvlib.def("remove_momentum", %astra_ctvlib::remove_momentum,"Remove Momentum from Optimization");
+    astra_ctvlib.def("remove_momentum", &astra_ctvlib::remove_momentum,"Remove Momentum from Optimization");
     astra_ctvlib.def("copy_recon", &astra_ctvlib::copy_recon, "Copy the reconstruction");
     astra_ctvlib.def("matrix_2norm", &astra_ctvlib::matrix_2norm, "Calculate L2-Norm of Reconstruction");
     astra_ctvlib.def("data_distance", &astra_ctvlib::data_distance, "Calculate L2-Norm of Projection (aka Vectors)");

@@ -102,6 +102,7 @@ public:
     void initialize_fista();                    void remove_momentum();    
     void soft_threshold(float lambda);          void fista_nesterov_momentum(float beta);
     void initialize_ogm();                      float get_lipschitz();
+    void least_squares();
 
     // Forward And Back-Projection Operator
     Vec forward_projection(const Vec &inVol);   Vec back_projection(const Vec &inProj);
