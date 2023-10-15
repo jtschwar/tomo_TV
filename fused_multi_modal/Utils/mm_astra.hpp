@@ -13,7 +13,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/eigen.h>
 #include "container/Matrix4D.h"
-// #include "container/Matrix3D.h"
 
 
 #include <astra/Float32VolumeData2D.h>
@@ -46,17 +45,16 @@ public:
 
     // Eigen - tomoTV Member Variables.
     Matrix4D recon, original_volume, temp_recon;
-    // Matrix3D recon_small;
     int NrowChem, NrowHaadf, Ncol, Nslice, Ny, Nz, Nel;
     int NprojHaadf, NprojChem, nPix; 
     int gpuID = -1;
 
     // Intermediate Reconstruction Variables
-    Vec xx, Ax, updateCHEM, updateHAADF;
+    Vec xx, Ax, updateCHEM, updateHAADF, modelHAADF, updateVol;
     Vec outProj, outVol, outProj4D, outVol4D;
 
     // Raw Data and Reprojection
-    Mat bh, bChem, g;
+    Mat bh, bChem, g, gChem;
     
     // Summation matrix
     Eigen::SparseMatrix<float, Eigen::RowMajor> sigma, spXXmatrix;
@@ -113,10 +111,12 @@ public:
     Vec back_projection(const Vec &inProj);
     Vec back_projection4D(const Vec &inProj);
 
+    float data_distance();
+
     void load_summation_matrix(Mat pySig);
 
     float poisson_ml(float lambdaCHEM);
-    std::tuple<float,float> data_fusion(float lambdaHAADF, float lambdaCHEM);
+    // std::tuple<float,float> data_fusion(float lambdaHAADF, float lambdaCHEM);
     void rescale_projections();
 
     // Acquire local copy of reconstruction.
@@ -137,8 +137,25 @@ public:
     Vec SART(const Vec &inVol,int s,int nIter);
     void FBP(bool apply_positivity);
 
+    // Non-Multi-Modal Reconstructions
+    void chemical_SART(int nIter); void chemical_SIRT(int nIter);
+
+    // Call Data Fusion
+        Vec fuse(const Vec &inVol, int s, int nIter, std::string method);
+    std::tuple<float,float> call_sirt_data_fusion(float lammbdaHAADF, float lambdaCHEM, int nIter);
+    std::tuple<float,float> call_sart_data_fusion(float lammbdaHAADF, float lambdaCHEM);
+    std::tuple<float,float> data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter, std::string method);
+
     // void SIRT(int nIter=1);
+    // error: no matching function for call to ‘mm_astra::SIRT(astra::CFloat32ProjectionData2D*&, Matrix4D&, int, int&, int&)’ 
     Vec SIRT(const Vec &inVol,int s,int nIter);
+    void SIRT(int e, int s, int nIter);
+
+
+    void SART(int e, int s, int nIter);    
+
+
+
     std::tuple<float,float> SIRT_data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter);
     std::tuple<float,float> SART_data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter);
 
@@ -154,11 +171,11 @@ public:
     void set_original_volume(Mat inBuffer, int slice, int element);
     void set_recon(Mat inBuffer, int slice, int element);
     Mat get_recon(int slice,int element);
+    Mat get_gt(int element, int slice);
     void save_recon(char *filename);
     
     // Return projections to python
-    Mat get_haadf_projections();
-    Mat get_chem_projections();
+    Mat get_haadf_projections(); Mat get_chem_projections();
     Mat get_model_projections();
 };
 

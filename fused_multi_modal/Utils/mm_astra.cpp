@@ -25,7 +25,6 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include "hdf5.h"
 
 using namespace astra;
 using namespace Eigen;
@@ -61,6 +60,7 @@ mm_astra::mm_astra(int Ns, int Nray, int Nelements, Vec haadfAngles, Vec chemAng
     // Allocate the Chemical and HAADF Tilt Series at Runtime
     bh.resize(Nslice, NrowHaadf);
     bChem.resize(Nslice, NrowChem*Nel);
+    gChem.resize(Nslice, NrowChem*Nel); 
     sigma.resize(Ns*Nray, Ns*Nray*Nel);
     
     //Initialize all the Slices in Recon as Zero.
@@ -73,6 +73,9 @@ mm_astra::mm_astra(int Ns, int Nray, int Nelements, Vec haadfAngles, Vec chemAng
 
     outProj.resize(NrowHaadf); outProj4D.resize(NrowChem*Nel);
     outVol.resize(Nray*Nray);  outVol4D.resize(xx.size());
+
+    modelHAADF.resize(Nslice*Ny); 
+    updateVol.resize(Nslice*Ny);
 
     // INITIALIZE ASTRA OBJECTS.
 
@@ -206,6 +209,19 @@ Vec mm_astra::forward_projection4D(const Vec &inVol)
     return outProj4D;
 }
 
+// Measure L2-norm for Chemical Tilt Series
+float mm_astra::data_distance() {
+
+    for (int s=0; s<Nslice; s++) {
+        // Concatenate Elements ([e,s,:,:])
+        for (int e=0; e<Nel; e++) {
+            memcpy(&xx(e*Ny*Nz), &recon.data[recon.index(e,s,0,0)], sizeof(float)*Ny*Nz); } 
+        
+        gChem.row(s) = forward_projection4D(xx);  }
+    
+    return (gChem - bChem).norm();
+}
+
 // Backproject the data (HAADF Volume).
 Vec mm_astra::back_projection(const Vec &inProj) {   
     // Copy Data to Astra
@@ -306,45 +322,6 @@ void mm_astra::rescale_projections() {
     }
 }
 
-// Fused Multi-Modal Tomography Reconstruction
-tuple<float,float> mm_astra::data_fusion(float lambdaHAADF, float lambdaCHEM) {
-    float costHAADF = 0; float costCHEM = 0; 
-
-    for (int s=0; s< Nslice; s++){
-
-        // Concatenate Elements ([e,s,:,:])
-        for (int e=0; e<Nel; e++) {
-            memcpy(&xx(e*Ny*Nz), &recon.data[recon.index(e,s,0,0)], sizeof(float)*Ny*Nz); } 
-
-        // Forward projection (HAADF)
-        if (gamma == 1) { 
-            g.row(s) = forward_projection(sigma * xx); 
-            updateHAADF = sigma.transpose() * back_projection( Vec (g.row(s) - bh.row(s)) ); }
-        else {
-            g.row(s) = forward_projection( sigma * (Vec (xx.array().pow(gamma)) ) ); 
-            spXXmatrix.diagonal().array() = xx.array().pow(gamma - 1); 
-            updateHAADF = gamma * spXXmatrix * sigma.transpose() * back_projection( Vec (g.row(s) - bh.row(s)) ); }
-        
-        // (Poisson-ML)
-        Ax = forward_projection4D(xx);
-        updateCHEM = back_projection4D( (Ax - bChem.row(s).transpose()).array() / (Ax.array() + eps).array() );
-        
-        // Update along gradient directions
-        xx -= lambdaHAADF/L_ASig * updateHAADF + lambdaCHEM/L_Aps * updateCHEM;
-        
-        // Return elements to recon.
-        for (int e=0; e<Nel; e++) {
-            memcpy(&recon.data[recon.index(e,s,0,0)], &xx(e*Ny*Nz), sizeof(float)*Ny*Nz); }
-
-        // Measure Data Fidelity Cost  
-        if (measureChem) {costCHEM += ( Ax.array() - bChem.row(s).transpose().array() * (Ax.array() + eps).log().array() ).sum(); }
-    }
-    // Measure Multi-Modal (HAADF) Cost 
-    if (measureHaadf) costHAADF = (g - bh).norm();
-
-    return make_tuple(costHAADF,costCHEM);
-}
-
 // Initialize SIRT Reconstruction Operator
 void mm_astra::initializeSIRT() {
     algo_sirt = new CCudaSirtAlgorithm();
@@ -354,31 +331,37 @@ void mm_astra::initializeSIRT() {
 }
 
 // General SART Reconstruction Method
-void mm_astra::SIRT(const Vec &inProj, Vec &inVol, int e, int s, int nIter) {
+void mm_astra::SIRT(int e, int s, int nIter) {
 
     // Copy Data to Astra
-    if (e > 0) { 
-        vol->copyData((float32*) &inVol[inVol.index(e,s,0,0)]); 
-        chemSino->copyData((float32*) &inProj(e*NrowChem));      
-        algo_sirt->updateSlice(chemSino, vol);                  }                                                         
-    else { 
-        vol->copyData((float32*) &inVol[inVol.index(s,0,0)]); 
-        haadfSino->copyData((float32*) &inProj(0));               
-        algo_sirt->updateSlice(haadfSino, vol);                 }                                                       
- 
-    // SIRT Reconstruction
-    algo_sirt->run(nIter);
+    if (e >= 0) { 
+        vol->copyData( (float32*) &recon.data[recon.index(e,s,0,0)] ); 
+        chemSino->copyData( (float32*) &bChem(s,e*NrowChem) );      
+        algo_sirt->updateSlice(chemSino, vol);                  
+        
+        // SIRT Reconstruction
+        algo_sirt->run(nIter);
 
-    // Return Data from Astra
-    memcpy(&inVol.data[index(e,s,0,0)], vol->getData(), sizeof(float)*Ny*Nz);
+        // Return Data from Astra
+        memcpy(&recon.data[recon.index(e,s,0,0)], vol->getData(), sizeof(float)*Ny*Nz); }                                                         
+    else { 
+        haadfSino->copyData( (float32*) &bh(s,0) );           
+        vol->copyData( (float32*) &modelHAADF(0) );                   
+
+        // SIRT Reconstruction
+        algo_sirt->updateSlice(haadfSino, vol);  
+        algo_sirt->run(nIter);        
+        
+        // Return Data from Astra
+        memcpy(&updateVol(0), vol->getData(), sizeof(float)*Ny*Nz);     }                                                       
 }
 
 //  Non-Multi-Modal Reconstruction with SIRT
 void mm_astra::chemical_SIRT(int nIter) { 
-    Vec chemProj(Nray*Nray); Vec outVol(Nray*Nray);
-    for (int s=0; s < NSlice; s++) { 
+    // Vec chemProj(Ny*Ny); Vec outVol(Ny*Ny);
+    for (int s=0; s<Nslice; s++) { 
         for (int e=0; e<Nel; e++) {
-            SIRT(bChem,recon,e,s,nIter);
+            SIRT(e,s,nIter);
         }
     }
 }
@@ -395,69 +378,76 @@ void mm_astra::initializeSART(std::string order) {
 }
 
 // General SART Reconstruction Method
-void mm_astra::SART(const Vec &inProj, Vec &inVol, int e, int s, int nIter) {
+void mm_astra::SART(int e, int s, int nIter) {
+
+    int Nproj = NrowHaadf / Ny;
 
     // Copy Data to Astra
-    if (e > 0) { 
-        vol->copyData((float32*) &inVol[inVol.index(e,s,0,0)]); 
-        chemSino->copyData((float32*) &inProj(e*NrowChem));      
-        algo_sart->updateSlice(chemSino, vol);                  }                                                         
-    else { 
-        vol->copyData((float32*) &inVol[inVol.index(s,0,0)]); 
-        haadfSino->copyData((float32*) &inProj(0));               
-        algo_sart->updateSlice(haadfSino, vol);                 }                                                       
- 
-    // SIRT Reconstruction
-    algo_sart->run(Nproj * nIter);
+    if (e >= 0) { 
+        vol->copyData( (float32*) &recon.data[recon.index(e,s,0,0)] ); 
+        chemSino->copyData( (float32*) &bChem(s,e*NrowChem) );      
+        algo_sart->updateSlice(chemSino, vol);                  
+        
+        // SART Reconstruction
+        algo_sart->run(Nproj * nIter); 
 
-    // Return Data from Astra
-    memcpy(&inVol.data[index(e,s,0,0)], vol->getData(), sizeof(float)*Ny*Nz);
+         // Return Data from Astra
+        memcpy(&recon.data[recon.index(e,s,0,0)], vol->getData(), sizeof(float)*Ny*Nz);     }                                                         
+    else { 
+
+        haadfSino->copyData( (float32*) &bh(s,0) );
+        vol->copyData( (float32*) &modelHAADF(0) );
+
+        // SART Reconstruction
+        algo_sart->updateSlice(haadfSino, vol);         
+        algo_sart->run(Nproj * nIter);           
+        
+        // Return Data from Astra
+        memcpy(&updateVol(0), vol->getData(), sizeof(float)*Ny*Nz);     }                                                       
 }
 
 //  Non-Multi-Modal Reconstruction with SIRT
 void mm_astra::chemical_SART(int nIter) { 
-    Vec chemProj(Nray*Nray); Vec outVol(Nray*Nray);
-    for (int s=0; s < NSlice; s++) { 
+    // Vec chemProj(Ny*Ny); Vec outVol(Ny*Ny);
+    for (int s=0; s < Nslice; s++) { 
         for (int e=0; e<Nel; e++) {
-            SART(bChem,recon,e,s,nIter);
+            SART(e,s,nIter);
         }
     }
 }
 
 // SIRT Reconstruction.
 Vec mm_astra::fuse(const Vec &inVol, int s, int nIter, std::string method) { 
-    Vec haadfForward(sigma.rows()); Vec updateVol(sigma.rows());
 
-    if (gamma == 1) {haadfForward = sigma * inVol;}
-    else            {haadfForward = sigma * (Vec (inVol.array().pow(gamma)) ); }
+    if (gamma == 1) {modelHAADF = sigma * inVol;}
+    else            {modelHAADF = sigma * (Vec (inVol.array().pow(gamma)) ); }
 
-    // Forward Project Weighted Chemistries against HAADF Tilt Series/
-    if (method == 'SIRT') { updateVol = SIRT(haadfSino,recon,-1,s,nIter); }
-    else (method == 'SART') { updateVol = SART(haadfSino,recon,-1,s,nIter); }
-    
+    // Forward Project Weighted Chemistries against HAADF Tilt Series
+    if (method ==  "SIRT") { SIRT(-1,s,nIter); }
+    else                   { SART(-1,s,nIter); }
+
     // Back propagate the decomposition back to individual chemistries.  
-    if (gamma == 1) {updateHAADF = sigma.transpose() * (updateVol - haadfForward); }
+    if (gamma == 1) {updateHAADF = sigma.transpose() * (updateVol - modelHAADF); }
     else {
         spXXmatrix.diagonal().array() = inVol.array().pow(gamma - 1); 
-        updateHAADF = gamma * spXXmatrix * (Vec (sigma.transpose() * (updateVol - haadfForward)) ); }
+        updateHAADF = gamma * spXXmatrix * (Vec (sigma.transpose() * (updateVol - modelHAADF)) ); }
         
     return updateHAADF;
-
 }
 
 // Call Data Fusion with SIRT Projection Operator
 tuple<float,float> mm_astra::call_sirt_data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter)
-{   return data_fusion(lambdaHAADF, lambdaCHEM, nIter, 'SIRT'); }
+{   return data_fusion(lambdaHAADF, lambdaCHEM, nIter, "SIRT"); }
 
 // Call Data Fusion with SART Projection Operator
-tuple<float,float> mm_astra::call_sart_data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter)
-{   return data_fusion(lambdaHAADF, lambdaCHEM, nIter, 'SART'); }
+tuple<float,float> mm_astra::call_sart_data_fusion(float lambdaHAADF, float lambdaCHEM)
+{   return data_fusion(lambdaHAADF, lambdaCHEM, 1, "SART"); }
 
 // Data Fusion with SIRT Reconstruction on HAADF term
-tuple<float,float> mm_astra::data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter) {
+tuple<float,float> mm_astra::data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter, std::string method) {
     float costHAADF = 0; float costCHEM = 0; 
-    if (method == 'SART') && (algo_sart == NULL) { initializeSART(); }
-    else if (method == 'SIRT') && (algo_sirt == NULL) { initializeSIRT(); }
+    if (method == "SART" && (algo_sart == NULL)) { initializeSART("sequential"); }
+    else if (method == "SIRT" && (algo_sirt == NULL)) { initializeSIRT(); }
 
     // Iterate Along slices
     for (int s=0; s < Nslice; s++) {
@@ -466,18 +456,10 @@ tuple<float,float> mm_astra::data_fusion(float lambdaHAADF, float lambdaCHEM, in
         for (int e=0; e< Nel; e++) {
             memcpy(&xx(e*Ny*Nz), &recon.data[recon.index(e,s,0,0)], sizeof(float)*Ny*Nz); } 
 
-        // Forward projection (HAADF)
-        // if (gamma == 1) { g.row(s) = forward_projection(sigma * xx); }
-        // else { g.row(s) = forward_projection( sigma * (Vec (xx.array().pow(gamma)) ) ); }
-
-        // // Compute SIRT Gradient Update
-        // if method == 'SIRT' { updateHAADF = SIRT(xx,s,nIter); }
-        // elif method == 'SART' { updateHAADF = SART(xx,s,nIter); }
-
         // // Compute HAADF Gradient Update
+        if (gamma == 1) { g.row(s) = forward_projection( sigma * xx ); }
+        else            { g.row(s) = forward_projection( sigma * (Vec (xx.array().pow(gamma)) ) ); }
         updateHAADF = fuse(xx,s,nIter,method);
-        // if method == 'SIRT' { updateHAADF = SIRT(xx,s,nIter); }
-        // elif method == 'SART' { updateHAADF = SART(xx,s,nIter); }
 
         // (Poisson-ML)
         Ax = forward_projection4D(xx);
@@ -510,57 +492,12 @@ float mm_astra::tv_gd_4D(int ng, float lambdaTV) { return cuda_tv_gd_4D(recon.da
 float mm_astra::tv_fgp_4D(int ng, float lambdaTV) { return cuda_tv_fgp_4D(recon.data, ng, lambdaTV, Nslice, Ny, Nz, Nel, gpuID); }
 
 // TV Minimization (Split Bregman)
-// float mm_astra::tv_sb_4D(int ng, float lambdaTV) { return cuda_tv_sb_4D(recon.data, ng, lambdaTV, Nslice, Ny, Nz, Nel);}
-
-// Data Fusion with SART Reconstruction.
-Vec mm_astra::SART_fusion(const Vec &inVol, int s, int nIter) { 
-    Vec tmpHAADF(sigma.rows()); Vec updateSART(sigma.rows());
-
-    int Nproj = NrowHaadf / Ny;
-
-    if (gamma == 1) {tmpHAADF = sigma * inVol;}
-    else            {tmpHAADF = sigma * (Vec (inVol.array().pow(gamma)) ); }
-
-    // Pass 2D Slice and Sinogram (Measurements) to ASTRA
-    haadfSino->copyData((float32*) &bh(s,0));
-    vol->copyData( (float32*) &tmpHAADF(0) );
-
-    // SIRT Reconstruction
-    algo_sart->updateSlice(haadfSino, vol);
-    algo_sart->run(nIter * Nproj);
-    
-    // Return Slice to tomo_TV
-    memcpy(&updateSART(0), vol->getData(), sizeof(float)*Ny*Nz);
-    if (gamma == 1) {updateHAADF = sigma.transpose() * (updateSART - tmpHAADF); }
-    else {
-        // # pragma omp parallel for
-        // for (int i=0; i < inVol.size(); i++) { spXXmatrix.coeffRef(i,i) = pow(inVol(i),gamma-1); }
-        spXXmatrix.diagonal().array() = inVol.array().pow(gamma - 1); 
-        updateHAADF = gamma * spXXmatrix * (Vec (sigma.transpose() * (updateSART - tmpHAADF)) ); }
-        
-    return updateHAADF;
-
-}
+// float mm_astra::tv_sb_4D(int ng, float lambdaTV) { return cuda_tv_sb_4D(recon.data, ng, lambdaTV, Nslice, Ny, Nz, Nel, gpuID);}
 
 // Measure the RMSE 
 Vec mm_astra::rmse() { 
-
     // Rescale Recon
     return Map<Vec>(cuda_rmse_4D(recon.data, original_volume.data, Nslice, Ny, Nz, Nel),Nel);  }
-
-// void mm_astra::print_recon(){
-//     printf((recon.data).size());
-// }
-
-// //Measure Reconstruction's TV.
-// float mm_astra::tv_3D(int NelSel) { 
-    
-//     // for (int s=0; s < Nslice; s++) {
-//     //     recon_small[recon_small.index(s,0,0)] = recon.data[recon.index(NelSel,s,0,0)];
-//     // }
-//     return (cuda_tv_3D(recon.data[recon.index()], Nslice, Ny, Nz));
-// }
-
 
 // Return Reconstruction to Python.
 Mat mm_astra::get_recon(int element, int slice) { return recon.getData2D(element, slice); }
@@ -594,6 +531,7 @@ PYBIND11_MODULE(mm_astra, m)
     mm_astra.def("measureHaadf", &mm_astra::get_measureHaadf, "Return measureHaadf");
     mm_astra.def("measureChem", &mm_astra::get_measureChem, "Return measureHaadf");
     mm_astra.def("gamma", &mm_astra::get_gamma, "Get Gamma");
+    mm_astra.def("data_distance", &mm_astra::data_distance, "Data Distance");
     mm_astra.def("load_sigma", &mm_astra::load_summation_matrix, "Load Summation Matrix (Sigma)");
     mm_astra.def("initialize_FP", &mm_astra::initializeFP, "Initialize Forward Projection");
     mm_astra.def("initialize_BP", &mm_astra::initializeBP, "Initialize Back Projection");
@@ -605,15 +543,12 @@ PYBIND11_MODULE(mm_astra, m)
     mm_astra.def("tv_gd", &mm_astra::tv_gd_4D, "3D TV Gradient Descent");
     mm_astra.def("tv_fgp_4D", &mm_astra::tv_fgp_4D, "3D TV Fast Gradient Projection");
     mm_astra.def("initialize_SART", &mm_astra::initializeSART, "Initialize SART");
-    // mm_astra.def("SART", &mm_astra::SART, "ART Reconstruction");
+    mm_astra.def("chemical_SART", &mm_astra::chemical_SART, "SART on the Raw Chemical Projections");
     mm_astra.def("initialize_SIRT", &mm_astra::initializeSIRT, "Initialize SIRT");
-    // mm_astra.def("SIRT", &mm_astra::SIRT, "SIRT Reconstruction");
-    mm_astra.def("SIRT_data_fusion", &mm_astra::SIRT_data_fusion, "Data Fusion with SIRT Algorithm");
-    mm_astra.def("SART_data_fusion", &mm_astra::SART_data_fusion, "Data Fusion with SART Algorithm");
+    mm_astra.def("chemical_SIRT", &mm_astra::chemical_SIRT, "SIRT on the Raw Chemical Projections");
+    mm_astra.def("sirt_data_fusion", &mm_astra::call_sirt_data_fusion, "Data Fusion with SIRT Forward Projection");
+    mm_astra.def("sart_data_fusion", &mm_astra::call_sart_data_fusion, "Data Fusion with SIRT Forward Projection");    
     mm_astra.def("rmse", &mm_astra::rmse, "Measure RMSE");
-    // mm_astra.def("tv_3D", &mm_astra::tv_3D, "Measure TV of the reconstruction");
-    // mm_astra.def("print_recon", &mm_astra::print_recon, "Print the reconstruction variable - debug");
-    // mm_astra.def("save_recon", &mm_astra::save_recon, "Save the Reconstruction with HDF5");
     mm_astra.def("get_recon", &mm_astra::get_recon, "Return the Reconstruction to Python");
     mm_astra.def("get_haadf_projections", &mm_astra::get_haadf_projections, "Return the projection matrix to python");
     mm_astra.def("get_chem_projections", &mm_astra::get_chem_projections, "Return the projection matrix to python");
@@ -621,6 +556,28 @@ PYBIND11_MODULE(mm_astra, m)
     mm_astra.def("get_gpu", &mm_astra::get_gpu_id, "Get GPU ID");
     mm_astra.def("restart_recon", &mm_astra::restart_recon, "Set all the Slices Equal to Zero");
 }
+
+// mm_astra.def("SIRT_data_fusion", &mm_astra::SIRT_data_fusion, "Data Fusion with SIRT Algorithm");
+// mm_astra.def("SART_data_fusion", &mm_astra::SART_data_fusion, "Data Fusion with SART Algorithm");
+
+// mm_astra.def("SART", &mm_astra::SART, "ART Reconstruction");
+// mm_astra.def("SIRT", &mm_astra::SIRT, "SIRT Reconstruction");
+// mm_astra.def("tv_3D", &mm_astra::tv_3D, "Measure TV of the reconstruction");
+// mm_astra.def("print_recon", &mm_astra::print_recon, "Print the reconstruction variable - debug");
+// mm_astra.def("save_recon", &mm_astra::save_recon, "Save the Reconstruction with HDF5");
+
+// void mm_astra::print_recon(){
+//     printf((recon.data).size());
+// }
+
+// //Measure Reconstruction's TV.
+// float mm_astra::tv_3D(int NelSel) { 
+    
+//     // for (int s=0; s < Nslice; s++) {
+//     //     recon_small[recon_small.index(s,0,0)] = recon.data[recon.index(NelSel,s,0,0)];
+//     // }
+//     return (cuda_tv_3D(recon.data[recon.index()], Nslice, Ny, Nz));
+// }
 
 // // Copy Data to Astra
 // chemSino->copyData((float32*) &inProj(e*NrowChem));
@@ -633,53 +590,122 @@ PYBIND11_MODULE(mm_astra, m)
 // memcpy(&outVol4D(e*Ny*Nz), vol->getData(), sizeof(float)*Ny*Nz);
 
 // Data Fusion with SIRT Reconstruction on HAADF term
-tuple<float,float> mm_astra::SART_data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter)
-{
-    float costHAADF = 0; float costCHEM = 0; 
+// tuple<float,float> mm_astra::SART_data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter)
+// {
+//     float costHAADF = 0; float costCHEM = 0; 
 
-    // Iterate Along slices
-    for (int s=0; s < Nslice; s++) {
+//     // Iterate Along slices
+//     for (int s=0; s < Nslice; s++) {
 
-        // Iterate Along Elements
-        for (int e=0; e< Nel; e++) {
-            memcpy(&xx(e*Ny*Nz), &recon.data[recon.index(e,s,0,0)], sizeof(float)*Ny*Nz); } 
+//         // Iterate Along Elements
+//         for (int e=0; e< Nel; e++) {
+//             memcpy(&xx(e*Ny*Nz), &recon.data[recon.index(e,s,0,0)], sizeof(float)*Ny*Nz); } 
 
-        // Forward projection (HAADF)
-        if (gamma == 1) { g.row(s) = forward_projection(sigma * xx); }
-        else { g.row(s) = forward_projection( sigma * (Vec (xx.array().pow(gamma)) ) ); }
+//         // Forward projection (HAADF)
+//         if (gamma == 1) { g.row(s) = forward_projection(sigma * xx); }
+//         else { g.row(s) = forward_projection( sigma * (Vec (xx.array().pow(gamma)) ) ); }
 
-        // // Compute SART Gradient Update
-        // updateHAADF = SART(xx,s,nIter);
+//         // // Compute SART Gradient Update
+//         // updateHAADF = SART(xx,s,nIter);
 
-        // xx -= lambdaHAADF * updateHAADF;
+//         // xx -= lambdaHAADF * updateHAADF;
 
-        // (Poisson-ML)
-        Ax = forward_projection4D(xx);
-        updateCHEM = back_projection4D( (Ax - bChem.row(s).transpose()).array() / (Ax.array() + eps).array() );
+//         // (Poisson-ML)
+//         Ax = forward_projection4D(xx);
+//         updateCHEM = back_projection4D( (Ax - bChem.row(s).transpose()).array() / (Ax.array() + eps).array() );
 
-        // New Version?
-        xx -= lambdaCHEM/L_Aps * updateCHEM;
-        updateHAADF = SART(xx,s,nIter);
-        xx -= lambdaHAADF * updateHAADF;
+//         // New Version?
+//         xx -= lambdaCHEM/L_Aps * updateCHEM;
+//         updateHAADF = SART(xx,s,nIter);
+//         xx -= lambdaHAADF * updateHAADF;
 
-        // Update along gradient directions
-        // xx -= lambdaCHEM/L_Aps * updateCHEM - lambdaHAADF * updateHAADF;
+//         // Update along gradient directions
+//         // xx -= lambdaCHEM/L_Aps * updateCHEM - lambdaHAADF * updateHAADF;
 
-        // Iterate Along Elements
-        for (int e=0; e< Nel; e++) {
-            memcpy(&recon.data[recon.index(e,s,0,0)], &xx(e*Ny*Nz), sizeof(float)*Ny*Nz); } 
+//         // Iterate Along Elements
+//         for (int e=0; e< Nel; e++) {
+//             memcpy(&recon.data[recon.index(e,s,0,0)], &xx(e*Ny*Nz), sizeof(float)*Ny*Nz); } 
 
-        // Measure Data Fidelity Cost  
-        if (measureChem) {costCHEM += ( Ax.array() - bChem.row(s).transpose().array() * (Ax.array() + eps).log().array() ).sum(); }
-    }
+//         // Measure Data Fidelity Cost  
+//         if (measureChem) {costCHEM += ( Ax.array() - bChem.row(s).transpose().array() * (Ax.array() + eps).log().array() ).sum(); }
+//     }
 
-    // Apply Positivity
-    recon.positivity();
+//     // Apply Positivity
+//     recon.positivity();
 
-    // rescale_projections();
+//     // rescale_projections();
 
-    // Measure Multi-Modal (HAADF) Cost 
-    if (measureHaadf) costHAADF = (g - bh).norm();
+//     // Measure Multi-Modal (HAADF) Cost 
+//     if (measureHaadf) costHAADF = (g - bh).norm();
 
-    return make_tuple(costHAADF,costCHEM);
-}
+//     return make_tuple(costHAADF,costCHEM);
+// }
+
+// Data Fusion with SART Reconstruction.
+// Vec mm_astra::SART_fusion(const Vec &inVol, int s, int nIter) { 
+//     Vec tmpHAADF(sigma.rows()); Vec updateSART(sigma.rows());
+
+//     int Nproj = NrowHaadf / Ny;
+
+//     if (gamma == 1) {tmpHAADF = sigma * inVol;}
+//     else            {tmpHAADF = sigma * (Vec (inVol.array().pow(gamma)) ); }
+
+//     // Pass 2D Slice and Sinogram (Measurements) to ASTRA
+//     haadfSino->copyData((float32*) &bh(s,0));
+//     vol->copyData( (float32*) &tmpHAADF(0) );
+
+//     // SIRT Reconstruction
+//     algo_sart->updateSlice(haadfSino, vol);
+//     algo_sart->run(nIter * Nproj);
+
+//     // Return Slice to tomo_TV
+//     memcpy(&updateSART(0), vol->getData(), sizeof(float)*Ny*Nz);
+//     if (gamma == 1) {updateHAADF = sigma.transpose() * (updateSART - tmpHAADF); }
+//     else {
+//         // # pragma omp parallel for
+//         // for (int i=0; i < inVol.size(); i++) { spXXmatrix.coeffRef(i,i) = pow(inVol(i),gamma-1); }
+//         spXXmatrix.diagonal().array() = inVol.array().pow(gamma - 1); 
+//         updateHAADF = gamma * spXXmatrix * (Vec (sigma.transpose() * (updateSART - tmpHAADF)) ); }
+        
+//     return updateHAADF;
+
+// }
+
+// // Fused Multi-Modal Tomography Reconstruction
+// tuple<float,float> mm_astra::data_fusion(float lambdaHAADF, float lambdaCHEM) {
+//     float costHAADF = 0; float costCHEM = 0; 
+
+//     for (int s=0; s< Nslice; s++){
+
+//         // Concatenate Elements ([e,s,:,:])
+//         for (int e=0; e<Nel; e++) {
+//             memcpy(&xx(e*Ny*Nz), &recon.data[recon.index(e,s,0,0)], sizeof(float)*Ny*Nz); } 
+
+//         // Forward projection (HAADF)
+//         if (gamma == 1) { 
+//             g.row(s) = forward_projection(sigma * xx); 
+//             updateHAADF = sigma.transpose() * back_projection( Vec (g.row(s) - bh.row(s)) ); }
+//         else {
+//             g.row(s) = forward_projection( sigma * (Vec (xx.array().pow(gamma)) ) ); 
+//             spXXmatrix.diagonal().array() = xx.array().pow(gamma - 1); 
+//             updateHAADF = gamma * spXXmatrix * sigma.transpose() * back_projection( Vec (g.row(s) - bh.row(s)) ); }
+        
+//         // (Poisson-ML)
+//         Ax = forward_projection4D(xx);
+//         updateCHEM = back_projection4D( (Ax - bChem.row(s).transpose()).array() / (Ax.array() + eps).array() );
+        
+//         // Update along gradient directions
+//         xx -= lambdaHAADF/L_ASig * updateHAADF + lambdaCHEM/L_Aps * updateCHEM;
+        
+//         // Return elements to recon.
+//         for (int e=0; e<Nel; e++) {
+//             memcpy(&recon.data[recon.index(e,s,0,0)], &xx(e*Ny*Nz), sizeof(float)*Ny*Nz); }
+
+//         // Measure Data Fidelity Cost  
+//         if (measureChem) {costCHEM += ( Ax.array() - bChem.row(s).transpose().array() * (Ax.array() + eps).log().array() ).sum(); }
+//     }
+//     // Measure Multi-Modal (HAADF) Cost 
+//     if (measureHaadf) costHAADF = (g - bh).norm();
+
+//     return make_tuple(costHAADF,costCHEM);
+// }
