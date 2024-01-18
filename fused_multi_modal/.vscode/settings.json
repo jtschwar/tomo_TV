@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "variant": "cpp",
+        "chrono": "cpp",
+        "__tuple": "cpp",
+        "tuple": "cpp",
+        "array": "cpp",
+        "vector": "cpp"
+    }
+}
