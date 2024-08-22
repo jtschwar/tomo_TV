@@ -3,7 +3,7 @@
 
 include ./make.inc
 
-all: matrix_op matrix3d matrix4d
+all: matrix_op matrix4d
 
 matrix_op: matrix_ops.cu matrix_ops.h
 	$(CUDAXX) matrix_ops.cu 
