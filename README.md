@@ -32,6 +32,7 @@ tomo_TV can be used by running in parallel across multiple GPU devices on a pers
 If you use tomo_TV for your research, we would appreciate it if you cite to the following papers:
 
 - [Real-time 3D analysis during electron tomography using tomviz](https://www.nature.com/articles/s41467-022-32046-0)
+- [Imaging 3D Chemistry at 1 nm resolution with fused multi-modal electron tomography](https://www.nature.com/articles/s41467-024-47558-0)
      
 ## Contribute
 

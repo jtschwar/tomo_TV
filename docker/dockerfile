@@ -1,0 +1,56 @@
+# docker build . -t peterercius/tomo_tv
+# docker push peterercius/tomo_tv:latest
+
+FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu20.04
+
+RUN  apt-get update \
+  && export DEBIAN_FRONTEND=noninteractive \
+  && apt-get install -yq wget git vim autotools-dev automake libtool libboost-all-dev python3-pip \
+  && rm -rf /var/lib/apt/lists/* \
+  && ln -s /usr/bin/python3 /usr/bin/python
+
+RUN git clone --recursive https://github.com/jtschwar/tomo_TV.git \
+  && git clone https://github.com/jtschwar/projection_refinement.git \
+  && pip install numpy cython six scipy pybind11 matplotlib tqdm h5py scikit-image 
+
+# Build astra
+# The sed line adds the path to astra in the Makefile
+# This does not install astra as a module. Need to use --with-install-type=module for that
+RUN cd /tomo_TV/thirdparty/astra-toolbox/build/linux \
+  && ./autogen.sh \
+  && ./configure --with-cuda=/usr/local/cuda --with-python --with-install-type=prefix --prefix=/tomo_TV/thirdparty/astra-toolbox \
+  && sed -i "508s/$/  --prefix=\/tomo_TV\/thirdparty\/astra-toolbox /" Makefile \
+  && make all \
+  && make install
+
+# Make the shared library
+RUN cd /tomo_TV/gpu_3D/Utils \
+  && make shared_library
+
+# Overwrite make.inc with proper paths written in.
+ADD make_gpu.inc /tomo_TV/gpu_3D/Utils/make.inc
+
+RUN cd /tomo_TV/gpu_3D/Utils \ 
+  && make astra_ctvlib
+
+ENV LD_LIBRARY_PATH=/tomo_TV/thirdparty/astra-toolbox/lib:/tomo_TV/gpu_3D/Utils:$LD_LIBRARY_PATH
+ENV PYTHONPATH=/tomo_TV/thirdparty/astra/lib/python3/site-packages/:/tomo_TV/gpu_3D/Utils:/tomo_TV
+
+# Compile fused multimodal
+ADD make_fused.inc /tomo_TV/fused_multi_modal/Utils/make.inc
+
+RUN cd /tomo_TV/fused_multi_modal/Utils \
+ && make
+
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/tomo_TV/fused_multi_modal/Utils
+
+# Ensure packages work with NERSC Jupyter
+RUN pip install -U ipykernel==6.28 ipympl==0.9.3 matplotlib>=3.8.0 ipywidgets==8.1.1 cupy-cuda11x
+
+# CLone my fork. This makes sure that the new fork is cloned for every docker build
+ADD https://api.github.com/repos/ercius/projection_refinement/git/refs/heads/general_updates version.json
+RUN git clone -b general_updates https://github.com/ercius/projection_refinement.git pae_projection_refinement \
+  && cd pae_projection_refinement \
+#  && git checkout general_updates \
+  && pip install -e .
+
