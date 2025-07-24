@@ -7,11 +7,9 @@ Python and C++ toolbox for tomographic data processing and developing iterative 
 2D and 3D reconstruction algorithms implemented purely in C++ wrapped in Python functions.  These scripts can either perform simulations (sim) or reconstruct experimental (exp) projections. Available algorithms include:
 * Filtered Backprojection (FBP)
 * Simultaneous Iterative/Algebraic Reconstruction Technique (SIRT/SART)
-* Conjugate Gradient - Least Squares (CGLS)
 * KL-Divergence / Expectation Maximization for Poisson Limited Datasets
 * FISTA [doi: 10.1137/080716542](https://epubs.siam.org/doi/10.1137/080716542)
 * ASD - POCS [doi: 10.1088/0031-9155/53/17/021](https://iopscience.iop.org/article/10.1088/0031-9155/53/17/021)
-* (TODO: OGM and FASTA )
 
 We provide a sample jupyter notebook ([demo.ipynb](demo.ipynb)) which outlines the reconstruction process for all these algorithms both with simulated and experimental datasets. 
 
@@ -21,12 +19,38 @@ To clone the repositiory and all the core dependencies run the following line in
 
 ` git clone --recursive https://github.com/jtschwar/tomo_TV.git`
 
-For GPU accelerated reconstruction algorithms, we recomend using a Linux operating system. C++ accelerated operations is available on all three operating systems (Windows, macOS, and Linux). 
-
 Instructructions for building can be found in [BUILDING.MD](BUILDING.md).
 
-## Multi-GPU Capabilities
-tomo_TV can be used by running in parallel across multiple GPU devices on a personal computer or compute nodes in a high-performance computing cluster. In order to initiate a parallel run on multiple GPUs, MPI needs to be available. 
+## Quickstart 
+
+We can either use the traditional non-multimodal reconstruction algorithms:
+
+```python
+from tomo_tv.gpu_3D.reconstructor import reconstructor
+
+# Load the Tilt Series and Tilt Angles
+# Tilt Series needs to be in (Nx,Ny,Nangles) where Nx is the tilt-axis
+# Tilt Angles is a 1D Vector with Nangles elements
+
+# Create Reconstruction object, run reconstruction algorithm and return algorithm
+recon = reconstructor(tiltAngles, tiltSeries)
+recon.fista()
+vol = recon.get_recon()
+```
+
+or fused mutli-modal implementation:
+
+```python
+from tomo_tv.fused_multi_modal import reconstructor
+
+# Load the Tilt Series and Tilt Angles for ADF and Chemical Signals
+# Tilt Series needs to be in (Nx,Ny,Nangles) where Nx is the tilt-axis
+# Tilt Angles is a 1D Vector with Nangles elements
+
+chem = {'C': carbon_tilt_series, 'Zn': zn_tilt_series}
+recon = reconstructor(adf, adf_tilt_angles, chem, chem_tilt_angles)
+recon.data_fusion()
+```
 
 ## References
 If you use tomo_TV for your research, we would appreciate it if you cite to the following papers:
