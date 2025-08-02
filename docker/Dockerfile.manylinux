@@ -1,0 +1,73 @@
+# Use manylinux with CUDA 11 support (required for your kernels)
+FROM sameli/manylinux2014_x86_64_cuda_11
+
+# Install system dependencies
+RUN yum update -y && yum install -y \
+    git \
+    wget \
+    autoconf \
+    automake \
+    libtool \
+    boost-devel \
+    eigen3-devel \
+    && yum clean all
+
+# Set CUDA 11 environment
+ENV CUDA_PATH=/usr/local/cuda-11
+ENV CUDA_HOME=/usr/local/cuda-11
+ENV PATH=${CUDA_PATH}/bin:${PATH}
+ENV LD_LIBRARY_PATH=${CUDA_PATH}/lib64:${LD_LIBRARY_PATH}
+
+# Verify CUDA version
+RUN nvcc --version
+
+# Create working directory
+WORKDIR /project
+
+# Clone repository with recursive submodules (this ensures we get thirdparty deps)
+# We'll mount the source but need to ensure submodules are initialized
+COPY . .
+
+# Initialize and update git submodules if not already done
+RUN if [ -f .gitmodules ]; then \
+    git submodule update --init --recursive || echo "Submodules already initialized"; \
+    fi
+
+# Install build dependencies for all Python versions
+RUN for PYBIN in /opt/python/cp3{8,9,10,11,12}*/bin; do \
+    "${PYBIN}/pip" install --upgrade pip setuptools wheel && \
+    "${PYBIN}/pip" install pybind11 numpy cython; \
+done
+
+# Build ASTRA-toolbox first (required dependency)
+RUN if [ -d "thirdparty/astra-toolbox" ]; then \
+    cd thirdparty/astra-toolbox/build/linux && \
+    ./autogen.sh && \
+    ./configure --with-cuda=${CUDA_PATH} --with-python --with-install-type=prefix --prefix=/project/thirdparty/astra && \
+    make -j$(nproc) all && \
+    make install; \
+    fi
+
+# Set environment for ASTRA
+ENV ASTRA_PATH=/project/thirdparty/astra
+ENV LD_LIBRARY_PATH=${ASTRA_PATH}/lib:${LD_LIBRARY_PATH}
+
+# Build wheels for all Python versions
+RUN for PYBIN in /opt/python/cp3{8,9,10,11,12}*/bin; do \
+    echo "Building wheel with ${PYBIN}" && \
+    "${PYBIN}/pip" wheel . -w /tmp/wheelhouse --no-deps --verbose; \
+done
+
+# Repair wheels to make them manylinux compatible
+RUN mkdir -p /output && \
+    for whl in /tmp/wheelhouse/*.whl; do \
+        echo "Repairing wheel: $whl" && \
+        auditwheel repair "$whl" -w /output --plat manylinux2014_x86_64; \
+    done
+
+# Test wheels (basic import test)
+RUN for PYBIN in /opt/python/cp3{8,9,10,11,12}*/bin; do \
+    echo "Testing wheel with ${PYBIN}" && \
+    "${PYBIN}/pip" install --find-links /output tomo_tv --force-reinstall && \
+    "${PYBIN}/python" -c "import tomo_tv; print('Import successful for ${PYBIN}')"; \
+done
