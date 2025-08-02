@@ -1,22 +1,27 @@
-# Dockerfile for building tomofusion wheels with multiple make.inc files
-# Multi-stage build: working environment -> manylinux wheels
+# Alternative: Single-stage build using CUDA 11.7 manylinux image
+# This matches your exact CUDA version from the builder stage
 
-# Stage 1: Build environment (your working setup)
-FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu20.04 as builder
+FROM sameli/manylinux2014_x86_64_cuda_11.7
 
-RUN apt-get update && \
-    export DEBIAN_FRONTEND=noninteractive && \
-    apt-get install -yq wget git vim autotools-dev automake libtool libboost-all-dev python3-pip && \
-    rm -rf /var/lib/apt/lists/* && \
-    ln -s /usr/bin/python3 /usr/bin/python
-
-# Install Python build dependencies
-RUN pip install numpy cython six scipy pybind11 matplotlib tqdm h5py scikit-image
+# Install additional build dependencies that might be missing
+RUN yum install -y autotools-dev automake libtool boost-devel || \
+    yum install -y autoconf automake libtool boost-devel
 
 COPY . /workspace
 WORKDIR /workspace
 
-# Build ASTRA toolbox (your exact process)
+# Set environment variables
+ENV CUDA_HOME=/usr/local/cuda
+ENV ASTRA_HOME=/workspace/thirdparty/astra-toolbox
+ENV PATH="${CUDA_HOME}/bin:${PATH}"
+ENV LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${ASTRA_HOME}/lib:${LD_LIBRARY_PATH}"
+
+# Install Python dependencies for all Python versions
+RUN for PYBIN in /opt/python/cp3{8,9,10,11}-cp3{8,9,10,11}/bin; do \
+        "${PYBIN}/pip" install numpy cython six scipy pybind11 matplotlib tqdm h5py scikit-image; \
+    done
+
+# Build ASTRA toolbox
 RUN cd thirdparty/astra-toolbox/build/linux && \
     ./autogen.sh && \
     ./configure --with-cuda=/usr/local/cuda --with-python --with-install-type=prefix --prefix=/workspace/thirdparty/astra-toolbox && \
@@ -25,7 +30,6 @@ RUN cd thirdparty/astra-toolbox/build/linux && \
     make install
 
 # Build all submodules that have Utils directories with make.inc files
-# This approach dynamically finds and builds all submodules
 RUN for submodule in $(find tomofusion -name "Utils" -type d); do \
         if [ -f "$submodule/make.inc" ] && [ -f "$submodule/Makefile" ]; then \
             echo "Building $submodule..."; \
@@ -38,38 +42,8 @@ RUN for submodule in $(find tomofusion -name "Utils" -type d); do \
         fi; \
     done
 
-# Alternative approach if you know the specific submodules:
-# RUN cd /workspace/tomofusion/gpu/Utils && \
-#     make shared_library && \
-#     make astra_ctvlib
-# 
-# RUN cd /workspace/tomofusion/chemistry/Utils && \
-#     make shared_library && \
-#     make chem_utils
-
-# Stage 2: manylinux wheel builder
-FROM quay.io/pypa/manylinux_2_28_x86_64 as wheel-builder
-
-# Install CUDA toolkit
-RUN yum install -y wget && \
-    wget https://developer.download.nvidia.com/compute/cuda/11.7.1/local_installers/cuda_11.7.1_515.65.01_linux.run && \
-    sh cuda_11.7.1_515.65.01_linux.run --silent --toolkit
-
-# Copy built artifacts from stage 1
-COPY --from=builder /workspace /workspace
-COPY --from=builder /workspace/thirdparty/astra-toolbox /usr/local/astra
-
-WORKDIR /workspace
-
-# Set environment variables
-ENV CUDA_HOME=/usr/local/cuda
-ENV ASTRA_HOME=/usr/local/astra
-ENV PATH="${CUDA_HOME}/bin:${PATH}"
-ENV LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${ASTRA_HOME}/lib:${LD_LIBRARY_PATH}"
-
 # Build wheels for each Python version
 RUN for PYBIN in /opt/python/cp3{8,9,10,11}-cp3{8,9,10,11}/bin; do \
-        "${PYBIN}/pip" install numpy cython six scipy pybind11 && \
         "${PYBIN}/pip" wheel . -w wheelhouse/ --no-build-isolation; \
     done
 
@@ -81,7 +55,7 @@ RUN for whl in wheelhouse/*.whl; do \
             --exclude libcublas.so \
             --exclude libcurand.so \
             --exclude libcusparse.so \
-            --exclude libastra.so; \
+            --exclude libastra.so || echo "Failed to repair $whl"; \
     done
 
 # Output final wheels
