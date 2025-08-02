@@ -1,0 +1,20 @@
+include README.md
+include LICENSE
+include BUILDING.md
+include requirements*.txt
+recursive-include tomofusion *.py
+recursive-include tomofusion *.cpp
+recursive-include tomofusion *.cu
+recursive-include tomofusion *.h
+recursive-include tomofusion *.hpp
+recursive-include thirdparty *.h
+recursive-include thirdparty *.hpp
+include tomofusion/gpu/Utils/make.inc
+include tomofusion/chemistry/Utils/make.inc
+include tomofusion/*/Utils/make.inc
+exclude demo.ipynb
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude *.so
+global-exclude .git*
+prune .git

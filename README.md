@@ -26,7 +26,7 @@ Instructructions for building can be found in [BUILDING.MD](BUILDING.md).
 We can either use the traditional non-multimodal reconstruction algorithms:
 
 ```python
-from tomo_tv.gpu_3D.reconstructor import reconstructor
+from tomofusion.gpu.reconstructor import reconstructor
 
 # Load the Tilt Series and Tilt Angles
 # Tilt Series needs to be in (Nx,Ny,Nangles) where Nx is the tilt-axis
@@ -41,7 +41,7 @@ vol = recon.get_recon()
 or fused mutli-modal implementation:
 
 ```python
-from tomo_tv.fused_multi_modal import reconstructor
+from tomofusion.chemistry import reconstructor
 
 # Load the Tilt Series and Tilt Angles for ADF and Chemical Signals
 # Tilt Series needs to be in (Nx,Ny,Nangles) where Nx is the tilt-axis

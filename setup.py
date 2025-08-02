@@ -49,15 +49,16 @@ def get_cuda_extension():
         'astra',
     ]
     
-    # Source files - update these paths based on your actual structure
-    sources = [
-        'tomofusion/gpu/Utils/astra_ctvlib.cpp',
-        # Add other source files as needed
-    ]
+    # Source files - find all C++ and CUDA files in gpu/Utils
+    sources = []
+    gpu_utils_dir = 'tomofusion/gpu/Utils'
+    if os.path.exists(gpu_utils_dir):
+        sources.extend(glob.glob(os.path.join(gpu_utils_dir, '*.cpp')))
+        sources.extend(glob.glob(os.path.join(gpu_utils_dir, '*.cu')))
     
-    # Find all .cu files if any
-    cu_sources = glob.glob('tomofusion/gpu/Utils/*.cu')
-    sources.extend(cu_sources)
+    if not sources:
+        print("Warning: No source files found in tomofusion/gpu/Utils/")
+        return None
     
     # Compiler flags
     extra_compile_args = [
@@ -100,10 +101,12 @@ def get_chemistry_extension():
         'tomofusion/chemistry/Utils',
     ]
     
-    # Source files - update based on actual structure
-    sources = glob.glob('tomofusion/chemistry/Utils/*.cpp')
-    cu_sources = glob.glob('tomofusion/chemistry/Utils/*.cu')
-    sources.extend(cu_sources)
+    # Source files - find all C++ and CUDA files in chemistry/Utils
+    sources = []
+    chem_utils_dir = 'tomofusion/chemistry/Utils'
+    if os.path.exists(chem_utils_dir):
+        sources.extend(glob.glob(os.path.join(chem_utils_dir, '*.cpp')))
+        sources.extend(glob.glob(os.path.join(chem_utils_dir, '*.cu')))
     
     if not sources:
         return None  # No chemistry extension sources found
@@ -118,6 +121,53 @@ def get_chemistry_extension():
         extra_compile_args=['-std=c++14', '-O3'],
         extra_link_args=['-Wl,-rpath,' + os.path.join(CUDA_HOME, 'lib64')],
     )
+
+def get_all_extensions():
+    """Dynamically discover and build all submodule extensions"""
+    extensions = []
+    
+    # Find all Utils directories with potential extensions
+    utils_dirs = []
+    for root, dirs, files in os.walk('tomofusion'):
+        if 'Utils' in dirs:
+            utils_path = os.path.join(root, 'Utils')
+            # Check if there are C++ or CUDA source files
+            cpp_files = glob.glob(os.path.join(utils_path, '*.cpp'))
+            cu_files = glob.glob(os.path.join(utils_path, '*.cu'))
+            if cpp_files or cu_files:
+                utils_dirs.append((root, utils_path, cpp_files + cu_files))
+    
+    for module_path, utils_path, sources in utils_dirs:
+        # Convert path to module name (e.g., 'tomofusion/gpu' -> 'tomofusion.gpu.utils')
+        module_name = module_path.replace('/', '.') + '.utils'
+        
+        extension = Extension(
+            module_name,
+            sources=sources,
+            include_dirs=[
+                np.get_include(),
+                os.path.join(CUDA_HOME, 'include'),
+                os.path.join(ASTRA_HOME, 'include'),
+                'thirdparty/eigen',
+                utils_path,
+            ],
+            library_dirs=[
+                os.path.join(CUDA_HOME, 'lib64'),
+                os.path.join(ASTRA_HOME, 'lib'),
+                utils_path,
+            ],
+            libraries=['cudart', 'astra'],
+            language='c++',
+            extra_compile_args=['-std=c++14', '-O3', '-DWITH_CUDA'],
+            extra_link_args=[
+                '-Wl,-rpath,' + os.path.join(CUDA_HOME, 'lib64'),
+                '-Wl,-rpath,' + os.path.join(ASTRA_HOME, 'lib'),
+            ],
+        )
+        extensions.append(extension)
+        print(f"Found extension: {module_name} with {len(sources)} source files")
+    
+    return extensions
 
 # Read version from file
 def get_version():
@@ -139,15 +189,17 @@ def get_long_description():
 # Build extensions list
 extensions = []
 
-# Add GPU extension
-gpu_ext = get_cuda_extension()
-if gpu_ext:
-    extensions.append(gpu_ext)
+# Option 1: Use dynamic discovery (recommended)
+extensions = get_all_extensions()
 
-# Add chemistry extension if it exists
-chem_ext = get_chemistry_extension()
-if chem_ext:
-    extensions.append(chem_ext)
+# Option 2: Manual extension building (if you prefer explicit control)
+# gpu_ext = get_cuda_extension()
+# if gpu_ext:
+#     extensions.append(gpu_ext)
+# 
+# chem_ext = get_chemistry_extension()
+# if chem_ext:
+#     extensions.append(chem_ext)
 
 # Setup configuration
 setup(
@@ -193,7 +245,7 @@ setup(
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: MIT License',
+        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
