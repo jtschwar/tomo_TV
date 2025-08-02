@@ -2,22 +2,23 @@
 requires = [
     "setuptools>=61.0",
     "wheel",
-    "pybind11>=2.10.0",
-    "numpy>=1.21.0"
+    "numpy",
+    "cython",
+    "pybind11",
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tomo_tv"
-dynamic = ["version"] 
-description = "Python and C++ toolbox for tomographic data processing and developing iterative reconstruction algorithms"
+name = "tomofusion"
+version = "0.1.0"
+description = "Python and C++ toolbox for tomographic data processing and iterative reconstruction algorithms"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "Jonathan Schwartz", email = "jtschw@umich.edu"}
+    {name = "Jonathan Schwartz", email = "jtschw@umich.edu"},
 ]
-keywords = ["tomography", "reconstruction", "cuda", "imaging", "electron-microscopy"]
+keywords = ["tomography", "reconstruction", "cuda", "3d", "imaging", "electron-microscopy"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -27,45 +28,81 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: C++",
     "Topic :: Scientific/Engineering :: Image Processing",
-    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Topic :: Scientific/Engineering :: Physics",
 ]
+
 dependencies = [
-    "numpy>=1.21.0",
-    "scipy>=1.7.0",
-    "matplotlib>=3.3.0",
-    "h5py>=3.0.0",
-    "mpi4py>=3.0.0",
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "scikit-image",
+    "h5py",
+    "tqdm",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=6.0",
-    "pytest-cov",
     "black",
     "flake8",
-    "mypy",
-]
-test = [
-    "pytest>=6.0",
-    "pytest-cov",
+    "jupyter",
+    "build",
+    "twine",
 ]
 
 [project.urls]
 Homepage = "https://github.com/jtschwar/tomo_TV"
-Repository = "https://github.com/jtschwar/tomo_TV"
-Issues = "https://github.com/jtschwar/tomo_TV/issues"
-Documentation = "https://jtschwar.github.io"
+"Bug Reports" = "https://github.com/jtschwar/tomo_TV/issues"
+"Source" = "https://github.com/jtschwar/tomo_TV"
 
-[tool.setuptools]
-packages = ["tomo_tv"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["tomofusion*"]
 
 [tool.setuptools.package-data]
-tomo_tv = ["*.so", "*.dll", "*.dylib"]
+"tomofusion" = ["*.so", "*.dll", "*.dylib"]
 
-# Optional: Configure development tools
+# Configuration for cibuildwheel (if you choose to use it later)
+[tool.cibuildwheel]
+build = "cp38-* cp39-* cp310-* cp311-*"
+skip = "*-win32 *-manylinux_i686"
+
+[tool.cibuildwheel.linux]
+# This would be used if you switch to cibuildwheel instead of custom Docker
+before-all = [
+    "yum install -y wget autotools-dev automake libtool boost-devel",
+    # CUDA installation commands would go here
+]
+
+environment = {
+    CUDA_HOME = "/usr/local/cuda",
+    ASTRA_HOME = "/usr/local/astra"
+}
+
+[tool.cibuildwheel.linux.environment]
+CUDA_HOME = "/usr/local/cuda"
+ASTRA_HOME = "/usr/local/astra"
+PATH = "/usr/local/cuda/bin:$PATH"
+LD_LIBRARY_PATH = "/usr/local/cuda/lib64:/usr/local/astra/lib:$LD_LIBRARY_PATH"
+
+# Black code formatting
 [tool.black]
 line-length = 88
 target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git          
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | thirdparty
+)/
+'''
