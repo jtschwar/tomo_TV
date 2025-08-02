@@ -1,9 +1,0 @@
-numpy 
-scipy
-matplotlib
-scikit-image
-Pillow
-pybind11
-tqdm
-h5py
-pyqtgraph
