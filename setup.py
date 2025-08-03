@@ -74,7 +74,7 @@ def get_cuda_extension():
     ]
     
     return Extension(
-        'tomofusion.gpu.astra_ctvlib',
+        'tomofusion.gpu.utils',
         sources=sources,
         include_dirs=include_dirs,
         library_dirs=library_dirs,
@@ -112,7 +112,7 @@ def get_chemistry_extension():
         return None  # No chemistry extension sources found
     
     return Extension(
-        'tomofusion.chemistry.chem_utils',
+        'tomofusion.chemistry.utils',
         sources=sources,
         include_dirs=include_dirs,
         library_dirs=library_dirs,
@@ -124,6 +124,7 @@ def get_chemistry_extension():
 
 def get_all_extensions():
     """Dynamically discover and build all submodule extensions"""
+    import pybind11  
     extensions = []
     
     # Find all Utils directories with potential extensions
@@ -146,6 +147,7 @@ def get_all_extensions():
             sources=sources,
             include_dirs=[
                 np.get_include(),
+                pybind11.get_include(), 
                 os.path.join(CUDA_HOME, 'include'),
                 os.path.join(ASTRA_HOME, 'include'),
                 'thirdparty/eigen',

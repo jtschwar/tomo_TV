@@ -64,7 +64,7 @@ build_with_apptainer() {
     
     # Run the build
     echo "🚀 Running $runtime build..."
-    $runtime run --nv \
+    $runtime run --nv --writable-tmpfs \
         --bind $(pwd)/dist-local:/output \
         tomofusion.sif
 }
@@ -124,8 +124,8 @@ From: nvidia/cuda:11.7.1-cudnn8-devel-ubuntu20.04
     cd /workspace
     echo "🏗️  Building Python wheel..."
     
-    # Build wheel
-    python -m build --wheel
+    # Build wheel using setup.py directly
+    python setup.py bdist_wheel
     
     # Show results
     echo "📦 Built wheels:"
