@@ -153,19 +153,28 @@ test_installation() {
 import tomofusion
 print(f'✅ Successfully imported tomofusion')
 
-# Test GPU module
+# Test GPU utils (compiled extension)
+try:
+    import tomofusion.gpu.utils
+    print('✅ GPU utils extension imported')
+    print(f'GPU utils functions: {dir(tomofusion.gpu.utils)}')
+except Exception as e:
+    print(f'⚠️  GPU utils: {e}')
+
+# Test chemistry utils (compiled extension)
+try:
+    import tomofusion.chemistry.utils
+    print('✅ Chemistry utils extension imported')
+    print(f'Chemistry utils functions: {dir(tomofusion.chemistry.utils)}')
+except Exception as e:
+    print(f'⚠️  Chemistry utils: {e}')
+
+# Test high-level modules
 try:
     from tomofusion.gpu.reconstructor import reconstructor
-    print('✅ GPU module imported')
+    print('✅ GPU reconstructor imported')
 except Exception as e:
-    print(f'⚠️  GPU module: {e}')
-
-# Test fused multi-modal
-try:
-    from tomofusion.fused_multi_modal.reconstructor import reconstructor as FusedReconstructor
-    print('✅ Fused multi-modal module imported')
-except Exception as e:
-    print(f'⚠️  Fused multi-modal: {e}')
+    print(f'⚠️  GPU reconstructor: {e}')
 "
         return 0
     else

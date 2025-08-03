@@ -2,19 +2,30 @@ include README.md
 include LICENSE
 include BUILDING.md
 include requirements*.txt
+
+# Include all Python source and extension files
 recursive-include tomofusion *.py
 recursive-include tomofusion *.cpp
 recursive-include tomofusion *.cu
 recursive-include tomofusion *.h
 recursive-include tomofusion *.hpp
-recursive-include thirdparty *.h
-recursive-include thirdparty *.hpp
-include tomofusion/gpu/Utils/make.inc
-include tomofusion/chemistry/Utils/make.inc
+
+# Include all make.inc files (wildcard covers all modules)
 include tomofusion/*/Utils/make.inc
+
+# Include only essential thirdparty headers (if needed)
+# Be selective to avoid bloating the package
+include thirdparty/eigen/Eigen/Core
+include thirdparty/eigen/Eigen/Dense
+# recursive-include thirdparty *.h     # ← Remove this line
+# recursive-include thirdparty *.hpp   # ← Remove this line
+
+# Exclude unnecessary files
 exclude demo.ipynb
 global-exclude __pycache__
 global-exclude *.py[co]
 global-exclude *.so
 global-exclude .git*
 prune .git
+prune thirdparty/astra-toolbox
+prune thirdparty/eigen/.git

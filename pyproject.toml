@@ -2,19 +2,18 @@
 requires = [
     "setuptools>=61.0",
     "wheel",
-    "numpy",
-    "cython",
-    "pybind11",
+    "numpy>=1.19.0",
+    "pybind11>=2.10.0",
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "tomofusion"
-version = "0.1.0"
+# Remove version line - handled by setup.py
 description = "Python and C++ toolbox for tomographic data processing and iterative reconstruction algorithms"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = {text = "GPL-3.0-or-later"}
 authors = [
     {name = "Jonathan Schwartz", email = "jtschw@umich.edu"},
 ]
@@ -22,7 +21,7 @@ keywords = ["tomography", "reconstruction", "cuda", "3d", "imaging", "electron-m
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
@@ -34,12 +33,12 @@ classifiers = [
 ]
 
 dependencies = [
-    "numpy",
-    "scipy",
-    "matplotlib",
-    "scikit-image",
-    "h5py",
-    "tqdm",
+    "numpy>=1.19.0",
+    "scipy>=1.7.0",
+    "matplotlib>=3.3.0",
+    "scikit-image>=0.18.0",
+    "h5py>=3.0.0",
+    "tqdm>=4.60.0",
 ]
 
 [project.optional-dependencies]
@@ -63,46 +62,3 @@ include = ["tomofusion*"]
 
 [tool.setuptools.package-data]
 "tomofusion" = ["*.so", "*.dll", "*.dylib"]
-
-# Configuration for cibuildwheel (if you choose to use it later)
-[tool.cibuildwheel]
-build = "cp38-* cp39-* cp310-* cp311-*"
-skip = "*-win32 *-manylinux_i686"
-
-[tool.cibuildwheel.linux]
-# This would be used if you switch to cibuildwheel instead of custom Docker
-before-all = [
-    "yum install -y wget autotools-dev automake libtool boost-devel",
-    # CUDA installation commands would go here
-]
-
-environment = {
-    CUDA_HOME = "/usr/local/cuda",
-    ASTRA_HOME = "/usr/local/astra"
-}
-
-[tool.cibuildwheel.linux.environment]
-CUDA_HOME = "/usr/local/cuda"
-ASTRA_HOME = "/usr/local/astra"
-PATH = "/usr/local/cuda/bin:$PATH"
-LD_LIBRARY_PATH = "/usr/local/cuda/lib64:/usr/local/astra/lib:$LD_LIBRARY_PATH"
-
-# Black code formatting
-[tool.black]
-line-length = 88
-target-version = ['py38']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git          
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-  | thirdparty
-)/
-'''

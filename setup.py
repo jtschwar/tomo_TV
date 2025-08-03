@@ -11,7 +11,7 @@ import numpy as np
 
 # Get CUDA and ASTRA paths from environment or use defaults
 CUDA_HOME = os.environ.get('CUDA_HOME', '/usr/local/cuda')
-ASTRA_HOME = os.environ.get('ASTRA_HOME', '/usr/local/astra')
+ASTRA_HOME = os.environ.get('ASTRA_HOME', '/workspace/thirdparty/astra-toolbox')
 
 # Check if paths exist
 if not os.path.exists(CUDA_HOME):
@@ -20,112 +20,36 @@ if not os.path.exists(CUDA_HOME):
 if not os.path.exists(ASTRA_HOME):
     raise RuntimeError(f"ASTRA not found at {ASTRA_HOME}. Set ASTRA_HOME environment variable.")
 
-def get_cuda_extension():
-    """Build the CUDA extension for GPU operations"""
+def get_common_build_config():
+    """Get common build configuration shared by all extensions"""
+    import pybind11
     
-    # Include directories
-    include_dirs = [
-        np.get_include(),
-        os.path.join(CUDA_HOME, 'include'),
-        os.path.join(ASTRA_HOME, 'include'),
-        'thirdparty/eigen',
-        'tomofusion/gpu/Utils',
-    ]
-    
-    # Library directories
-    library_dirs = [
-        os.path.join(CUDA_HOME, 'lib64'),
-        os.path.join(ASTRA_HOME, 'lib'),
-        'tomofusion/gpu/Utils',
-    ]
-    
-    # Libraries to link against
-    libraries = [
-        'cudart',
-        'cufft', 
-        'cublas',
-        'curand',
-        'cusparse',
-        'astra',
-    ]
-    
-    # Source files - find all C++ and CUDA files in gpu/Utils
-    sources = []
-    gpu_utils_dir = 'tomofusion/gpu/Utils'
-    if os.path.exists(gpu_utils_dir):
-        sources.extend(glob.glob(os.path.join(gpu_utils_dir, '*.cpp')))
-        sources.extend(glob.glob(os.path.join(gpu_utils_dir, '*.cu')))
-    
-    if not sources:
-        print("Warning: No source files found in tomofusion/gpu/Utils/")
-        return None
-    
-    # Compiler flags
-    extra_compile_args = [
-        '-std=c++14',
-        '-O3',
-        '-DWITH_CUDA',
-    ]
-    
-    # Linker flags
-    extra_link_args = [
-        '-Wl,-rpath,' + os.path.join(CUDA_HOME, 'lib64'),
-        '-Wl,-rpath,' + os.path.join(ASTRA_HOME, 'lib'),
-    ]
-    
-    return Extension(
-        'tomofusion.gpu.utils',
-        sources=sources,
-        include_dirs=include_dirs,
-        library_dirs=library_dirs,
-        libraries=libraries,
-        language='c++',
-        extra_compile_args=extra_compile_args,
-        extra_link_args=extra_link_args,
-    )
-
-def get_chemistry_extension():
-    """Build chemistry-related extensions if needed"""
-    
-    # Include directories
-    include_dirs = [
-        np.get_include(),
-        os.path.join(CUDA_HOME, 'include'),
-        'thirdparty/eigen',
-        'tomofusion/chemistry/Utils',
-    ]
-    
-    # Library directories  
-    library_dirs = [
-        os.path.join(CUDA_HOME, 'lib64'),
-        'tomofusion/chemistry/Utils',
-    ]
-    
-    # Source files - find all C++ and CUDA files in chemistry/Utils
-    sources = []
-    chem_utils_dir = 'tomofusion/chemistry/Utils'
-    if os.path.exists(chem_utils_dir):
-        sources.extend(glob.glob(os.path.join(chem_utils_dir, '*.cpp')))
-        sources.extend(glob.glob(os.path.join(chem_utils_dir, '*.cu')))
-    
-    if not sources:
-        return None  # No chemistry extension sources found
-    
-    return Extension(
-        'tomofusion.chemistry.utils',
-        sources=sources,
-        include_dirs=include_dirs,
-        library_dirs=library_dirs,
-        libraries=['cudart'],
-        language='c++',
-        extra_compile_args=['-std=c++14', '-O3'],
-        extra_link_args=['-Wl,-rpath,' + os.path.join(CUDA_HOME, 'lib64')],
-    )
+    return {
+        'include_dirs': [
+            np.get_include(),
+            pybind11.get_include(),
+            os.path.join(CUDA_HOME, 'include'),
+            ASTRA_HOME,                           # Base directory
+            os.path.join(ASTRA_HOME, 'include'),  # Include directory
+            'thirdparty/eigen',
+        ],
+        'library_dirs': [
+            os.path.join(CUDA_HOME, 'lib64'),
+            os.path.join(ASTRA_HOME, 'lib'),
+        ],
+        'libraries': ['astra', 'cudart', 'cufft', 'cublas', 'curand', 'cusparse', 'z'],  # Add 'z' here, put 'astra' first
+        'extra_compile_args': ['-std=c++11', '-O3', '-DWITH_CUDA', '-DASTRA_CUDA', '-fopenmp'],  # Change to c++11, add flags
+        'extra_link_args': [
+            '-Wl,-rpath,' + os.path.join(CUDA_HOME, 'lib64'),
+            '-Wl,-rpath,' + os.path.join(ASTRA_HOME, 'lib'),
+            # Remove -lz from here - it goes in 'libraries'
+        ],
+    }
 
 def get_all_extensions():
     """Dynamically discover and build all submodule extensions"""
-    import pybind11  
     extensions = []
+    common_config = get_common_build_config()
     
     # Find all Utils directories with potential extensions
     utils_dirs = []
@@ -135,36 +59,30 @@ def get_all_extensions():
             # Check if there are C++ or CUDA source files
             cpp_files = glob.glob(os.path.join(utils_path, '*.cpp'))
             cu_files = glob.glob(os.path.join(utils_path, '*.cu'))
+
+            # Filter out MPI files for now
+            cpp_files = [f for f in cpp_files if 'mpi_' not in os.path.basename(f)]
+
             if cpp_files or cu_files:
-                utils_dirs.append((root, utils_path, cpp_files + cu_files))
+                utils_dirs.append((root, utils_path, cpp_files + cu_files))            
     
     for module_path, utils_path, sources in utils_dirs:
         # Convert path to module name (e.g., 'tomofusion/gpu' -> 'tomofusion.gpu.utils')
         module_name = module_path.replace('/', '.') + '.utils'
         
+        # Start with common config and add module-specific paths
+        include_dirs = common_config['include_dirs'] + [utils_path]
+        library_dirs = common_config['library_dirs'] + [utils_path]
+        
         extension = Extension(
             module_name,
             sources=sources,
-            include_dirs=[
-                np.get_include(),
-                pybind11.get_include(), 
-                os.path.join(CUDA_HOME, 'include'),
-                os.path.join(ASTRA_HOME, 'include'),
-                'thirdparty/eigen',
-                utils_path,
-            ],
-            library_dirs=[
-                os.path.join(CUDA_HOME, 'lib64'),
-                os.path.join(ASTRA_HOME, 'lib'),
-                utils_path,
-            ],
-            libraries=['cudart', 'astra'],
+            include_dirs=include_dirs,
+            library_dirs=library_dirs,
+            libraries=common_config['libraries'],
             language='c++',
-            extra_compile_args=['-std=c++14', '-O3', '-DWITH_CUDA'],
-            extra_link_args=[
-                '-Wl,-rpath,' + os.path.join(CUDA_HOME, 'lib64'),
-                '-Wl,-rpath,' + os.path.join(ASTRA_HOME, 'lib'),
-            ],
+            extra_compile_args=common_config['extra_compile_args'],
+            extra_link_args=common_config['extra_link_args'],
         )
         extensions.append(extension)
         print(f"Found extension: {module_name} with {len(sources)} source files")
@@ -188,21 +106,6 @@ def get_long_description():
             return f.read()
     return ""
 
-# Build extensions list
-extensions = []
-
-# Option 1: Use dynamic discovery (recommended)
-extensions = get_all_extensions()
-
-# Option 2: Manual extension building (if you prefer explicit control)
-# gpu_ext = get_cuda_extension()
-# if gpu_ext:
-#     extensions.append(gpu_ext)
-# 
-# chem_ext = get_chemistry_extension()
-# if chem_ext:
-#     extensions.append(chem_ext)
-
 # Setup configuration
 setup(
     name='tomofusion',
@@ -217,8 +120,8 @@ setup(
     # Package discovery
     packages=find_packages(),
     
-    # Extensions
-    ext_modules=extensions,
+    # Extensions - Use dynamic discovery only
+    ext_modules=get_all_extensions(),
     
     # Dependencies
     install_requires=[
@@ -264,11 +167,4 @@ setup(
     # Include additional files
     include_package_data=True,
     zip_safe=False,
-    
-    # Entry points if you have command-line tools
-    # entry_points={
-    #     'console_scripts': [
-    #         'tomofusion-cli=tomofusion.cli:main',
-    #     ],
-    # },
 )

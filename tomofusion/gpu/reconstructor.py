@@ -1,4 +1,4 @@
-from tomo_tv.gpu_3D.Utils import astra_ctvlib, pytvlib
+from tomo_tv.gpu.utils import astra_ctvlib, pytvlib
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import numpy as np

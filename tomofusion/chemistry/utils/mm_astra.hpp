@@ -14,6 +14,9 @@
 #include <pybind11/eigen.h>
 #include "container/Matrix4D.h"
 
+#include <astra/Config.h>   
+#include <astra/Globals.h>
+#include <astra/cuda/2d/astra.h>
 
 #include <astra/Float32VolumeData2D.h>
 #include <astra/Float32ProjectionData2D.h>
