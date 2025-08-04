@@ -4,7 +4,7 @@ Python and C++ toolbox for tomographic data processing and developing iterative 
 
 ## Features
 
-2D and 3D reconstruction algorithms implemented purely in C++ wrapped in Python functions.  These scripts can either perform simulations (sim) or reconstruct experimental (exp) projections. Available algorithms include:
+2D and 3D reconstruction algorithms implemented purely in C++ wrapped in Python functions.  These scripts can either perform simulations or reconstruct experimental data. Available algorithms include:
 * Filtered Backprojection (FBP)
 * Simultaneous Iterative/Algebraic Reconstruction Technique (SIRT/SART)
 * KL-Divergence / Expectation Maximization for Poisson Limited Datasets
@@ -15,11 +15,15 @@ We provide a sample jupyter notebook ([demo.ipynb](demo.ipynb)) which outlines t
 
 ## Installation
 
-To clone the repositiory and all the core dependencies run the following line in the terminal: 
+To build the reconstruction package, clone the repository and run the build script.
 
-` git clone --recursive https://github.com/jtschwar/tomo_TV.git`
+```bash
+git clone --recursive https://github.com/jtschwar/tomo_TV.git
+cd tomo_TV
 
-Instructructions for building can be found in [BUILDING.MD](BUILDING.md).
+chmod +x build.sh
+./build.sh
+```
 
 ## Quickstart 
 
@@ -66,5 +70,5 @@ Feel free to open an issue if you have any comments or concerns.
     
 ## Contact
 
-email: [jtschw@umich.edu](jtschw@umich.edu)
+email: [jtschwar@gmail.com](jtschwar@gmail.com)
 website: [https://jtschwar.github.io](https://jtschwar.github.io)
