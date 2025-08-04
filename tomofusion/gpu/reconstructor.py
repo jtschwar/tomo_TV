@@ -1,4 +1,4 @@
-from tomo_tv.gpu.utils import astra_ctvlib, pytvlib
+from tomofusion.gpu.utils import tomoengine, pytvlib
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import numpy as np
@@ -13,7 +13,7 @@ class recontructor:
         # Initialize the C++ Object..
         if tiltSeries:
             self.Nslice, self.Nray, self.Nproj = tiltSeries.shape
-            self.tomo = astra_ctvlib.astra_ctvlib(self.Nslice, self.Nray, np.deg2rad(tiltAngles))
+            self.tomo = tomoengine(self.Nslice, self.Nray, np.deg2rad(tiltAngles))
             self.set_tilt_series(tiltSeries)
         else:
             self.tomo = None
@@ -27,7 +27,7 @@ class recontructor:
 
         # Initialize the C++ Object..
         if self.tomo is None:
-            self.tomo = astra_ctvlib.astra_ctvlib(self.Nslice, self.Nray, np.deg2rad(tiltAngles))
+            self.tomo = tomoengine(self.Nslice, self.Nray, np.deg2rad(tiltAngles))
             self.set_tilt_series(tiltSeries)
 
         # Null Volume Until Reconstruction is Complete

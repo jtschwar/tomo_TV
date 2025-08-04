@@ -1,5 +1,5 @@
-from tomo_tv.fused_multi_modal.Utils import utils_cs_eds as utils
-from tomo_tv.fused_multi_modal.Utils import mm_astra
+from tomo_tv.chemistry.utils import utils_cs_eds as utils
+from tomo_tv.chemistry.utils import multimodal
 import matplotlib.pyplot as plt
 from typing import Dict
 from tqdm import tqdm
@@ -27,7 +27,7 @@ class reconstructor:
         self.nz = len(chem)
 
         # Initialize Tomography Operator
-        self.tomo = mm_astra.mm_astra(
+        self.tomo = multimodal.multimodal(
             self.nx, self.ny, self.nz, 
             np.deg2rad(haadfTiltAngles),
             np.deg2rad(chemTiltAngles))

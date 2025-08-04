@@ -1,5 +1,5 @@
-from tomo_tv.gpu_3D.Utils import astra_ctvlib, pytvlib
-from tomo_tv.gpu_3D import reconstructor
+from tomofusion.gpu.utils import tomoengine, pytvlib
+from tomofusion.gpu.reconstructor import reconstructor
 from tqdm import tqdm
 import numpy as np
 
@@ -12,9 +12,9 @@ class simulator(reconstructor):
         (self.Nslice, self.Nray, _) = volume.shape
 
         # Initialize the C++ Object..
-        tomo = astra_ctvlib.astra_ctvlib(self.Nslice, self.Nray, np.deg2rad(tiltAngles))
+        tomo = tomoengine(self.Nslice, self.Nray, np.deg2rad(tiltAngles))
 
-        # astra_ctvlib by default creates one 3D volume for the reconstruction, 
+        # tomoengine by default creates one 3D volume for the reconstruction, 
         # any additional volumes needs to be externally intialized 
         # (this is to save memory consumption)
         tomo.initialize_initial_volume()
