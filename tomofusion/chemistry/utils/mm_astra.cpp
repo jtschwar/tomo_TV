@@ -83,7 +83,7 @@ mm_astra::mm_astra(int Ns, int Nray, int Nelements, Vec haadfAngles, Vec chemAng
     vol_geom = new CVolumeGeometry2D(Ny,Nz);
     
     // Create Volume ASTRA Object
-    vol = new CFloat32VolumeData2D(vol_geom);
+    vol = new CFloat32VolumeData2D(*vol_geom);
      
     // Specify projection matrix geometries
     float32 *hAng = new float32[NprojHaadf];
@@ -100,12 +100,12 @@ mm_astra::mm_astra(int Ns, int Nray, int Nelements, Vec haadfAngles, Vec chemAng
     chemProjGeom = new CParallelProjectionGeometry2D(NprojChem,Nray,1.0,cAng);
 
     // Create Sinogram ASTRA Object
-    haadfSino = new CFloat32ProjectionData2D(haadfProjGeom);
-    chemSino = new CFloat32ProjectionData2D(chemProjGeom);
+    haadfSino = new CFloat32ProjectionData2D(*haadfProjGeom);
+    chemSino = new CFloat32ProjectionData2D(*chemProjGeom);
 
     // Create CUDA Projector
-    hProj = new CCudaProjector2D(haadfProjGeom,vol_geom);
-    cProj = new CCudaProjector2D(chemProjGeom,vol_geom);
+    hProj = new CCudaProjector2D(*haadfProjGeom,*vol_geom);
+    cProj = new CCudaProjector2D(*chemProjGeom,*vol_geom);
 }
 
 // Set GPU ID (For Multi-GPU Reconstructions)

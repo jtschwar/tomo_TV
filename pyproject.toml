@@ -2,14 +2,14 @@
 requires = [
     "setuptools>=61.0",
     "wheel",
-    "numpy>=1.19.0",
+    "numpy>=2.0",
     "pybind11>=2.10.0",
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "tomofusion"
-# Remove version line - handled by setup.py
+dynamic = ["version"] 
 description = "Python and C++ toolbox for tomographic data processing and iterative reconstruction algorithms"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -33,7 +33,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "numpy>=1.19.0",
+    "numpy>=2.0",
     "scipy>=1.7.0",
     "matplotlib>=3.3.0",
     "scikit-image>=0.18.0",
@@ -56,9 +56,15 @@ Homepage = "https://github.com/jtschwar/tomo_TV"
 "Bug Reports" = "https://github.com/jtschwar/tomo_TV/issues"
 "Source" = "https://github.com/jtschwar/tomo_TV"
 
+[tool.setuptools.dynamic]
+version = {attr = "tomofusion.__version__"}
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["tomofusion*"]
 
 [tool.setuptools.package-data]
 "tomofusion" = ["*.so", "*.dll", "*.dylib"]
+"tomofusion.chemistry.utils" = ["*.so"] 
+"tomofusion.gpu.utils" = ["*.so"]
+"tomofusion.cpu.utils" = ["*.so"]

@@ -1,4 +1,3 @@
-#Makefile
 #!/bin/sh
 include ./make.inc
 
@@ -15,9 +14,10 @@ shared_library:
 	nvcc -shared container/*.o regularizers/*.o -o aux_func.so
 
 mm_astra: mm_astra.cpp mm_astra.hpp
-	$(CXX) $(CXXFLAGS) $(EIGEN) $(ASTRA) $(CUDA) $(NonPAR_HDF5_INC) mm_astra.cpp -o $(MMGPUCONFIG) $(ASTRA_LIB) aux_func.so 
+	$(CXX) $(CXXFLAGS) $(EIGEN) $(ASTRA) $(CUDA) $(NonPAR_HDF5_INC) mm_astra.cpp -o $(MMGPUCONFIG) \
+	$(ASTRA_LIB) aux_func.so \
+	-Wl,-rpath,'$$ORIGIN' \
+	-Wl,-rpath,$(shell pwd)
 
 clean:
 	rm -rf *.so *.o
-
-

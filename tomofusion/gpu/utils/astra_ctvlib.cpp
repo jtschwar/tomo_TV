@@ -65,7 +65,7 @@ astra_ctvlib::astra_ctvlib(int Ns, int Nray, Vec pyAngles)
      vol_geom = new CVolumeGeometry2D(Ny,Nz);
     
      // Create Volume ASTRA Object
-     vol = new CFloat32VolumeData2D(vol_geom);
+     vol = new CFloat32VolumeData2D(*vol_geom);
      
      // Specify projection matrix geometries
      float32 *angles = new float32[Nproj];
@@ -77,10 +77,10 @@ astra_ctvlib::astra_ctvlib(int Ns, int Nray, Vec pyAngles)
      proj_geom = new CParallelProjectionGeometry2D(Nproj,Nray,1.0,angles);
 
      // Create Sinogram ASTRA Object
-     sino = new CFloat32ProjectionData2D(proj_geom);
+     sino = new CFloat32ProjectionData2D(*proj_geom);
 
      // Create CUDA Projector
-     proj = new CCudaProjector2D(proj_geom,vol_geom);
+     proj = new CCudaProjector2D(*proj_geom,*vol_geom);
 }
 
 // Set the GPU Index
@@ -142,8 +142,8 @@ void astra_ctvlib::update_projection_angles(Vec pyAngles) {
     
     // Create Projection Matrix Geometry and Projector.
     proj_geom = new CParallelProjectionGeometry2D(pyAngles.size(), Ny, 1, angles);
-    proj = new CCudaProjector2D(proj_geom,vol_geom);
-    sino =  new CFloat32ProjectionData2D(proj_geom);
+    proj = new CCudaProjector2D(*proj_geom,*vol_geom);
+    sino =  new CFloat32ProjectionData2D(*proj_geom);
     Nproj = pyAngles.size();
 }
 
