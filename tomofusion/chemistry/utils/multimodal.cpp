@@ -5,7 +5,7 @@
 //  Copyright © 2019 Jonathan Schwartz. All rights reserved.
 //
 
-#include "mm_astra.hpp"
+#include "multimodal.hpp"
 #include "container/matrix_ops.h"
 #include "regularizers/tv_gd.h"
 #include "regularizers/tv_fgp.h"
@@ -34,7 +34,7 @@ namespace py = pybind11;
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Mat;
 typedef Eigen::VectorXf Vec;
 
-mm_astra::mm_astra(int Ns, int Nray, int Nelements)
+multimodal::multimodal(int Ns, int Nray, int Nelements)
 {
     //Intialize all the Member variables.
     Nslice = Ns;
@@ -46,7 +46,7 @@ mm_astra::mm_astra(int Ns, int Nray, int Nelements)
     recon = Matrix4D(Nel,Ns,Ny,Nz); //Final Reconstruction.
 }
 
-mm_astra::mm_astra(int Ns, int Nray, int Nelements, Vec haadfAngles, Vec chemAngles)
+multimodal::multimodal(int Ns, int Nray, int Nelements, Vec haadfAngles, Vec chemAngles)
 {
     //Intialize all the Member variables.
     Nslice = Ns; Ny = Nray; Nz = Nray; nPix = Ny*Nz;
@@ -109,40 +109,40 @@ mm_astra::mm_astra(int Ns, int Nray, int Nelements, Vec haadfAngles, Vec chemAng
 }
 
 // Set GPU ID (For Multi-GPU Reconstructions)
-void mm_astra::set_gpu_id(int id){ 
+void multimodal::set_gpu_id(int id){ 
     gpuID = id;
     recon.gpuIndex = id; }
 
 // Return GPU ID (For Multi-GPU Reconstructions)
-int mm_astra::get_gpu_id() { return gpuID; }
+int multimodal::get_gpu_id() { return gpuID; }
 
 // Initialize Ground Truth
-void mm_astra::initialize_initial_volume(){ 
+void multimodal::initialize_initial_volume(){ 
     original_volume =  Matrix4D(Nel,Nslice,Ny,Nz); }
 
 // Return if measuring HAADF Data Fusion 
-bool mm_astra::get_measureHaadf(){ return measureHaadf; }
+bool multimodal::get_measureHaadf(){ return measureHaadf; }
 
 // Specify whether we want to measure HAADF Data Fusion 
-void mm_astra::set_measureHaadf(bool inBool) { measureHaadf = inBool; }
+void multimodal::set_measureHaadf(bool inBool) { measureHaadf = inBool; }
 
 // Return if measuring Poisson-Maximum Likelihood Data Fidelity 
-bool mm_astra::get_measureChem(){  return measureChem; }
+bool multimodal::get_measureChem(){  return measureChem; }
 
 // Specify whether we want to measure Poisson-Maximum Likelihood Data Fidelity 
-void mm_astra::set_measureChem(bool inBool) { measureChem = inBool; }
+void multimodal::set_measureChem(bool inBool) { measureChem = inBool; }
 
 // Return Epsilon Offset 
-float mm_astra::get_eps() { return eps; }
+float multimodal::get_eps() { return eps; }
 
 // Set Epsilon Offset
-void mm_astra::set_eps(float inEps) { inEps = eps; }
+void multimodal::set_eps(float inEps) { inEps = eps; }
 
 // Return Gamma Parameter (HAADF term)
-float mm_astra::get_gamma() { return gamma;}
+float multimodal::get_gamma() { return gamma;}
 
 // Set Gamma Parameter (HAADF term)
-void mm_astra::set_gamma(float inGamma) { 
+void multimodal::set_gamma(float inGamma) { 
     gamma = inGamma;
     if (gamma != 1) { 
         spXXmatrix.resize( xx.size(),xx.size() ); 
@@ -153,31 +153,31 @@ void mm_astra::set_gamma(float inGamma) {
 }
 
 //Import tilt series (projections) from Python. 
-void mm_astra::set_haadf_tilt_series(Mat in) { bh = in; }
+void multimodal::set_haadf_tilt_series(Mat in) { bh = in; }
 
 //Import tilt series (projections) from Python. 
-void mm_astra::set_chem_tilt_series(Mat in) {  bChem = in; }
+void multimodal::set_chem_tilt_series(Mat in) {  bChem = in; }
 
 // Set Reconstruction from Input 2D Slices
-void mm_astra::set_recon(Mat inBuffer, int element, int slice) { recon.setData2D(inBuffer,element,slice); }
+void multimodal::set_recon(Mat inBuffer, int element, int slice) { recon.setData2D(inBuffer,element,slice); }
 
 // Set Reconstruction from Input 2D Slices
-void mm_astra::set_original_volume(Mat inBuffer, int element, int slice) { original_volume.setData2D(inBuffer,element,slice); }
+void multimodal::set_original_volume(Mat inBuffer, int element, int slice) { original_volume.setData2D(inBuffer,element,slice); }
 
 // Initialize Forward Projection Operator
-void mm_astra::initializeFP() { 
+void multimodal::initializeFP() { 
     algo_fp = new CCudaForwardProjectionAlgorithm();
     if (recon.gpuIndex != -1){algo_fp->setGPUIndex(recon.gpuIndex); } 
 }
 
 // Initialize Backprojection Operator
-void mm_astra::initializeBP() { 
+void multimodal::initializeBP() { 
     algo_bp = new CCudaBackProjectionAlgorithm(); 
     if (recon.gpuIndex != -1){algo_bp->setGPUIndex(recon.gpuIndex); } 
 }
 
 // Foward project the data.
-Vec mm_astra::forward_projection(const Vec &inVol)
+Vec multimodal::forward_projection(const Vec &inVol)
 {
     vol->copyData((float32*) &inVol(0));
 
@@ -192,7 +192,7 @@ Vec mm_astra::forward_projection(const Vec &inVol)
 }
 
 // Foward project the data - stack of chemical projections.
-Vec mm_astra::forward_projection4D(const Vec &inVol)
+Vec multimodal::forward_projection4D(const Vec &inVol)
 {
     for (int e=0; e < Nel; e++) {
         // Return data from Astra
@@ -210,7 +210,7 @@ Vec mm_astra::forward_projection4D(const Vec &inVol)
 }
 
 // Measure L2-norm for Chemical Tilt Series
-float mm_astra::data_distance() {
+float multimodal::data_distance() {
 
     for (int s=0; s<Nslice; s++) {
         // Concatenate Elements ([e,s,:,:])
@@ -223,7 +223,7 @@ float mm_astra::data_distance() {
 }
 
 // Backproject the data (HAADF Volume).
-Vec mm_astra::back_projection(const Vec &inProj) {   
+Vec multimodal::back_projection(const Vec &inProj) {   
     // Copy Data to Astra
     haadfSino->copyData((float32*) &inProj(0));
 
@@ -239,7 +239,7 @@ Vec mm_astra::back_projection(const Vec &inProj) {
 }
 
 // Backproject the data - stack of volumes.
-Vec mm_astra::back_projection4D(const Vec &inProj) {
+Vec multimodal::back_projection4D(const Vec &inProj) {
     for (int e=0; e < Nel; e++) {
         // Copy Data to Astra
         chemSino->copyData((float32*) &inProj(e*NrowChem));
@@ -256,7 +256,7 @@ Vec mm_astra::back_projection4D(const Vec &inProj) {
 }
 
 // Estimate Lipschitz Parameters
-void mm_astra::estimate_lipschitz() {
+void multimodal::estimate_lipschitz() {
     VectorXf cc(xx.size()); cc.setOnes();
     L_Aps = (back_projection4D(forward_projection4D(cc))).maxCoeff();
 
@@ -265,7 +265,7 @@ void mm_astra::estimate_lipschitz() {
 }
 
 // Pass Summation Matrix (sigma) to C++
-void mm_astra::load_summation_matrix(Mat pySig) {
+void multimodal::load_summation_matrix(Mat pySig) {
     // reset all the elements in sigma
     sigma.resize(Nslice*Ny, Nslice*Ny*Nel);
     for (int i=0; i <pySig.cols(); i++) {
@@ -274,7 +274,7 @@ void mm_astra::load_summation_matrix(Mat pySig) {
 }
 
 // Reconstruct with Poisson Maximum Likelihood
-float mm_astra::poisson_ml(float lambdaCHEM) {
+float multimodal::poisson_ml(float lambdaCHEM) {
     float costCHEM = 0;
 
     for (int s=0; s< Nslice; s++){
@@ -304,7 +304,7 @@ float mm_astra::poisson_ml(float lambdaCHEM) {
 }
 
 // Rescale bh with forward model
-void mm_astra::rescale_projections() {
+void multimodal::rescale_projections() {
     for (int s=0; s<Nslice; s++){
         for (int e=0; e<Nel; e++) {
             memcpy(&xx(e*Ny*Nz), &recon.data[recon.index(e,s,0,0)], sizeof(float)*Ny*Nz);
@@ -323,7 +323,7 @@ void mm_astra::rescale_projections() {
 }
 
 // Initialize SIRT Reconstruction Operator
-void mm_astra::initializeSIRT() {
+void multimodal::initializeSIRT() {
     algo_sirt = new CCudaSirtAlgorithm();
     algo_sirt->initialize(hProj, haadfSino, vol);
     algo_sirt->setConstraints(true, 0, false, 1);
@@ -331,7 +331,7 @@ void mm_astra::initializeSIRT() {
 }
 
 // General SART Reconstruction Method
-void mm_astra::SIRT(int e, int s, int nIter) {
+void multimodal::SIRT(int e, int s, int nIter) {
 
     // Copy Data to Astra
     if (e >= 0) { 
@@ -357,7 +357,7 @@ void mm_astra::SIRT(int e, int s, int nIter) {
 }
 
 //  Non-Multi-Modal Reconstruction with SIRT
-void mm_astra::chemical_SIRT(int nIter) { 
+void multimodal::chemical_SIRT(int nIter) { 
     // Vec chemProj(Ny*Ny); Vec outVol(Ny*Ny);
     for (int s=0; s<Nslice; s++) { 
         for (int e=0; e<Nel; e++) {
@@ -367,7 +367,7 @@ void mm_astra::chemical_SIRT(int nIter) {
 }
 
 // Initialize SART Reconstruction Operator
-void mm_astra::initializeSART(std::string order) {
+void multimodal::initializeSART(std::string order) {
     projOrder = order;
     cout << "ProjectionOrder: " << projOrder << endl;
  
@@ -378,7 +378,7 @@ void mm_astra::initializeSART(std::string order) {
 }
 
 // General SART Reconstruction Method
-void mm_astra::SART(int e, int s, int nIter) {
+void multimodal::SART(int e, int s, int nIter) {
 
     int Nproj = NrowHaadf / Ny;
 
@@ -407,7 +407,7 @@ void mm_astra::SART(int e, int s, int nIter) {
 }
 
 //  Non-Multi-Modal Reconstruction with SIRT
-void mm_astra::chemical_SART(int nIter) { 
+void multimodal::chemical_SART(int nIter) { 
     // Vec chemProj(Ny*Ny); Vec outVol(Ny*Ny);
     for (int s=0; s < Nslice; s++) { 
         for (int e=0; e<Nel; e++) {
@@ -417,7 +417,7 @@ void mm_astra::chemical_SART(int nIter) {
 }
 
 // SIRT Reconstruction.
-Vec mm_astra::fuse(const Vec &inVol, int s, int nIter, std::string method) { 
+Vec multimodal::fuse(const Vec &inVol, int s, int nIter, std::string method) { 
 
     if (gamma == 1) {modelHAADF = sigma * inVol;}
     else            {modelHAADF = sigma * (Vec (inVol.array().pow(gamma)) ); }
@@ -436,15 +436,15 @@ Vec mm_astra::fuse(const Vec &inVol, int s, int nIter, std::string method) {
 }
 
 // Call Data Fusion with SIRT Projection Operator
-tuple<float,float> mm_astra::call_sirt_data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter)
+tuple<float,float> multimodal::call_sirt_data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter)
 {   return data_fusion(lambdaHAADF, lambdaCHEM, nIter, "SIRT"); }
 
 // Call Data Fusion with SART Projection Operator
-tuple<float,float> mm_astra::call_sart_data_fusion(float lambdaHAADF, float lambdaCHEM)
+tuple<float,float> multimodal::call_sart_data_fusion(float lambdaHAADF, float lambdaCHEM)
 {   return data_fusion(lambdaHAADF, lambdaCHEM, 1, "SART"); }
 
 // Data Fusion with SIRT Reconstruction on HAADF term
-tuple<float,float> mm_astra::data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter, std::string method) {
+tuple<float,float> multimodal::data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter, std::string method) {
     float costHAADF = 0; float costCHEM = 0; 
     if (method == "SART" && (algo_sart == NULL)) { initializeSART("sequential"); }
     else if (method == "SIRT" && (algo_sirt == NULL)) { initializeSIRT(); }
@@ -486,92 +486,92 @@ tuple<float,float> mm_astra::data_fusion(float lambdaHAADF, float lambdaCHEM, in
 }
 
 // TV Minimization (Gradient Descent)
-float mm_astra::tv_gd_4D(int ng, float lambdaTV) { return cuda_tv_gd_4D(recon.data, ng, lambdaTV, Nslice, Ny, Nz, Nel, gpuID); }
+float multimodal::tv_gd_4D(int ng, float lambdaTV) { return cuda_tv_gd_4D(recon.data, ng, lambdaTV, Nslice, Ny, Nz, Nel, gpuID); }
 
 // TV Minimization (Fast Gradient Projection Method)
-float mm_astra::tv_fgp_4D(int ng, float lambdaTV) { return cuda_tv_fgp_4D(recon.data, ng, lambdaTV, Nslice, Ny, Nz, Nel, gpuID); }
+float multimodal::tv_fgp_4D(int ng, float lambdaTV) { return cuda_tv_fgp_4D(recon.data, ng, lambdaTV, Nslice, Ny, Nz, Nel, gpuID); }
 
 // TV Minimization (Split Bregman)
-// float mm_astra::tv_sb_4D(int ng, float lambdaTV) { return cuda_tv_sb_4D(recon.data, ng, lambdaTV, Nslice, Ny, Nz, Nel, gpuID);}
+// float multimodal::tv_sb_4D(int ng, float lambdaTV) { return cuda_tv_sb_4D(recon.data, ng, lambdaTV, Nslice, Ny, Nz, Nel, gpuID);}
 
 // Measure the RMSE 
-Vec mm_astra::rmse() { 
+Vec multimodal::rmse() { 
     // Rescale Recon
     return Map<Vec>(cuda_rmse_4D(recon.data, original_volume.data, Nslice, Ny, Nz, Nel),Nel);  }
 
 // Return Reconstruction to Python.
-Mat mm_astra::get_recon(int element, int slice) { return recon.getData2D(element, slice); }
-Mat mm_astra::get_gt(int element, int slice) { return original_volume.getData2D(element, slice); }
+Mat multimodal::get_recon(int element, int slice) { return recon.getData2D(element, slice); }
+Mat multimodal::get_gt(int element, int slice) { return original_volume.getData2D(element, slice); }
 
 //Return the projections.
-Mat mm_astra::get_model_projections() { return g; }
-Mat mm_astra::get_haadf_projections() { return bh; }
-Mat mm_astra::get_chem_projections()  { return bChem; }
+Mat multimodal::get_model_projections() { return g; }
+Mat multimodal::get_haadf_projections() { return bh; }
+Mat multimodal::get_chem_projections()  { return bChem; }
 
 // Restart the Reconstruction (Reset Values to Zero). 
-void mm_astra::restart_recon() { memset(recon.data, 0, sizeof(float)*Nslice*Ny*Nz*Nel); }
+void multimodal::restart_recon() { memset(recon.data, 0, sizeof(float)*Nslice*Ny*Nz*Nel); }
 
-//Python functions for mm_astra module.
-PYBIND11_MODULE(mm_astra, m)
+//Python functions for multimodal module.
+PYBIND11_MODULE(multimodal, m)
 {
     m.doc() = "C++ Scripts for TV-Tomography Reconstructions using ASTRA Cuda Library";
-    py::class_<mm_astra> mm_astra(m, "mm_astra");
-    mm_astra.def(py::init<int,int,int>());
-    mm_astra.def(py::init<int,int,int,Vec,Vec>());
-    mm_astra.def("initialize_initial_volume", &mm_astra::initialize_initial_volume, "Initalize Original Data (Ground Truth)");
-    mm_astra.def("set_haadf_tilt_series", &mm_astra::set_haadf_tilt_series, "Pass the Projections to C++ Object");
-    mm_astra.def("set_chem_tilt_series", &mm_astra::set_chem_tilt_series, "Pass the Projections to C++ Object");
-    mm_astra.def("set_measureHaadf", &mm_astra::set_measureHaadf, "Flag to Measure Haadf Data Fusion Term");
-    mm_astra.def("set_measureChem", &mm_astra::set_measureChem, "Flag to Measure Poisson-ML Data Fidelity Term");
-    mm_astra.def("set_gamma", &mm_astra::set_gamma, "Set Gamma");
-    mm_astra.def("set_recon", &mm_astra::set_recon, "Pass the Reconstruction from Python to C++");
-    mm_astra.def("get_gpu_id", &mm_astra::get_gpu_id, "Get the GPU ID");
-    mm_astra.def("set_gpu", &mm_astra::set_gpu_id, "Set the GPU ID");
-    mm_astra.def("set_original_volume", &mm_astra::set_original_volume, "Pass the Ground Truth to C++ Object");
-    mm_astra.def("measureHaadf", &mm_astra::get_measureHaadf, "Return measureHaadf");
-    mm_astra.def("measureChem", &mm_astra::get_measureChem, "Return measureHaadf");
-    mm_astra.def("gamma", &mm_astra::get_gamma, "Get Gamma");
-    mm_astra.def("data_distance", &mm_astra::data_distance, "Data Distance");
-    mm_astra.def("load_sigma", &mm_astra::load_summation_matrix, "Load Summation Matrix (Sigma)");
-    mm_astra.def("initialize_FP", &mm_astra::initializeFP, "Initialize Forward Projection");
-    mm_astra.def("initialize_BP", &mm_astra::initializeBP, "Initialize Back Projection");
-    mm_astra.def("forward_projection", &mm_astra::forward_projection, "Forward Projection");
-    mm_astra.def("estimate_lipschitz", &mm_astra::estimate_lipschitz, "Estimate Lispchitz Parameters");
-    mm_astra.def("rescale_projections", &mm_astra::rescale_projections, "Rescale Experimental HAADF Projections");
-    mm_astra.def("poisson_ml", &mm_astra::poisson_ml, "Reconstruct Data from Poisson Maximum Likelihood");
-    mm_astra.def("data_fusion", &mm_astra::data_fusion, "Data Fusion");
-    mm_astra.def("tv_gd", &mm_astra::tv_gd_4D, "3D TV Gradient Descent");
-    mm_astra.def("tv_fgp_4D", &mm_astra::tv_fgp_4D, "3D TV Fast Gradient Projection");
-    mm_astra.def("initialize_SART", &mm_astra::initializeSART, "Initialize SART");
-    mm_astra.def("chemical_SART", &mm_astra::chemical_SART, "SART on the Raw Chemical Projections");
-    mm_astra.def("initialize_SIRT", &mm_astra::initializeSIRT, "Initialize SIRT");
-    mm_astra.def("chemical_SIRT", &mm_astra::chemical_SIRT, "SIRT on the Raw Chemical Projections");
-    mm_astra.def("sirt_data_fusion", &mm_astra::call_sirt_data_fusion, "Data Fusion with SIRT Forward Projection");
-    mm_astra.def("sart_data_fusion", &mm_astra::call_sart_data_fusion, "Data Fusion with SIRT Forward Projection");    
-    mm_astra.def("rmse", &mm_astra::rmse, "Measure RMSE");
-    mm_astra.def("get_recon", &mm_astra::get_recon, "Return the Reconstruction to Python");
-    mm_astra.def("get_haadf_projections", &mm_astra::get_haadf_projections, "Return the projection matrix to python");
-    mm_astra.def("get_chem_projections", &mm_astra::get_chem_projections, "Return the projection matrix to python");
-    mm_astra.def("get_model_projections", &mm_astra::get_model_projections, "Return the re-projection matrix to python");
-    mm_astra.def("get_gpu", &mm_astra::get_gpu_id, "Get GPU ID");
-    mm_astra.def("restart_recon", &mm_astra::restart_recon, "Set all the Slices Equal to Zero");
+    py::class_<multimodal> multimodal(m, "multimodal");
+    multimodal.def(py::init<int,int,int>());
+    multimodal.def(py::init<int,int,int,Vec,Vec>());
+    multimodal.def("initialize_initial_volume", &multimodal::initialize_initial_volume, "Initalize Original Data (Ground Truth)");
+    multimodal.def("set_haadf_tilt_series", &multimodal::set_haadf_tilt_series, "Pass the Projections to C++ Object");
+    multimodal.def("set_chem_tilt_series", &multimodal::set_chem_tilt_series, "Pass the Projections to C++ Object");
+    multimodal.def("set_measureHaadf", &multimodal::set_measureHaadf, "Flag to Measure Haadf Data Fusion Term");
+    multimodal.def("set_measureChem", &multimodal::set_measureChem, "Flag to Measure Poisson-ML Data Fidelity Term");
+    multimodal.def("set_gamma", &multimodal::set_gamma, "Set Gamma");
+    multimodal.def("set_recon", &multimodal::set_recon, "Pass the Reconstruction from Python to C++");
+    multimodal.def("get_gpu_id", &multimodal::get_gpu_id, "Get the GPU ID");
+    multimodal.def("set_gpu", &multimodal::set_gpu_id, "Set the GPU ID");
+    multimodal.def("set_original_volume", &multimodal::set_original_volume, "Pass the Ground Truth to C++ Object");
+    multimodal.def("measureHaadf", &multimodal::get_measureHaadf, "Return measureHaadf");
+    multimodal.def("measureChem", &multimodal::get_measureChem, "Return measureHaadf");
+    multimodal.def("gamma", &multimodal::get_gamma, "Get Gamma");
+    multimodal.def("data_distance", &multimodal::data_distance, "Data Distance");
+    multimodal.def("load_sigma", &multimodal::load_summation_matrix, "Load Summation Matrix (Sigma)");
+    multimodal.def("initialize_FP", &multimodal::initializeFP, "Initialize Forward Projection");
+    multimodal.def("initialize_BP", &multimodal::initializeBP, "Initialize Back Projection");
+    multimodal.def("forward_projection", &multimodal::forward_projection, "Forward Projection");
+    multimodal.def("estimate_lipschitz", &multimodal::estimate_lipschitz, "Estimate Lispchitz Parameters");
+    multimodal.def("rescale_projections", &multimodal::rescale_projections, "Rescale Experimental HAADF Projections");
+    multimodal.def("poisson_ml", &multimodal::poisson_ml, "Reconstruct Data from Poisson Maximum Likelihood");
+    multimodal.def("data_fusion", &multimodal::data_fusion, "Data Fusion");
+    multimodal.def("tv_gd", &multimodal::tv_gd_4D, "3D TV Gradient Descent");
+    multimodal.def("tv_fgp_4D", &multimodal::tv_fgp_4D, "3D TV Fast Gradient Projection");
+    multimodal.def("initialize_SART", &multimodal::initializeSART, "Initialize SART");
+    multimodal.def("chemical_SART", &multimodal::chemical_SART, "SART on the Raw Chemical Projections");
+    multimodal.def("initialize_SIRT", &multimodal::initializeSIRT, "Initialize SIRT");
+    multimodal.def("chemical_SIRT", &multimodal::chemical_SIRT, "SIRT on the Raw Chemical Projections");
+    multimodal.def("sirt_data_fusion", &multimodal::call_sirt_data_fusion, "Data Fusion with SIRT Forward Projection");
+    multimodal.def("sart_data_fusion", &multimodal::call_sart_data_fusion, "Data Fusion with SIRT Forward Projection");    
+    multimodal.def("rmse", &multimodal::rmse, "Measure RMSE");
+    multimodal.def("get_recon", &multimodal::get_recon, "Return the Reconstruction to Python");
+    multimodal.def("get_haadf_projections", &multimodal::get_haadf_projections, "Return the projection matrix to python");
+    multimodal.def("get_chem_projections", &multimodal::get_chem_projections, "Return the projection matrix to python");
+    multimodal.def("get_model_projections", &multimodal::get_model_projections, "Return the re-projection matrix to python");
+    multimodal.def("get_gpu", &multimodal::get_gpu_id, "Get GPU ID");
+    multimodal.def("restart_recon", &multimodal::restart_recon, "Set all the Slices Equal to Zero");
 }
 
-// mm_astra.def("SIRT_data_fusion", &mm_astra::SIRT_data_fusion, "Data Fusion with SIRT Algorithm");
-// mm_astra.def("SART_data_fusion", &mm_astra::SART_data_fusion, "Data Fusion with SART Algorithm");
+// multimodal.def("SIRT_data_fusion", &multimodal::SIRT_data_fusion, "Data Fusion with SIRT Algorithm");
+// multimodal.def("SART_data_fusion", &multimodal::SART_data_fusion, "Data Fusion with SART Algorithm");
 
-// mm_astra.def("SART", &mm_astra::SART, "ART Reconstruction");
-// mm_astra.def("SIRT", &mm_astra::SIRT, "SIRT Reconstruction");
-// mm_astra.def("tv_3D", &mm_astra::tv_3D, "Measure TV of the reconstruction");
-// mm_astra.def("print_recon", &mm_astra::print_recon, "Print the reconstruction variable - debug");
-// mm_astra.def("save_recon", &mm_astra::save_recon, "Save the Reconstruction with HDF5");
+// multimodal.def("SART", &multimodal::SART, "ART Reconstruction");
+// multimodal.def("SIRT", &multimodal::SIRT, "SIRT Reconstruction");
+// multimodal.def("tv_3D", &multimodal::tv_3D, "Measure TV of the reconstruction");
+// multimodal.def("print_recon", &multimodal::print_recon, "Print the reconstruction variable - debug");
+// multimodal.def("save_recon", &multimodal::save_recon, "Save the Reconstruction with HDF5");
 
-// void mm_astra::print_recon(){
+// void multimodal::print_recon(){
 //     printf((recon.data).size());
 // }
 
 // //Measure Reconstruction's TV.
-// float mm_astra::tv_3D(int NelSel) { 
+// float multimodal::tv_3D(int NelSel) { 
     
 //     // for (int s=0; s < Nslice; s++) {
 //     //     recon_small[recon_small.index(s,0,0)] = recon.data[recon.index(NelSel,s,0,0)];
@@ -590,7 +590,7 @@ PYBIND11_MODULE(mm_astra, m)
 // memcpy(&outVol4D(e*Ny*Nz), vol->getData(), sizeof(float)*Ny*Nz);
 
 // Data Fusion with SIRT Reconstruction on HAADF term
-// tuple<float,float> mm_astra::SART_data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter)
+// tuple<float,float> multimodal::SART_data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter)
 // {
 //     float costHAADF = 0; float costCHEM = 0; 
 
@@ -642,7 +642,7 @@ PYBIND11_MODULE(mm_astra, m)
 // }
 
 // Data Fusion with SART Reconstruction.
-// Vec mm_astra::SART_fusion(const Vec &inVol, int s, int nIter) { 
+// Vec multimodal::SART_fusion(const Vec &inVol, int s, int nIter) { 
 //     Vec tmpHAADF(sigma.rows()); Vec updateSART(sigma.rows());
 
 //     int Nproj = NrowHaadf / Ny;
@@ -672,7 +672,7 @@ PYBIND11_MODULE(mm_astra, m)
 // }
 
 // // Fused Multi-Modal Tomography Reconstruction
-// tuple<float,float> mm_astra::data_fusion(float lambdaHAADF, float lambdaCHEM) {
+// tuple<float,float> multimodal::data_fusion(float lambdaHAADF, float lambdaCHEM) {
 //     float costHAADF = 0; float costCHEM = 0; 
 
 //     for (int s=0; s< Nslice; s++){

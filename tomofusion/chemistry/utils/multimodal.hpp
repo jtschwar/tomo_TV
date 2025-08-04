@@ -5,8 +5,8 @@
 //  Copyright © 2019 Jonathan Schwartz. All rights reserved.
 //
 
-#ifndef mm_astra_hpp
-#define mm_astra_hpp
+#ifndef multimodal_hpp
+#define multimodal_hpp
 
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
@@ -41,7 +41,7 @@ typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Ma
 typedef Eigen::VectorXf Vec;
 
 
-class mm_astra
+class multimodal
 {
 
 public: 
@@ -89,8 +89,8 @@ public:
     std::string projOrder; std::string fbfFilter; 
  
 	// Initializes Measurement Matrix. 
-	mm_astra(int Nslice, int Nray, int Nelements);
-    mm_astra(int Nslice, int Nray, int Nelements, Vec haadfAngles, Vec chemAngles);
+	multimodal(int Nslice, int Nray, int Nelements);
+    multimodal(int Nslice, int Nray, int Nelements, Vec haadfAngles, Vec chemAngles);
     void initialize_initial_volume();
 
     // Access Member variables (measureHaadf,measureChem,eps)
@@ -150,7 +150,7 @@ public:
     std::tuple<float,float> data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter, std::string method);
 
     // void SIRT(int nIter=1);
-    // error: no matching function for call to ‘mm_astra::SIRT(astra::CFloat32ProjectionData2D*&, Matrix4D&, int, int&, int&)’ 
+    // error: no matching function for call to ‘multimodal::SIRT(astra::CFloat32ProjectionData2D*&, Matrix4D&, int, int&, int&)’ 
     Vec SIRT(const Vec &inVol,int s,int nIter);
     void SIRT(int e, int s, int nIter);
 

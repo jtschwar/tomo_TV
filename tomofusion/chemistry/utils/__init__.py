@@ -1,1 +1,1 @@
-from .mm_astra import *
+from .multimodal import *

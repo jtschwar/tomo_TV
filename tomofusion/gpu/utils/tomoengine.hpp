@@ -5,8 +5,8 @@
 //  Copyright © 2019 Jonathan Schwartz. All rights reserved.
 //
 
-#ifndef astra_ctvlib_hpp
-#define astra_ctvlib_hpp
+#ifndef tomoengine_hpp
+#define tomoengine_hpp
 
 #include <Eigen/Core>
 #include <pybind11/pybind11.h>
@@ -32,7 +32,7 @@
 
 using namespace astra;
 
-class astra_ctvlib
+class tomoengine
 {
 
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Mat;
@@ -72,8 +72,8 @@ public:
     std::string fbfFilter;                      std::string projOrder;
  
 	// Initializes Measurement Matrix. 
-	astra_ctvlib(int Nslice, int Nray);
-    astra_ctvlib(int Nslice, int Nray, Vec pyAngles);
+	tomoengine(int Nslice, int Nray);
+    tomoengine(int Nslice, int Nray, Vec pyAngles);
     void initializeInitialVolume();             void initializeReconCopy();
 
 	// Initialize Experimental Projections. 
