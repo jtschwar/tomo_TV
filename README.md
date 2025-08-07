@@ -27,33 +27,29 @@ chmod +x build.sh
 
 ## Quickstart 
 
-We can either use the traditional non-multimodal reconstruction algorithms:
+We can either use non-multimodal reconstruction algorithms:
 
 ```python
-from tomofusion.gpu.reconstructor import reconstructor
+from tomofusion.gpu.reconstructor import TomoGPU
 
 # Load the Tilt Series and Tilt Angles
 # Tilt Series needs to be in (Nx,Ny,Nangles) where Nx is the tilt-axis
 # Tilt Angles is a 1D Vector with Nangles elements
 
 # Create Reconstruction object, run reconstruction algorithm and return algorithm
-recon = reconstructor(tiltAngles, tiltSeries)
-recon.fista()
-vol = recon.get_recon()
+tomoengine = TomoGPU(tilt_angles, tilt_series)
+tomoengine.fista(Niter=50, lambda_param=1e-1, show_convergence=True)
+vol = tomoengine.get_recon() # ( Optional: tomoengine.show_recon() )
 ```
 
 or fused mutli-modal implementation:
 
 ```python
-from tomofusion.chemistry import reconstructor
-
-# Load the Tilt Series and Tilt Angles for ADF and Chemical Signals
-# Tilt Series needs to be in (Nx,Ny,Nangles) where Nx is the tilt-axis
-# Tilt Angles is a 1D Vector with Nangles elements
-
+from tomofusion.chemistry.reconstructor import ChemicalTomo
+# Add the Chemical Tilt Series to a Dictionary
 chem = {'C': carbon_tilt_series, 'Zn': zn_tilt_series}
-recon = reconstructor(adf, adf_tilt_angles, chem, chem_tilt_angles)
-recon.data_fusion()
+tomoengine = ChemicalTomo(adf, adf_angles, chem, chem_angles)
+tomoengine.data_fusion()
 ```
 
 ## References

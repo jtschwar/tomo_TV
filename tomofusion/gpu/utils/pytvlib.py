@@ -30,6 +30,14 @@ def run(tomo, alg, beta=1, niter=1):
     elif alg == 'poisson_ML' or alg == 'kl-divergence': 
                                     return tomo.poisson_ML(beta)
 
+def wbp_filters():
+    return ['ram-lak', 'shepp-logan', 'hamming', 'cosine', 'parzen',
+            'lanczos', 'triangular', 'gaussian', 'blackman', 'nuttall',
+            'blackman-harris', 'kaiser']
+
+def sart_orders():
+    return ['sequential', 'random']
+
 # Perform a basic functionality test for ASTRA and CUDA
 def check_cuda():
     try:

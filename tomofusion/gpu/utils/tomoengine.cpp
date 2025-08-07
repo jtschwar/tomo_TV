@@ -404,8 +404,8 @@ float tomoengine::matrix_2norm() { return sqrt(cuda_euclidean_dist(recon.data, t
 // Measure the 2 norm between experimental and reconstructed projections.
 float tomoengine::data_distance() {
     forwardProjection();
-    return (g - b).norm() / g.size();  } // Nrow*Nslice,sum_{ij} M_ij^2 / Nrow*Nslice
-// return (g - b).norm();          }
+    return (g - b).norm();          
+}
 
 // Foward project the data.
 void tomoengine::forwardProjection() {
@@ -518,6 +518,7 @@ PYBIND11_MODULE(tomoengine, m)
     tomoengine.def("matrix_2norm", &tomoengine::matrix_2norm, "Calculate L2-Norm of Reconstruction");
     tomoengine.def("data_distance", &tomoengine::data_distance, "Calculate L2-Norm of Projection (aka Vectors)");
     tomoengine.def("rmse", &tomoengine::rmse, "Calculate reconstruction's RMSE");
+    tomoengine.def("tv", &tomoengine::tv_3D, "Measure TV of Reconstruction");
     tomoengine.def("original_tv", &tomoengine::original_tv_3D, "Measure original TV");
     tomoengine.def("tv_gd", &tomoengine::tv_gd_3D, "3D TV Gradient Descent");
     tomoengine.def("tv_fgp", &tomoengine::tv_fgp_3D, "3D TV Fast Gradient Projection");
@@ -526,15 +527,3 @@ PYBIND11_MODULE(tomoengine, m)
     tomoengine.def("poisson_noise", &tomoengine::poissonNoise, "Add Poisson Noise to Projections");
     tomoengine.def("restart_recon", &tomoengine::restart_recon, "Set all the Slices Equal to Zero");
 }
-
-// Save Reconstruction with Parallel MPI - I/O
-// void tomoengine::save_recon(char *filename) {
-//     hid_t fd = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-//     hsize_t dims[3] = {Nslice, Ny, Nz};
-//     hid_t dataspace = H5Screate_simple(3, dims, NULL);
-//     hid_t dset = H5Dcreate(fd, "recon", H5T_NATIVE_FLOAT, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-//     H5Dwrite(dset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &recon.data[recon.index(0,0, 0)]);
-//     H5Dclose(dset);
-//     H5Sclose(dataspace);
-//     H5Fclose(fd);
-// }

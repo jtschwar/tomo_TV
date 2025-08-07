@@ -1,11 +1,11 @@
-from tomo_tv.chemistry.utils import utils_cs_eds as utils
-from tomo_tv.chemistry.utils import multimodal
+from tomofusion.chemistry.utils import utils_cs_eds as utils
+from tomofusion.chemistry.utils import multimodal
 import matplotlib.pyplot as plt
 from typing import Dict
 from tqdm import tqdm
 import numpy as np
 
-class reconstructor:
+class ChemicalTomo:
 
     def __init__(self, 
             haadf: np.ndarray, haadfTiltAngles: np.ndarray, 
@@ -27,7 +27,7 @@ class reconstructor:
         self.nz = len(chem)
 
         # Initialize Tomography Operator
-        self.tomo = multimodal.multimodal(
+        self.tomo = multimodal(
             self.nx, self.ny, self.nz, 
             np.deg2rad(haadfTiltAngles),
             np.deg2rad(chemTiltAngles))
