@@ -14,7 +14,7 @@ build_custom_astra() {
     
     # Step 1: Go into thirdparty/astra-toolbox/build/linux
     cd thirdparty/astra-toolbox
-    git checkout backup
+    # git checkout backup
     cd build/linux
     echo "📍 Now in: $(pwd)"
     
