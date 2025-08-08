@@ -14,18 +14,27 @@ build_custom_astra() {
     
     # Step 1: Go into thirdparty/astra-toolbox/build/linux
     cd thirdparty/astra-toolbox
-    # git checkout backup
+    git fetch origin 
+    git checkout master
     cd build/linux
     echo "📍 Now in: $(pwd)"
     
-    # Step 2: Configure with correct CUDA path and prefix
+    # Step 2: Configure with correct CUDA path, prefix, and Boost
     CUDA_PATH=$(dirname $(dirname $(which nvcc)))
     PREFIX_PATH="$ORIGINAL_DIR/thirdparty/astra"
     echo "🔧 CUDA path: $CUDA_PATH"
     echo "🔧 Install prefix: $PREFIX_PATH"
     
     ./autogen.sh
-    ./configure --with-cuda="$CUDA_PATH" --with-python --with-install-type=prefix --prefix="$PREFIX_PATH"
+    
+    # Configure with Boost paths if available
+    CONFIGURE_FLAGS="--with-cuda=$CUDA_PATH --with-python --with-install-type=prefix --prefix=$PREFIX_PATH"
+    if [ -n "$BOOST_ROOT" ]; then
+        CONFIGURE_FLAGS="$CONFIGURE_FLAGS --with-boost=$BOOST_ROOT"
+        echo "🔧 Using Boost headers at: $BOOST_ROOT"
+    fi
+    
+    ./configure $CONFIGURE_FLAGS
     
     # Step 3: Make all
     make clean
@@ -176,18 +185,26 @@ show_help() {
 Host-based build script for tomofusion
 
 This script builds everything directly on the host machine following the exact steps:
-1. Configure ASTRA with auto-detected CUDA path
-2. Build ASTRA
-3. Build tomofusion extensions
-4. Test extensions
+1. Check/install Boost headers in ./thirdparty (if needed)
+2. Configure ASTRA with auto-detected CUDA path and Boost
+3. Build ASTRA
+4. Build tomofusion extensions
+5. Test extensions
 
 Prerequisites:
 - CUDA toolkit installed and in PATH
 - Python development environment
+- wget (for downloading Boost if needed)
 
 Usage:
     $0              # Build everything on host
     $0 --help       # Show this help
+
+Directory structure after build:
+./thirdparty/
+├── boost/
+│   └── include/boost/    # Boost headers (if auto-installed)
+└── astra/                # Built ASTRA installation
 
 EOF
 }
