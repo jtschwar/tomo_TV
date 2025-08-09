@@ -1,0 +1,70 @@
+[build-system]
+requires = [
+    "setuptools",
+    "wheel",
+    "numpy",
+    "pybind11",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tomofusion"
+dynamic = ["version"] 
+description = "Python and C++ toolbox for tomographic data processing and iterative reconstruction algorithms"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "GPL-3.0-or-later"}
+authors = [
+    {name = "Jonathan Schwartz", email = "jtschw@umich.edu"},
+]
+keywords = ["tomography", "reconstruction", "cuda", "3d", "imaging", "electron-microscopy"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: C++",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "scikit-image",
+    "h5py",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "black",
+    "flake8",
+    "jupyter",
+    "build",
+    "twine",
+]
+
+[project.urls]
+Homepage = "https://github.com/jtschwar/tomo_TV"
+"Bug Reports" = "https://github.com/jtschwar/tomo_TV/issues"
+"Source" = "https://github.com/jtschwar/tomo_TV"
+
+[tool.setuptools.dynamic]
+version = {attr = "tomofusion.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["tomofusion*"]
+
+[tool.setuptools.package-data]
+"tomofusion" = ["*.so", "*.dll", "*.dylib"]
+"tomofusion.chemistry.utils" = ["*.so"] 
+"tomofusion.gpu.utils" = ["*.so"]
+"tomofusion.cpu.utils" = ["*.so"]
