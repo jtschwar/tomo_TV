@@ -23,6 +23,19 @@
 
 #define idivup(a, b) ( ((a)%(b) != 0) ? (a)/(b)+1 : (a)/(b) )
 
+__global__ void cuda_scalar_multiply_kernel(float *vol, float scalar, int nx, int ny, int nz)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    int j = blockDim.y * blockIdx.y + threadIdx.y;
+    int k = blockDim.z * blockIdx.z + threadIdx.z;
+
+    int ijk = (ny*nz)*i + nz*j + k;
+
+    if ((i < nx) && (j < ny) && (k < nz)) {
+        vol[ijk] *= scalar;
+    }
+}
+
 __global__ void difference_kernel(float *output, float *vol1, float *vol2, int nx, int ny, int nz)
 {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -478,6 +491,44 @@ void cuda_nesterov_momentum(float *yt, float *xt, float *xt_old, float beta, int
     cudaDeviceSynchronize();
 }
 
+// Host function for 3D volume scalar multiplication
+void cuda_scalar_multiply(float *vol, float scalar, int nx, int ny, int nz, int gpuIndex)
+{
+    // Set GPU Index
+    if (gpuIndex != -1) {
+        cudaSetDevice(gpuIndex);
+        cudaError_t err = cudaGetLastError();
+        
+        // Ignore errors caused by calling cudaSetDevice multiple times
+        if (err != cudaSuccess && err != cudaErrorSetOnActiveProcess) {
+            return;
+        }
+    }
+
+    int volSize = nx * ny * nz;
+    float *d_vol;
+
+    // Block size (matching your existing pattern)
+    dim3 dimBlock(BLKXSIZE, BLKXSIZE, BLKXSIZE);
+
+    // Grid size
+    dim3 dimGrid(idivup(nx,BLKXSIZE), idivup(ny,BLKXSIZE), idivup(nz,BLKXSIZE));
+
+    // Allocate space for volume on device
+    cudaMalloc((void**)&d_vol, volSize*sizeof(float));
+    cudaMemcpy(d_vol, vol, volSize*sizeof(float), cudaMemcpyHostToDevice);
+
+    // Launch kernel
+    cuda_scalar_multiply_kernel<<<dimGrid,dimBlock>>>(d_vol, scalar, nx, ny, nz);
+    cudaDeviceSynchronize();
+    cudaPeekAtLastError();
+
+    // Copy result back to host
+    cudaMemcpy(vol, d_vol, volSize*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaFree(d_vol);
+    cudaDeviceSynchronize();
+}
+
 // 4D Functions
 //////////////////////////////////////////////////////////////////////////////////////
 void cuda_positivity_4D(float *recon, int nx, int ny, int nz, int ne, int gpuIndex)
@@ -568,4 +619,45 @@ float *cuda_rmse_4D(float *recon, float *original, int nx, int ny, int nz, int n
     cudaDeviceSynchronize();
 
     return rmse;
+}
+
+// Host function for 4D volume scalar multiplication (for multi-element case)
+void cuda_scalar_multiply_4D(float *vol, float scalar, int nx, int ny, int nz, int ne, int gpuIndex)
+{
+    // Set GPU Index
+    if (gpuIndex != -1) {
+        cudaSetDevice(gpuIndex);
+        cudaError_t err = cudaGetLastError();
+        
+        // Ignore errors caused by calling cudaSetDevice multiple times  
+        if (err != cudaSuccess && err != cudaErrorSetOnActiveProcess) {
+            return;
+        }
+    }
+
+    int volSize = nx * ny * nz;
+    float *d_vol;
+
+    // Block size
+    dim3 dimBlock(BLKXSIZE, BLKXSIZE, BLKXSIZE);
+
+    // Grid size
+    dim3 dimGrid(idivup(nx,BLKXSIZE), idivup(ny,BLKXSIZE), idivup(nz,BLKXSIZE));
+
+    // Allocate space for volume on device
+    cudaMalloc((void**)&d_vol, volSize*sizeof(float));
+
+    // Iterate through all elements
+    for (int e = 0; e < ne; e++) {
+        cudaMemcpy(d_vol, &vol[volSize*e], volSize*sizeof(float), cudaMemcpyHostToDevice);
+
+        cuda_scalar_multiply_kernel<<<dimGrid,dimBlock>>>(d_vol, scalar, nx, ny, nz);
+        cudaDeviceSynchronize();
+        cudaPeekAtLastError();
+
+        cudaMemcpy(&vol[volSize*e], d_vol, volSize*sizeof(float), cudaMemcpyDeviceToHost);
+    }
+    
+    cudaFree(d_vol);
+    cudaDeviceSynchronize();
 }

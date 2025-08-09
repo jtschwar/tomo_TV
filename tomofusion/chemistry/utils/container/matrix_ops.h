@@ -30,10 +30,16 @@ void cuda_soft_threshold(float *vol, float lambda, int nx, int ny, int nz, int g
 
 void cuda_nesterov_momentum(float *yt, float *xt, float *xt_old, float beta, int nx, int ny, int nz, int gpuIndex=-1);
 
+// Scalar multiplication for 3D volume
+void cuda_scalar_multiply(float *vol, float scalar, int nx, int ny, int nz, int gpuIndex = -1);
+
 //////////////////////////////////////////////////////////////////////
 
 void cuda_positivity_4D(float *recon, int nx, int ny, int nz, int ne=1, int gpuIndex=-1);
 
 float *cuda_rmse_4D(float *recon, float *original, int nx, int ny, int nz, int ne=1, int gpuIndex=-1);
+
+// Scalar multiplication for 4D volume (multi-element)
+void cuda_scalar_multiply_4D(float *vol, float scalar, int nx, int ny, int nz, int ne, int gpuIndex = -1);
 
 #endif /* tlib_hpp */

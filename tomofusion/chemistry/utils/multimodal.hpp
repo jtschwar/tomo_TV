@@ -144,7 +144,7 @@ public:
     void chemical_SART(int nIter); void chemical_SIRT(int nIter);
 
     // Call Data Fusion
-        Vec fuse(const Vec &inVol, int s, int nIter, std::string method);
+    Vec fuse(const Vec &inVol, int s, int nIter, std::string method);
     std::tuple<float,float> call_sirt_data_fusion(float lammbdaHAADF, float lambdaCHEM, int nIter);
     std::tuple<float,float> call_sart_data_fusion(float lammbdaHAADF, float lambdaCHEM);
     std::tuple<float,float> data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter, std::string method);
@@ -153,12 +153,9 @@ public:
     // error: no matching function for call to ‘multimodal::SIRT(astra::CFloat32ProjectionData2D*&, Matrix4D&, int, int&, int&)’ 
     Vec SIRT(const Vec &inVol,int s,int nIter);
     void SIRT(int e, int s, int nIter);
-
-
     void SART(int e, int s, int nIter);    
 
-
-
+    // Call (Custom) Data Fusion 
     std::tuple<float,float> SIRT_data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter);
     std::tuple<float,float> SART_data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter);
 
@@ -166,6 +163,9 @@ public:
     Vec rmse();
     // float tv_3D(int NelSel);
     // void print_recon();
+
+    // Rescale Tomograms
+    void rescale_tomograms(float scale);
 
     // Set Slices to Zero.
     void restart_recon();

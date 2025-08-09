@@ -1,9 +1,8 @@
 from skimage import io
+from tqdm import tqdm
+import time, os, h5py
 import scipy.ndimage
 import numpy as np
-import time, os
-from tqdm import tqdm
-import h5py
 
 def load_data(vol_size, file_name):
 

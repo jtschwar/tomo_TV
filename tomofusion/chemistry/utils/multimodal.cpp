@@ -303,6 +303,11 @@ float multimodal::poisson_ml(float lambdaCHEM) {
     return costCHEM;
 }
 
+// In your multimodal class, you could add:
+void multimodal::rescale_tomograms(float scale) {
+    cuda_scalar_multiply_4D(recon.data, scale, Nslice, Ny, Nz, Nel, gpuID);
+}
+
 // Rescale bh with forward model
 void multimodal::rescale_projections() {
     for (int s=0; s<Nslice; s++){
@@ -548,6 +553,7 @@ PYBIND11_MODULE(multimodal, m)
     multimodal.def("chemical_SIRT", &multimodal::chemical_SIRT, "SIRT on the Raw Chemical Projections");
     multimodal.def("sirt_data_fusion", &multimodal::call_sirt_data_fusion, "Data Fusion with SIRT Forward Projection");
     multimodal.def("sart_data_fusion", &multimodal::call_sart_data_fusion, "Data Fusion with SIRT Forward Projection");    
+    multimodal.def("rescale_tomograms", &multimodal::rescale_tomograms, "Multiply Tomograms by Input Value.");
     multimodal.def("rmse", &multimodal::rmse, "Measure RMSE");
     multimodal.def("get_recon", &multimodal::get_recon, "Return the Reconstruction to Python");
     multimodal.def("get_haadf_projections", &multimodal::get_haadf_projections, "Return the projection matrix to python");
@@ -557,155 +563,4 @@ PYBIND11_MODULE(multimodal, m)
     multimodal.def("restart_recon", &multimodal::restart_recon, "Set all the Slices Equal to Zero");
 }
 
-// multimodal.def("SIRT_data_fusion", &multimodal::SIRT_data_fusion, "Data Fusion with SIRT Algorithm");
-// multimodal.def("SART_data_fusion", &multimodal::SART_data_fusion, "Data Fusion with SART Algorithm");
-
-// multimodal.def("SART", &multimodal::SART, "ART Reconstruction");
-// multimodal.def("SIRT", &multimodal::SIRT, "SIRT Reconstruction");
-// multimodal.def("tv_3D", &multimodal::tv_3D, "Measure TV of the reconstruction");
-// multimodal.def("print_recon", &multimodal::print_recon, "Print the reconstruction variable - debug");
-// multimodal.def("save_recon", &multimodal::save_recon, "Save the Reconstruction with HDF5");
-
-// void multimodal::print_recon(){
-//     printf((recon.data).size());
-// }
-
-// //Measure Reconstruction's TV.
-// float multimodal::tv_3D(int NelSel) { 
-    
-//     // for (int s=0; s < Nslice; s++) {
-//     //     recon_small[recon_small.index(s,0,0)] = recon.data[recon.index(NelSel,s,0,0)];
-//     // }
-//     return (cuda_tv_3D(recon.data[recon.index()], Nslice, Ny, Nz));
-// }
-
-// // Copy Data to Astra
-// chemSino->copyData((float32*) &inProj(e*NrowChem));
-
-// // Back Project
-// algo_bp->initialize(cProj,chemSino,vol);
-// algo_bp->run();
-
-// // Return data from Astra
-// memcpy(&outVol4D(e*Ny*Nz), vol->getData(), sizeof(float)*Ny*Nz);
-
-// Data Fusion with SIRT Reconstruction on HAADF term
-// tuple<float,float> multimodal::SART_data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter)
-// {
-//     float costHAADF = 0; float costCHEM = 0; 
-
-//     // Iterate Along slices
-//     for (int s=0; s < Nslice; s++) {
-
-//         // Iterate Along Elements
-//         for (int e=0; e< Nel; e++) {
-//             memcpy(&xx(e*Ny*Nz), &recon.data[recon.index(e,s,0,0)], sizeof(float)*Ny*Nz); } 
-
-//         // Forward projection (HAADF)
-//         if (gamma == 1) { g.row(s) = forward_projection(sigma * xx); }
-//         else { g.row(s) = forward_projection( sigma * (Vec (xx.array().pow(gamma)) ) ); }
-
-//         // // Compute SART Gradient Update
-//         // updateHAADF = SART(xx,s,nIter);
-
-//         // xx -= lambdaHAADF * updateHAADF;
-
-//         // (Poisson-ML)
-//         Ax = forward_projection4D(xx);
-//         updateCHEM = back_projection4D( (Ax - bChem.row(s).transpose()).array() / (Ax.array() + eps).array() );
-
-//         // New Version?
-//         xx -= lambdaCHEM/L_Aps * updateCHEM;
-//         updateHAADF = SART(xx,s,nIter);
-//         xx -= lambdaHAADF * updateHAADF;
-
-//         // Update along gradient directions
-//         // xx -= lambdaCHEM/L_Aps * updateCHEM - lambdaHAADF * updateHAADF;
-
-//         // Iterate Along Elements
-//         for (int e=0; e< Nel; e++) {
-//             memcpy(&recon.data[recon.index(e,s,0,0)], &xx(e*Ny*Nz), sizeof(float)*Ny*Nz); } 
-
-//         // Measure Data Fidelity Cost  
-//         if (measureChem) {costCHEM += ( Ax.array() - bChem.row(s).transpose().array() * (Ax.array() + eps).log().array() ).sum(); }
-//     }
-
-//     // Apply Positivity
-//     recon.positivity();
-
-//     // rescale_projections();
-
-//     // Measure Multi-Modal (HAADF) Cost 
-//     if (measureHaadf) costHAADF = (g - bh).norm();
-
-//     return make_tuple(costHAADF,costCHEM);
-// }
-
-// Data Fusion with SART Reconstruction.
-// Vec multimodal::SART_fusion(const Vec &inVol, int s, int nIter) { 
-//     Vec tmpHAADF(sigma.rows()); Vec updateSART(sigma.rows());
-
-//     int Nproj = NrowHaadf / Ny;
-
-//     if (gamma == 1) {tmpHAADF = sigma * inVol;}
-//     else            {tmpHAADF = sigma * (Vec (inVol.array().pow(gamma)) ); }
-
-//     // Pass 2D Slice and Sinogram (Measurements) to ASTRA
-//     haadfSino->copyData((float32*) &bh(s,0));
-//     vol->copyData( (float32*) &tmpHAADF(0) );
-
-//     // SIRT Reconstruction
-//     algo_sart->updateSlice(haadfSino, vol);
-//     algo_sart->run(nIter * Nproj);
-
-//     // Return Slice to tomo_TV
-//     memcpy(&updateSART(0), vol->getData(), sizeof(float)*Ny*Nz);
-//     if (gamma == 1) {updateHAADF = sigma.transpose() * (updateSART - tmpHAADF); }
-//     else {
-//         // # pragma omp parallel for
-//         // for (int i=0; i < inVol.size(); i++) { spXXmatrix.coeffRef(i,i) = pow(inVol(i),gamma-1); }
-//         spXXmatrix.diagonal().array() = inVol.array().pow(gamma - 1); 
-//         updateHAADF = gamma * spXXmatrix * (Vec (sigma.transpose() * (updateSART - tmpHAADF)) ); }
-        
-//     return updateHAADF;
-
-// }
-
-// // Fused Multi-Modal Tomography Reconstruction
-// tuple<float,float> multimodal::data_fusion(float lambdaHAADF, float lambdaCHEM) {
-//     float costHAADF = 0; float costCHEM = 0; 
-
-//     for (int s=0; s< Nslice; s++){
-
-//         // Concatenate Elements ([e,s,:,:])
-//         for (int e=0; e<Nel; e++) {
-//             memcpy(&xx(e*Ny*Nz), &recon.data[recon.index(e,s,0,0)], sizeof(float)*Ny*Nz); } 
-
-//         // Forward projection (HAADF)
-//         if (gamma == 1) { 
-//             g.row(s) = forward_projection(sigma * xx); 
-//             updateHAADF = sigma.transpose() * back_projection( Vec (g.row(s) - bh.row(s)) ); }
-//         else {
-//             g.row(s) = forward_projection( sigma * (Vec (xx.array().pow(gamma)) ) ); 
-//             spXXmatrix.diagonal().array() = xx.array().pow(gamma - 1); 
-//             updateHAADF = gamma * spXXmatrix * sigma.transpose() * back_projection( Vec (g.row(s) - bh.row(s)) ); }
-        
-//         // (Poisson-ML)
-//         Ax = forward_projection4D(xx);
-//         updateCHEM = back_projection4D( (Ax - bChem.row(s).transpose()).array() / (Ax.array() + eps).array() );
-        
-//         // Update along gradient directions
-//         xx -= lambdaHAADF/L_ASig * updateHAADF + lambdaCHEM/L_Aps * updateCHEM;
-        
-//         // Return elements to recon.
-//         for (int e=0; e<Nel; e++) {
-//             memcpy(&recon.data[recon.index(e,s,0,0)], &xx(e*Ny*Nz), sizeof(float)*Ny*Nz); }
-
-//         // Measure Data Fidelity Cost  
-//         if (measureChem) {costCHEM += ( Ax.array() - bChem.row(s).transpose().array() * (Ax.array() + eps).log().array() ).sum(); }
-//     }
-//     // Measure Multi-Modal (HAADF) Cost 
-//     if (measureHaadf) costHAADF = (g - bh).norm();
-
-//     return make_tuple(costHAADF,costCHEM);
-// }
+// End of multimodal.cpp

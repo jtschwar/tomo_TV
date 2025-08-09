@@ -39,7 +39,7 @@ from tomofusion.gpu.reconstructor import TomoGPU
 # Create Reconstruction object, run reconstruction algorithm and return algorithm
 tomoengine = TomoGPU(tilt_angles, tilt_series)
 tomoengine.fista(Niter=50, lambda_param=1e-1, show_convergence=True)
-vol = tomoengine.get_recon() # ( Optional: tomoengine.show_recon() )
+vol = tomoengine.get_recon() # ( Optional: tomoengine.display_recon() )
 ```
 
 or fused mutli-modal implementation:
@@ -49,8 +49,12 @@ from tomofusion.chemistry.reconstructor import ChemicalTomo
 # Add the Chemical Tilt Series to a Dictionary
 chem = {'C': carbon_tilt_series, 'Zn': zn_tilt_series}
 tomoengine = ChemicalTomo(adf, adf_angles, chem, chem_angles)
-tomoengine.data_fusion()
+tomoengine.data_fusion() # ( Optional: tomoengine.display_recon() )
 ```
+
+## Alignment
+
+For automated tilt series alignment using projection matching algorithms, refer to our companion package: [projection_refinement](https://github.com/jtschwar/projection_refinement). This tool provides fiducial-free alignment that integrates directly with the tomo_TV reconstruction pipeline.
 
 ## References
 If you use tomo_TV for your research, we would appreciate it if you cite to the following papers:

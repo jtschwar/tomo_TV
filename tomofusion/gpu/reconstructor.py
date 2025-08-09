@@ -3,6 +3,11 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import numpy as np
 
+import tkinter as tk
+from tkinter import ttk
+import numpy as np
+from PIL import Image, ImageTk
+
 class TomoGPU:
 
     def __init__(self, tiltAngles: np.ndarray, tiltSeries: np.ndarray = None):
@@ -175,10 +180,14 @@ class TomoGPU:
     def plot_convergence(self, cost, algorithm):
         """ Plot the Convergence of the Reconstruction Algorithm """
 
-        plt.plot(cost)
-        plt.xlabel('Iteration')
-        plt.ylabel('Cost')
+        Niter = cost.shape[0]
+        plt.figure(figsize=(8,5))
+        plt.scatter(np.arange(Niter), cost)
+        plt.xlabel('Iteration'); plt.ylabel('Cost')
         plt.title(f'{algorithm} Convergence')
+        plt.xlim([0, Niter-1])
+        plt.tick_params(direction='in', length=6, width=1.5, 
+                        which='both', top=True, right=True)        
         plt.show()
 
     def get_recon(self):
@@ -187,29 +196,175 @@ class TomoGPU:
         # Return the Reconstruction to Python
         if self.recon is None:
             self.recon = np.zeros([self.Nslice, self.Nray, self.Nray])
-
         for s in range(self.Nslice):
             self.recon[s,] = self.tomo.get_recon(s)
-
         return self.recon
     
     def get_projections(self):
 
         pass
 
-    # Auxilary Function to Visualize Slices of the Phantom Object or Reconstruction
     def show_recon(self):
-        """ Show the Reconstruction Slices in 3D """
-
-        # Get Reconsturction is not done yet
+        """
+        Interactive Tkinter viewer for 3D reconstruction
+        Shows XY, XZ, YZ slices with sliders
+        """
+        # Get reconstruction if not done yet
         if self.recon is None:
             self.get_recon()
-
-        (nx, ny, nz) = self.recon.shape
-        fig, ax = plt.subplots(1,3,figsize=(25,25))
-        ax = ax.flatten()
-        ax[0].imshow(self.recon[int(nx/2),],cmap='gray'); ax[0].axis('off')
-        ax[1].imshow(self.recon[:,int(ny/2),:],cmap='gray'); ax[1].axis('off')
-        ax[2].imshow(self.recon[:,:,int(nz/2)],cmap='gray'); ax[2].axis('off')
-        plt.show()
+        
+        nx, ny, nz = self.recon.shape
+        
+        root = tk.Tk()
+        root.title("3D Reconstruction Viewer")
+        root.geometry("1000x400")
+        
+        # Main frame
+        main_frame = ttk.Frame(root, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Controls frame
+        controls_frame = ttk.Frame(main_frame)
+        controls_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        # Slice variables
+        xy_slice = tk.IntVar(value=int(nx/2))
+        xz_slice = tk.IntVar(value=int(ny/2)) 
+        yz_slice = tk.IntVar(value=int(nz/2))
+        
+        # XY slice control
+        ttk.Label(controls_frame, text="XY Slice:").grid(row=0, column=0, sticky=tk.W)
+        xy_scale = ttk.Scale(controls_frame, from_=0, to=nx-1, variable=xy_slice, orient=tk.HORIZONTAL)
+        xy_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
+        xy_label = ttk.Label(controls_frame, text=str(int(nx/2)))
+        xy_label.grid(row=0, column=2, padx=5)
+        
+        # XZ slice control  
+        ttk.Label(controls_frame, text="XZ Slice:").grid(row=1, column=0, sticky=tk.W)
+        xz_scale = ttk.Scale(controls_frame, from_=0, to=ny-1, variable=xz_slice, orient=tk.HORIZONTAL)
+        xz_scale.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=5)
+        xz_label = ttk.Label(controls_frame, text=str(int(ny/2)))
+        xz_label.grid(row=1, column=2, padx=5)
+        
+        # YZ slice control
+        ttk.Label(controls_frame, text="YZ Slice:").grid(row=2, column=0, sticky=tk.W)
+        yz_scale = ttk.Scale(controls_frame, from_=0, to=nz-1, variable=yz_slice, orient=tk.HORIZONTAL)
+        yz_scale.grid(row=2, column=1, sticky=(tk.W, tk.E), padx=5)
+        yz_label = ttk.Label(controls_frame, text=str(int(nz/2)))
+        yz_label.grid(row=2, column=2, padx=5)
+        
+        # Configure column weights
+        controls_frame.columnconfigure(1, weight=1)
+        
+        # Images frame
+        images_frame = ttk.Frame(main_frame)
+        images_frame.pack(fill=tk.BOTH, expand=True)
+        images_frame.columnconfigure(0, weight=1)
+        images_frame.columnconfigure(1, weight=1) 
+        images_frame.columnconfigure(2, weight=1)
+        images_frame.rowconfigure(0, weight=1)
+        
+        # Image labels
+        xy_img_label = ttk.Label(images_frame)
+        xy_img_label.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
+        
+        xz_img_label = ttk.Label(images_frame)  
+        xz_img_label.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
+        
+        yz_img_label = ttk.Label(images_frame)
+        yz_img_label.grid(row=0, column=2, padx=5, pady=5, sticky="nsew")
+        
+        # Titles
+        ttk.Label(images_frame, text="XY View", font=('Arial', 10, 'bold')).grid(row=1, column=0)
+        ttk.Label(images_frame, text="XZ View", font=('Arial', 10, 'bold')).grid(row=1, column=1)  
+        ttk.Label(images_frame, text="YZ View", font=('Arial', 10, 'bold')).grid(row=1, column=2)
+        
+        def normalize_image(img_data):
+            """Normalize image data to 0-255 range"""
+            img_min, img_max = img_data.min(), img_data.max()
+            if img_max > img_min:
+                return ((img_data - img_min) / (img_max - img_min) * 255).astype(np.uint8)
+            else:
+                return np.zeros_like(img_data, dtype=np.uint8)
+        
+        def update_images():
+            """Update all three slice views"""
+            # Get current slice indices
+            xy_idx = int(xy_slice.get())
+            xz_idx = int(xz_slice.get()) 
+            yz_idx = int(yz_slice.get())
+            
+            # Update labels
+            xy_label.config(text=str(xy_idx))
+            xz_label.config(text=str(xz_idx))
+            yz_label.config(text=str(yz_idx))
+            
+            # Get slice data
+            xy_data = self.recon[xy_idx, :, :]  # XY plane at z=xy_idx
+            xz_data = self.recon[:, xz_idx, :]  # XZ plane at y=xz_idx  
+            yz_data = self.recon[:, :, yz_idx]  # YZ plane at x=yz_idx
+            
+            # Normalize and convert to PIL
+            display_size = (250, 250)
+            
+            # XY image
+            xy_norm = normalize_image(xy_data)
+            xy_pil = Image.fromarray(xy_norm, mode='L')
+            xy_pil = xy_pil.resize(display_size, Image.Resampling.NEAREST)
+            xy_photo = ImageTk.PhotoImage(xy_pil)
+            xy_img_label.configure(image=xy_photo)
+            xy_img_label.image = xy_photo
+            
+            # XZ image  
+            xz_norm = normalize_image(xz_data)
+            xz_pil = Image.fromarray(xz_norm, mode='L')
+            xz_pil = xz_pil.resize(display_size, Image.Resampling.NEAREST)
+            xz_photo = ImageTk.PhotoImage(xz_pil)
+            xz_img_label.configure(image=xz_photo)
+            xz_img_label.image = xz_photo
+            
+            # YZ image
+            yz_norm = normalize_image(yz_data)
+            yz_pil = Image.fromarray(yz_norm, mode='L')
+            yz_pil = yz_pil.resize(display_size, Image.Resampling.NEAREST) 
+            yz_photo = ImageTk.PhotoImage(yz_pil)
+            yz_img_label.configure(image=yz_photo)
+            yz_img_label.image = yz_photo
+        
+        # Bind slider changes
+        def on_change(*args):
+            update_images()
+        
+        xy_slice.trace('w', on_change)
+        xz_slice.trace('w', on_change)  
+        yz_slice.trace('w', on_change)
+        
+        # Keyboard controls
+        def on_key(event):
+            if event.keysym == 'q':
+                xy_slice.set(max(0, xy_slice.get() - 1))
+            elif event.keysym == 'w':  
+                xy_slice.set(min(nx-1, xy_slice.get() + 1))
+            elif event.keysym == 'a':
+                xz_slice.set(max(0, xz_slice.get() - 1))
+            elif event.keysym == 's':
+                xz_slice.set(min(ny-1, xz_slice.get() + 1))
+            elif event.keysym == 'z':
+                yz_slice.set(max(0, yz_slice.get() - 1))
+            elif event.keysym == 'x':
+                yz_slice.set(min(nz-1, yz_slice.get() + 1))
+        
+        root.bind('<Key>', on_key)
+        root.focus_set()
+        
+        # Initial display
+        update_images()
+        
+        # Add instructions
+        instructions = ttk.Label(main_frame, 
+                                text="Keyboard: Q/W (XY), A/S (XZ), Z/X (YZ)",
+                                font=('Arial', 8))
+        instructions.pack(pady=5)
+        
+        root.mainloop()
 
