@@ -1,149 +1,149 @@
 name: Build and Publish Wheels
 
-on:
-  push:
-    branches: [ main, refactor ]
-  pull_request:
-    branches: [ main, refactor ]
-  release:
-    types: [published]
+# on:
+#   push:
+#     branches: [ main, refactor ]
+#   pull_request:
+#     branches: [ main, refactor ]
+#   release:
+#     types: [published]
 
-jobs:
-  build_wheels:
-    name: Build wheels
-    runs-on: ubuntu-latest
+# jobs:
+#   build_wheels:
+#     name: Build wheels
+#     runs-on: ubuntu-latest
     
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        fetch-depth: 0
+#     steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v4
+#       with:
+#         submodules: recursive
+#         fetch-depth: 0
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+#     - name: Set up Docker Buildx
+#       uses: docker/setup-buildx-action@v3
 
-    - name: Build wheel-builder Docker image
-      run: |
-        docker build -f Dockerfile -t tomofusion-wheel-builder .
+#     - name: Build wheel-builder Docker image
+#       run: |
+#         docker build -f Dockerfile -t tomofusion-wheel-builder .
 
-    - name: Create output directory
-      run: mkdir -p wheelhouse
+#     - name: Create output directory
+#       run: mkdir -p wheelhouse
 
-    - name: Build wheels in Docker
-      run: |
-        docker run --rm \
-          -v $(pwd)/wheelhouse:/output \
-          tomofusion-wheel-builder \
-          bash -c "cp dist/*.whl /output/"
+#     - name: Build wheels in Docker
+#       run: |
+#         docker run --rm \
+#           -v $(pwd)/wheelhouse:/output \
+#           tomofusion-wheel-builder \
+#           bash -c "cp dist/*.whl /output/"
 
-    - name: List built wheels
-      run: ls -la wheelhouse/
+#     - name: List built wheels
+#       run: ls -la wheelhouse/
 
-    - name: Upload wheels as artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: wheels
-        path: wheelhouse/*.whl
+#     - name: Upload wheels as artifacts
+#       uses: actions/upload-artifact@v4
+#       with:
+#         name: wheels
+#         path: wheelhouse/*.whl
 
-    # Test wheel installation (optional but recommended)
-    - name: Test wheel installation
-      run: |
-        python -m pip install --upgrade pip
-        pip install wheelhouse/*.whl
-        python -c "import tomofusion; print('Successfully imported tomofusion')"
-      continue-on-error: true
+#     # Test wheel installation (optional but recommended)
+#     - name: Test wheel installation
+#       run: |
+#         python -m pip install --upgrade pip
+#         pip install wheelhouse/*.whl
+#         python -c "import tomofusion; print('Successfully imported tomofusion')"
+#       continue-on-error: true
 
-  test_wheels:
-    name: Test wheels on different Python versions
-    needs: build_wheels
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11']
+#   test_wheels:
+#     name: Test wheels on different Python versions
+#     needs: build_wheels
+#     runs-on: ubuntu-latest
+#     strategy:
+#       matrix:
+#         python-version: ['3.8', '3.9', '3.10', '3.11']
     
-    steps:
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
+#     steps:
+#     - name: Set up Python ${{ matrix.python-version }}
+#       uses: actions/setup-python@v4
+#       with:
+#         python-version: ${{ matrix.python-version }}
 
-    - name: Download wheels
-      uses: actions/download-artifact@v4
-      with:
-        name: wheels
-        path: wheelhouse
+#     - name: Download wheels
+#       uses: actions/download-artifact@v4
+#       with:
+#         name: wheels
+#         path: wheelhouse
 
-    - name: Install wheel
-      run: |
-        pip install --upgrade pip
-        # Install the wheel that matches this Python version
-        pip install wheelhouse/*cp$(echo ${{ matrix.python-version }} | tr -d '.')*.whl
-      continue-on-error: true
+#     - name: Install wheel
+#       run: |
+#         pip install --upgrade pip
+#         # Install the wheel that matches this Python version
+#         pip install wheelhouse/*cp$(echo ${{ matrix.python-version }} | tr -d '.')*.whl
+#       continue-on-error: true
 
-    - name: Test import
-      run: |
-        python -c "
-        try:
-            import tomofusion
-            print('✓ Successfully imported tomofusion')
+#     - name: Test import
+#       run: |
+#         python -c "
+#         try:
+#             import tomofusion
+#             print('✓ Successfully imported tomofusion')
             
-            # Test GPU module if available
-            try:
-                from tomofusion.gpu import reconstructor
-                print('✓ Successfully imported GPU reconstructor')
-            except ImportError as e:
-                print('⚠ GPU module not available:', e)
+#             # Test GPU module if available
+#             try:
+#                 from tomofusion.gpu import reconstructor
+#                 print('✓ Successfully imported GPU reconstructor')
+#             except ImportError as e:
+#                 print('⚠ GPU module not available:', e)
             
-            # Test chemistry module if available  
-            try:
-                from tomofusion.chemistry import reconstructor as chem_reconstructor
-                print('✓ Successfully imported chemistry reconstructor')
-            except ImportError as e:
-                print('⚠ Chemistry module not available:', e)
+#             # Test chemistry module if available  
+#             try:
+#                 from tomofusion.chemistry import reconstructor as chem_reconstructor
+#                 print('✓ Successfully imported chemistry reconstructor')
+#             except ImportError as e:
+#                 print('⚠ Chemistry module not available:', e)
                 
-        except ImportError as e:
-            print('✗ Failed to import tomofusion:', e)
-            exit(1)
-        "
+#         except ImportError as e:
+#             print('✗ Failed to import tomofusion:', e)
+#             exit(1)
+#         "
 
-  publish_pypi:
-    name: Publish to PyPI
-    needs: [build_wheels, test_wheels]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'published'
+#   publish_pypi:
+#     name: Publish to PyPI
+#     needs: [build_wheels, test_wheels]
+#     runs-on: ubuntu-latest
+#     if: github.event_name == 'release' && github.event.action == 'published'
     
-    steps:
-    - name: Download wheels
-      uses: actions/download-artifact@v4
-      with:
-        name: wheels
-        path: dist
+#     steps:
+#     - name: Download wheels
+#       uses: actions/download-artifact@v4
+#       with:
+#         name: wheels
+#         path: dist
 
-    - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
-        packages_dir: dist/
+#     - name: Publish to PyPI
+#       uses: pypa/gh-action-pypi-publish@release/v1
+#       with:
+#         user: __token__
+#         password: ${{ secrets.PYPI_API_TOKEN }}
+#         packages_dir: dist/
 
-  publish_test_pypi:
-    name: Publish to Test PyPI
-    needs: [build_wheels, test_wheels]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/refactor'  # Only on refactor branch
+#   publish_test_pypi:
+#     name: Publish to Test PyPI
+#     needs: [build_wheels, test_wheels]
+#     runs-on: ubuntu-latest
+#     if: github.ref == 'refs/heads/refactor'  # Only on refactor branch
     
-    steps:
-    - name: Download wheels
-      uses: actions/download-artifact@v4
-      with:
-        name: wheels
-        path: dist
+#     steps:
+#     - name: Download wheels
+#       uses: actions/download-artifact@v4
+#       with:
+#         name: wheels
+#         path: dist
 
-    - name: Publish to Test PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-        repository_url: https://test.pypi.org/legacy/
-        packages_dir: dist/
+#     - name: Publish to Test PyPI
+#       uses: pypa/gh-action-pypi-publish@release/v1
+#       with:
+#         user: __token__
+#         password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+#         repository_url: https://test.pypi.org/legacy/
+#         packages_dir: dist/
