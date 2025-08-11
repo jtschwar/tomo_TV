@@ -4,14 +4,14 @@ Python and C++ toolbox for tomographic data processing and developing iterative 
 
 ## Features
 
-2D and 3D reconstruction algorithms implemented purely in C++ wrapped in Python functions.  These scripts can either perform simulations or reconstruct experimental data. Available algorithms include:
+2D and 3D reconstruction algorithms implemented purely in Cuda/C++ wrapped in Python functions.  These scripts can either perform simulations or reconstruct experimental data. Available algorithms include:
 * Filtered Backprojection (FBP)
 * Simultaneous Iterative/Algebraic Reconstruction Technique (SIRT/SART)
 * KL-Divergence / Expectation Maximization for Poisson Limited Datasets
 * FISTA [doi: 10.1137/080716542](https://epubs.siam.org/doi/10.1137/080716542)
 * ASD - POCS [doi: 10.1088/0031-9155/53/17/021](https://iopscience.iop.org/article/10.1088/0031-9155/53/17/021)
 
-We provide a sample jupyter notebook ([demo.ipynb](demo.ipynb)) which outlines the reconstruction process for all these algorithms both with simulated and experimental datasets. 
+All reconstruction routines support execution on multiple GPUs, enabling fast and scalable processing of large volumetric datasets.
 
 ## Installation
 
@@ -51,6 +51,8 @@ chem = {'C': carbon_tilt_series, 'Zn': zn_tilt_series}
 tomoengine = ChemicalTomo(adf, adf_angles, chem, chem_angles)
 tomoengine.data_fusion() # ( Optional: tomoengine.display_recon() )
 ```
+
+Example ADF and spectral tomography datasets are available for download from [Zenodo](https://zenodo.org/records/8132804) to help you get started with running these reconstructions. We provide a sample jupyter notebook ([demo.ipynb](demo.ipynb)) which outlines the reconstruction process for all these algorithms both with simulated and experimental datasets. 
 
 ## Alignment
 
