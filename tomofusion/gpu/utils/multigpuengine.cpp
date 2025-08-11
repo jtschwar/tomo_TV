@@ -404,7 +404,7 @@ PYBIND11_MODULE(multigpuengine, m)
              "Multi-GPU CGLS Reconstruction",
              py::arg("nIter"))
         .def("FBP", &multigpuengine::FBP,
-             "Multi-GPU FBP Reconstruaaction",
+             "Multi-GPU FBP Reconstruction",
              py::arg("apply_positivity"))
         .def("forward_projection", &multigpuengine::forwardProjection,
              "Multi-GPU Forward Projection")
