@@ -1,6 +1,5 @@
 from scipy.sparse import csr_matrix
 import numpy as np
-import h5py, os
 
 # Create Summation Matrix for Generating Synthetic HAADF Maps from Chemical Spectra.
 def create_weighted_summation_matrix(nx, ny, nz, zNums, gamma,method=0):
@@ -31,23 +30,7 @@ def create_weighted_summation_matrix(nx, ny, nz, zNums, gamma,method=0):
 	A = csr_matrix((vals, (row, col)), shape=(nx*ny, nz*nx*ny), dtype=np.float32)
 
 	return A
-
-# Save the Multi-Element Tomograms in a H5 File with it's associated elemental tags.
-def save_h5(dir, *nameStrings,**dataPairs):
-    print(nameStrings)
-    fileName = ''
-    if len(nameStrings) == 0: fileName = 'temp'
-    else:
-        fileName = ''
-        fileName = '_'.join(nameStrings)
-    fileName = fileName + '.h5'
-    filePath = os.path.join(dir,fileName)
-    f = h5py.File(filePath, 'w')
-    for key,item in dataPairs.items():
-        print(key)
-        f.create_dataset(key,data=item)
-    f.close()
-
+	
 def get_periodic_table():
 
 

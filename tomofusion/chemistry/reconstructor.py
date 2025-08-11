@@ -1,5 +1,5 @@
-from tomofusion.chemistry.utils import utils_cs_eds as utils
 from tomofusion.chemistry.utils import multimodal, multigpufusion
+from tomofusion.chemistry.utils import fusion_helper as utils
 import matplotlib.pyplot as plt
 from typing import Dict
 from tqdm import tqdm
@@ -235,7 +235,7 @@ class ChemicalTomo:
         # Rescale the Projections Shortly After
         self.tomo.rescale_projections()
 
-    def get_reconstruction(self):
+    def get_recon(self):
         """
         Get the current reconstruction.
         """

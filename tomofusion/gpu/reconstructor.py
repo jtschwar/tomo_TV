@@ -1,5 +1,6 @@
-from tomofusion.gpu.utils import tomoengine, multigpuengine, pytvlib
+from tomofusion.gpu.utils import tomoengine, multigpuengine
 import matplotlib.pyplot as plt
+from tomofusion import pytvlib
 from tqdm import tqdm
 import numpy as np
 import tomofusion
