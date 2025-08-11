@@ -254,7 +254,7 @@ class ChemicalTomo:
         Shows all elements side-by-side with single slice control
         """
         # Get the Reconstruction
-        self.get_reconstruction()
+        self.get_recon()
 
         slice = int(self.ny // 2)
         
