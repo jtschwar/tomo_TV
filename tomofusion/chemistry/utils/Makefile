@@ -12,16 +12,18 @@ shared_library:
 	nvcc -shared container/*.o regularizers/*.o -o aux_func.so
 
 multimodal: multimodal.cpp multimodal.hpp
-	$(CXX) $(CXXFLAGS) $(EIGEN) $(ASTRA) $(CUDA) $(NonPAR_HDF5_INC) multimodal.cpp -o $(MMGPUCONFIG) \
-	$(ASTRA_LIB) aux_func.so \
-	-Wl,-rpath,'$$ORIGIN' \
+	$(CXX) $(CXXFLAGS) $(EIGEN) $(ASTRA) $(CUDA) multimodal.cpp container/*.o regularizers/*.o -o $(MMGPUCONFIG) \
+	$(ASTRA_LIB) \
+	-Wl,-rpath,'$ORIGIN' \
 	-Wl,-rpath,$(shell pwd)
 
 multigpufusion: multigpufusion.cpp multigpufusion.hpp multimodal.cpp multimodal.hpp
-	$(CXX) $(CXXFLAGS) $(EIGEN) $(ASTRA) $(CUDA) multigpufusion.cpp multimodal.cpp container/*.o regularizers/*.o -o $(MULTIGPUFUSIONCONFIG) \
+	$(CXX) $(CXXFLAGS) $(EIGEN) $(ASTRA) $(CUDA) multigpufusion.cpp multimodal.cpp container/*.o regularizers/*.o -o $(MULTIMMGPUCONFIG) \
 	$(ASTRA_LIB) \
-	-Wl,-rpath,'$$ORIGIN' \
+	-Wl,-rpath,'$ORIGIN' \
 	-Wl,-rpath,$(shell pwd)
 
 clean:
+	cd container && make clean && cd ..
+	cd regularizers && make clean && cd ..
 	rm -rf *.so *.o

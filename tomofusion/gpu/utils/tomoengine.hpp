@@ -1,5 +1,5 @@
 //
-//  astra_ctlib.hpp
+//  tomoengine.hpp
 //
 //  Created by Hovden Group on 5/6/19.
 //  Copyright © 2019 Jonathan Schwartz. All rights reserved.

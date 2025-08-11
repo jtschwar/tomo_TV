@@ -24,4 +24,6 @@ multigpuengine: multigpuengine.cpp multigpuengine.hpp tomoengine.cpp tomoengine.
 	-Wl,-rpath,$(shell pwd)
 
 clean:
+	cd container && make clean && cd ..
+	cd regularizers && make clean && cd ..
 	rm -rf *.so *.o

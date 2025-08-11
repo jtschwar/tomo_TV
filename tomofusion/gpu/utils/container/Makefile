@@ -12,4 +12,4 @@ matrix3d: Matrix3D.o Matrix3D.h
 	$(CXX) $(CXXFLAGS)  Matrix3D.cpp matrix_ops.o 
 
 clean:
-	rm -rf *.so *.o
+	rm -rf *.so *.o *.out

@@ -38,12 +38,12 @@ public:
     // Destructor
     ~multigpufusion();
     
-    // Override key multimodal methods for multi-GPU
-    float poisson_ml(float lambdaCHEM) override;
-    std::tuple<float,float> data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter, std::string method) override;
-    void chemical_SART(int nIter) override;
-    void chemical_SIRT(int nIter) override;
-    float data_distance() override;
+    // These methods exist in multimodal but might not be virtual, so don't use override
+    float poisson_ml(float lambdaCHEM);
+    std::tuple<float,float> data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter, std::string method);
+    void chemical_SART(int nIter);
+    void chemical_SIRT(int nIter);
+    float data_distance();
     
     // Multi-GPU specific methods
     std::vector<int> get_gpu_ids() const;

@@ -1,5 +1,5 @@
 from tomofusion.chemistry.utils import utils_cs_eds as utils
-from tomofusion.chemistry.utils import multimodal
+from tomofusion.chemistry.utils import multimodal, multigpufusion
 import matplotlib.pyplot as plt
 from typing import Dict
 from tqdm import tqdm
@@ -56,11 +56,14 @@ class ChemicalTomo:
                 np.deg2rad(chemTiltAngles))
         elif config == 'multigpu':
             print(f"Initializing multi-GPU configuration")
-            self.tomo = multigpuengine.multigpuengine(self.Nslice, self.Nray, np.deg2rad(tiltAngles))
+            self.tomo = multigpufusion.multigpufusion(
+                self.nx, self.ny, self.nz, 
+                np.deg2rad(haadfTiltAngles),
+                np.deg2rad(chemTiltAngles))
 
         # Check to see if we want to set the GPU ID
         if gpu_id >= 0 and config == 'singleconfig':
-            self.tomo.set_gpu_id(gpu_id)
+            self.tomo.set_gpu(gpu_id)
 
         self.NprojHAADF = haadfTiltAngles.shape[0]
         self.NprojCHEM = chemTiltAngles.shape[0]

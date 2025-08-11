@@ -24,6 +24,9 @@
 namespace py = pybind11;
 using namespace std;
 
+typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Mat;
+typedef Eigen::VectorXf Vec;
+
 // Thread-local GPU context for multimodal fusion
 struct FusionGPUContext {
     int gpu_id;
@@ -32,7 +35,6 @@ struct FusionGPUContext {
     // ASTRA algorithm objects for both HAADF and Chemical projections
     std::unique_ptr<CCudaSartAlgorithm> sart_algo;
     std::unique_ptr<CCudaSirtAlgorithm> sirt_algo;
-    std::unique_ptr<CCudaCglsAlgorithm> cgls_algo;
     std::unique_ptr<CCudaFilteredBackProjectionAlgorithm> fbp_algo;
     std::unique_ptr<CCudaForwardProjectionAlgorithm> fp_algo;
     std::unique_ptr<CCudaBackProjectionAlgorithm> bp_algo;
@@ -68,10 +70,6 @@ struct FusionGPUContext {
         sirt_algo->initialize(h_proj, haadf_sino.get(), vol.get());
         sirt_algo->setConstraints(true, 0, false, 1);
         sirt_algo->setGPUIndex(gpu_id);
-        
-        cgls_algo = std::make_unique<CCudaCglsAlgorithm>();
-        cgls_algo->initialize(h_proj, haadf_sino.get(), vol.get());
-        cgls_algo->setGPUIndex(gpu_id);
         
         fbp_algo = std::make_unique<CCudaFilteredBackProjectionAlgorithm>();
         fbp_algo->setGPUIndex(gpu_id);
@@ -150,9 +148,6 @@ FusionGPUContext* multigpufusion::get_thread_context() const {
         int omp_thread_id = omp_get_thread_num();
         int assigned_gpu = gpu_ids[omp_thread_id % gpu_ids.size()];
         
-        std::cout << "Creating fusion context for OMP thread " << omp_thread_id 
-                  << " -> GPU " << assigned_gpu << std::endl;
-        
         // Create new context
         auto context = std::make_unique<FusionGPUContext>(assigned_gpu);
         context->initialize(vol_geom, haadfProjGeom, chemProjGeom, hProj, cProj);
@@ -163,23 +158,14 @@ FusionGPUContext* multigpufusion::get_thread_context() const {
     return tls_context;
 }
 
-// Override Multi-GPU Poisson ML Reconstruction
+// Multi-GPU Poisson ML Reconstruction
 float multigpufusion::poisson_ml(float lambdaCHEM) {
-    std::cout << "=== MultiGPU Poisson ML called with lambdaCHEM=" << lambdaCHEM << " ===" << std::endl;
-    
     float total_cost = 0;
     
     #pragma omp parallel num_threads(gpu_ids.size()) reduction(+:total_cost)
     {
         int thread_id = omp_get_thread_num();
         int assigned_gpu = gpu_ids[thread_id % gpu_ids.size()];
-        
-        #pragma omp single
-        {
-            std::cout << "Poisson ML: Using " << omp_get_num_threads() << " threads for " << gpu_ids.size() << " GPUs" << std::endl;
-        }
-        
-        std::cout << "Thread " << thread_id << " assigned to GPU " << assigned_gpu << std::endl;
         
         // Get thread-local GPU context
         FusionGPUContext* ctx = get_thread_context();
@@ -191,8 +177,6 @@ float multigpufusion::poisson_ml(float lambdaCHEM) {
         // Distribute slices across threads
         #pragma omp for schedule(dynamic)
         for (int s = 0; s < Nslice; s++) {
-            std::cout << "Thread " << thread_id << " (GPU " << assigned_gpu << ") processing slice " << s << std::endl;
-            
             Eigen::VectorXf xx_local(Ny*Nz*Nel), Ax_local(NrowChem*Nel), updateCHEM_local(Ny*Nz*Nel);
             
             // Concatenate elements for this slice
@@ -200,7 +184,7 @@ float multigpufusion::poisson_ml(float lambdaCHEM) {
                 memcpy(&xx_local(e*Ny*Nz), &recon.data[recon.index(e,s,0,0)], sizeof(float)*Ny*Nz);
             }
             
-            // Forward projection for all elements
+            // Forward projection for all elements (use chemical geometry)
             for (int e = 0; e < Nel; e++) {
                 ctx->vol->copyData((float32*) &xx_local(e*Ny*Nz));
                 ctx->fp_algo->initialize(cProj, ctx->vol.get(), ctx->chem_sino.get());
@@ -208,7 +192,7 @@ float multigpufusion::poisson_ml(float lambdaCHEM) {
                 memcpy(&Ax_local(e*NrowChem), ctx->chem_sino->getData(), sizeof(float)*NrowChem);
             }
             
-            // Back projection for gradient
+            // Back projection for gradient (each element separately)
             for (int e = 0; e < Nel; e++) {
                 Eigen::VectorXf residual = (Ax_local.segment(e*NrowChem, NrowChem) - 
                                           bChem.row(s).segment(e*NrowChem, NrowChem).transpose()).array() / 
@@ -238,15 +222,11 @@ float multigpufusion::poisson_ml(float lambdaCHEM) {
     }
     
     recon.positivity();
-    std::cout << "=== MultiGPU Poisson ML completed ===" << std::endl;
     return total_cost;
 }
 
-// Override Multi-GPU Data Fusion
+// Multi-GPU Data Fusion
 std::tuple<float,float> multigpufusion::data_fusion(float lambdaHAADF, float lambdaCHEM, int nIter, std::string method) {
-    std::cout << "=== MultiGPU Data Fusion called with lambdaHAADF=" << lambdaHAADF 
-              << ", lambdaCHEM=" << lambdaCHEM << ", method=" << method << " ===" << std::endl;
-    
     float total_costHAADF = 0;
     float total_costCHEM = 0;
     
@@ -254,15 +234,10 @@ std::tuple<float,float> multigpufusion::data_fusion(float lambdaHAADF, float lam
     if (method == "SART" && (algo_sart == NULL)) { initializeSART("sequential"); }
     else if (method == "SIRT" && (algo_sirt == NULL)) { initializeSIRT(); }
     
-    #pragma omp parallel num_threads(gpu_ids.size()) reduction(+:total_costHAADF,total_costCHEM)
+    #pragma omp parallel num_threads(gpu_ids.size()) reduction(+:total_costCHEM)
     {
         int thread_id = omp_get_thread_num();
         int assigned_gpu = gpu_ids[thread_id % gpu_ids.size()];
-        
-        #pragma omp single
-        {
-            std::cout << "Data Fusion: Using " << omp_get_num_threads() << " threads for " << gpu_ids.size() << " GPUs" << std::endl;
-        }
         
         // Get thread-local GPU context
         FusionGPUContext* ctx = get_thread_context();
@@ -276,11 +251,9 @@ std::tuple<float,float> multigpufusion::data_fusion(float lambdaHAADF, float lam
         // Distribute slices across threads
         #pragma omp for schedule(dynamic)
         for (int s = 0; s < Nslice; s++) {
-            std::cout << "Thread " << thread_id << " (GPU " << assigned_gpu << ") processing slice " << s << std::endl;
-            
             Eigen::VectorXf xx_local(Ny*Nz*Nel), Ax_local(NrowChem*Nel);
             Eigen::VectorXf updateCHEM_local(Ny*Nz*Nel), updateHAADF_local(Ny*Nz*Nel);
-            Eigen::VectorXf modelHAADF_local(Nslice*Ny);
+            Eigen::VectorXf modelHAADF_local(Nslice*Ny), updateVol_local(Nslice*Ny);
             
             // Concatenate elements for this slice
             for (int e = 0; e < Nel; e++) {
@@ -300,7 +273,7 @@ std::tuple<float,float> multigpufusion::data_fusion(float lambdaHAADF, float lam
             ctx->fp_algo->run();
             memcpy(&g(s,0), ctx->haadf_sino->getData(), sizeof(float)*NrowHaadf);
             
-            // HAADF reconstruction step (simplified fusion)
+            // HAADF reconstruction step (fuse operation)
             ctx->haadf_sino->copyData((float32*) &bh(s,0));
             ctx->vol->copyData((float32*) &modelHAADF_local(0));
             
@@ -313,26 +286,23 @@ std::tuple<float,float> multigpufusion::data_fusion(float lambdaHAADF, float lam
                 ctx->sirt_algo->run(nIter);
             }
             
-            Eigen::VectorXf updateVol_local(Ny*Nz);
-            memcpy(&updateVol_local(0), ctx->vol->getData(), sizeof(float)*Ny*Nz);
+            memcpy(&updateVol_local(0), ctx->vol->getData(), sizeof(float)*Nslice*Ny);
             
             // Back propagate to individual chemistries
             if (gamma == 1) {
                 updateHAADF_local = sigma.transpose() * (updateVol_local - modelHAADF_local);
             } else {
-                // Simplified gamma handling for multi-GPU
+                // Simplified gamma handling
                 updateHAADF_local = gamma * sigma.transpose() * (updateVol_local - modelHAADF_local);
             }
             
-            // Chemical ML update (Poisson-ML)
+            // Chemical ML update (Poisson-ML) - same as poisson_ml
             for (int e = 0; e < Nel; e++) {
                 ctx->vol->copyData((float32*) &xx_local(e*Ny*Nz));
                 ctx->fp_algo->initialize(cProj, ctx->vol.get(), ctx->chem_sino.get());
                 ctx->fp_algo->run();
                 memcpy(&Ax_local(e*NrowChem), ctx->chem_sino->getData(), sizeof(float)*NrowChem);
-            }
-            
-            for (int e = 0; e < Nel; e++) {
+                
                 Eigen::VectorXf residual = (Ax_local.segment(e*NrowChem, NrowChem) - 
                                           bChem.row(s).segment(e*NrowChem, NrowChem).transpose()).array() / 
                                           (Ax_local.segment(e*NrowChem, NrowChem).array() + eps).array();
@@ -368,14 +338,11 @@ std::tuple<float,float> multigpufusion::data_fusion(float lambdaHAADF, float lam
         total_costHAADF = (g - bh).norm();
     }
     
-    std::cout << "=== MultiGPU Data Fusion completed ===" << std::endl;
     return std::make_tuple(total_costHAADF, total_costCHEM);
 }
 
-// Override Multi-GPU Chemical SART
+// Multi-GPU Chemical SART
 void multigpufusion::chemical_SART(int nIter) {
-    std::cout << "=== MultiGPU Chemical SART called with nIter=" << nIter << " ===" << std::endl;
-    
     #pragma omp parallel num_threads(gpu_ids.size())
     {
         int thread_id = omp_get_thread_num();
@@ -388,10 +355,7 @@ void multigpufusion::chemical_SART(int nIter) {
         #pragma omp for collapse(2) schedule(dynamic)
         for (int s = 0; s < Nslice; s++) {
             for (int e = 0; e < Nel; e++) {
-                std::cout << "Thread " << thread_id << " (GPU " << assigned_gpu 
-                          << ") processing slice " << s << ", element " << e << std::endl;
-                
-                // Copy data to ASTRA
+                // Copy data to ASTRA (use chemical geometry)
                 ctx->vol->copyData((float32*) &recon.data[recon.index(e,s,0,0)]);
                 ctx->chem_sino->copyData((float32*) &bChem(s, e*NrowChem));
                 
@@ -405,14 +369,10 @@ void multigpufusion::chemical_SART(int nIter) {
             }
         }
     }
-    
-    std::cout << "=== MultiGPU Chemical SART completed ===" << std::endl;
 }
 
-// Override Multi-GPU Chemical SIRT
+// Multi-GPU Chemical SIRT
 void multigpufusion::chemical_SIRT(int nIter) {
-    std::cout << "=== MultiGPU Chemical SIRT called with nIter=" << nIter << " ===" << std::endl;
-    
     #pragma omp parallel num_threads(gpu_ids.size())
     {
         int thread_id = omp_get_thread_num();
@@ -425,10 +385,7 @@ void multigpufusion::chemical_SIRT(int nIter) {
         #pragma omp for collapse(2) schedule(dynamic)
         for (int s = 0; s < Nslice; s++) {
             for (int e = 0; e < Nel; e++) {
-                std::cout << "Thread " << thread_id << " (GPU " << assigned_gpu 
-                          << ") processing slice " << s << ", element " << e << std::endl;
-                
-                // Copy data to ASTRA
+                // Copy data to ASTRA (use chemical geometry)
                 ctx->vol->copyData((float32*) &recon.data[recon.index(e,s,0,0)]);
                 ctx->chem_sino->copyData((float32*) &bChem(s, e*NrowChem));
                 
@@ -443,9 +400,8 @@ void multigpufusion::chemical_SIRT(int nIter) {
     }
 }
 
-// Override Multi-GPU Data Distance
+// Multi-GPU Data Distance
 float multigpufusion::data_distance() {
-    
     #pragma omp parallel num_threads(gpu_ids.size())
     {
         int thread_id = omp_get_thread_num();
@@ -464,7 +420,7 @@ float multigpufusion::data_distance() {
                 memcpy(&xx_local(e*Ny*Nz), &recon.data[recon.index(e,s,0,0)], sizeof(float)*Ny*Nz);
             }
             
-            // Forward project all elements
+            // Forward project all elements (use chemical geometry)
             for (int e = 0; e < Nel; e++) {
                 ctx->vol->copyData((float32*) &xx_local(e*Ny*Nz));
                 ctx->fp_algo->initialize(cProj, ctx->vol.get(), ctx->chem_sino.get());
@@ -499,39 +455,21 @@ void multigpufusion::print_gpu_usage() const {
     std::cout << std::endl;
 }
 
-// Python bindings for multigpufusion module
+//Python functions for multigpufusion module.
 PYBIND11_MODULE(multigpufusion, m)
 {
     m.doc() = "Multi-GPU Multimodal Fusion Engine using OpenMP";
-    
-    py::class_<multigpufusion, multimodal>(m, "multigpufusion")
-        .def(py::init<int, int, int>(),
-             "Empty volume constructor",
-             py::arg("Ns"), py::arg("Nray"), py::arg("Nelements"))
-        .def(py::init<int, int, int, Eigen::VectorXf, Eigen::VectorXf>(),
-             "Multimodal constructor with angles",
-             py::arg("Ns"), py::arg("Nray"), py::arg("Nelements"), 
-             py::arg("haadfAngles"), py::arg("chemAngles"))
-        // Override key multimodal methods for multi-GPU
-        .def("poisson_ml", &multigpufusion::poisson_ml,
-             "Multi-GPU Poisson ML Reconstruction",
-             py::arg("lambdaCHEM"))
-        .def("data_fusion", &multigpufusion::data_fusion,
-             "Multi-GPU Data Fusion",
-             py::arg("lambdaHAADF"), py::arg("lambdaCHEM"), py::arg("nIter"), py::arg("method"))
-        .def("chemical_SART", &multigpufusion::chemical_SART,
-             "Multi-GPU Chemical SART Reconstruction",
-             py::arg("nIter"))
-        .def("chemical_SIRT", &multigpufusion::chemical_SIRT,
-             "Multi-GPU Chemical SIRT Reconstruction",
-             py::arg("nIter"))
-        .def("data_distance", &multigpufusion::data_distance,
-             "Multi-GPU Data Distance Calculation")
-        // Utility methods
-        .def("get_gpu_ids", &multigpufusion::get_gpu_ids,
-             "Get list of GPU IDs being used")
-        .def("is_multi_gpu_enabled", &multigpufusion::is_multi_gpu_enabled,
-             "Check if multi-GPU parallelization is enabled")
-        .def("print_gpu_usage", &multigpufusion::print_gpu_usage,
-             "Print current GPU usage information");
+    py::class_<multigpufusion, multimodal> multigpufusion(m, "multigpufusion");
+    multigpufusion.def(py::init<int,int,int>());
+    multigpufusion.def(py::init<int,int,int,Vec,Vec>());
+    // Multi-GPU versions of key multimodal methods
+    multigpufusion.def("poisson_ml", &multigpufusion::poisson_ml, "Multi-GPU Poisson ML Reconstruction");
+    multigpufusion.def("data_fusion", &multigpufusion::data_fusion, "Multi-GPU Data Fusion");
+    multigpufusion.def("chemical_SART", &multigpufusion::chemical_SART, "Multi-GPU Chemical SART Reconstruction");
+    multigpufusion.def("chemical_SIRT", &multigpufusion::chemical_SIRT, "Multi-GPU Chemical SIRT Reconstruction");
+    multigpufusion.def("data_distance", &multigpufusion::data_distance, "Multi-GPU Data Distance Calculation");
+    // Utility methods
+    multigpufusion.def("get_gpu_ids", &multigpufusion::get_gpu_ids, "Get list of GPU IDs being used");
+    multigpufusion.def("is_multi_gpu_enabled", &multigpufusion::is_multi_gpu_enabled, "Check if multi-GPU parallelization is enabled");
+    multigpufusion.def("print_gpu_usage", &multigpufusion::print_gpu_usage, "Print current GPU usage information");
 }
