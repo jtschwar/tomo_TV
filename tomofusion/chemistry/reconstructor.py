@@ -1,13 +1,13 @@
-from tomofusion.chemistry.utils import utils_cs_eds as utils
-from tomofusion.chemistry.utils import multimodal
+from tomofusion.chemistry.utils import multimodal, multigpufusion
+from tomofusion.chemistry.utils import fusion_helper as utils
 import matplotlib.pyplot as plt
 from typing import Dict
 from tqdm import tqdm
 import numpy as np
+import tomofusion
 
 import tkinter as tk
 from tkinter import ttk
-import numpy as np
 from PIL import Image, ImageTk
 
 class ChemicalTomo:
@@ -15,7 +15,8 @@ class ChemicalTomo:
     def __init__(self, 
             haadf: np.ndarray, haadfTiltAngles: np.ndarray, 
             chem: Dict, chemTiltAngles: np.ndarray, 
-            gamma: float = 1.6, sigmaMethod: int = 3):
+            gamma: float = 1.6, sigmaMethod: int = 3,
+            gpu_id: int = -1):
         """
         Initialize the Chemical Tomography Reconstructor
         Args:
@@ -40,11 +41,30 @@ class ChemicalTomo:
         self.elements = list(chem)
         self.nz = len(chem)
 
-        # Initialize Tomography Operator
         self.tomo = multimodal(
             self.nx, self.ny, self.nz, 
             np.deg2rad(haadfTiltAngles),
             np.deg2rad(chemTiltAngles))
+
+        # Initialize Tomography Operator
+        config = tomofusion.determine_gpu_config(gpu_id)
+        if config == 'singleconfig':
+            print(f"Initializing single-GPU configuration")
+            self.tomo = multimodal(
+                self.nx, self.ny, self.nz, 
+                np.deg2rad(haadfTiltAngles),
+                np.deg2rad(chemTiltAngles))
+        elif config == 'multigpu':
+            print(f"Initializing multi-GPU configuration")
+            self.tomo = multigpufusion.multigpufusion(
+                self.nx, self.ny, self.nz, 
+                np.deg2rad(haadfTiltAngles),
+                np.deg2rad(chemTiltAngles))
+
+        # Check to see if we want to set the GPU ID
+        if gpu_id >= 0 and config == 'singleconfig':
+            self.tomo.set_gpu(gpu_id)
+
         self.NprojHAADF = haadfTiltAngles.shape[0]
         self.NprojCHEM = chemTiltAngles.shape[0]
 
@@ -215,7 +235,7 @@ class ChemicalTomo:
         # Rescale the Projections Shortly After
         self.tomo.rescale_projections()
 
-    def get_reconstruction(self):
+    def get_recon(self):
         """
         Get the current reconstruction.
         """
@@ -234,7 +254,7 @@ class ChemicalTomo:
         Shows all elements side-by-side with single slice control
         """
         # Get the Reconstruction
-        self.get_reconstruction()
+        self.get_recon()
 
         slice = int(self.ny // 2)
         

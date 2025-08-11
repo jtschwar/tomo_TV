@@ -12,4 +12,4 @@ matrix4d: Matrix4D.o Matrix4D.h
 	$(CXX) $(CXXFLAGS) Matrix4D.cpp matrix_ops.o
 
 clean:
-	rm -rf *.so *.o
+	rm -rf *.so *.o *.out

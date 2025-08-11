@@ -2,9 +2,9 @@
 include ./make.inc
 
 GPUCONFIG = tomoengine`python3-config --extension-suffix`
-MPIGPUCONFIG = mpi_tomoengine`python3-config --extension-suffix`
+MULTIGPUCONFIG = multigpuengine`python3-config --extension-suffix`
 
-all: shared_library tomoengine
+all: shared_library tomoengine multigpuengine
 
 shared_library:
 	cd container; make; cd ..
@@ -17,5 +17,13 @@ tomoengine: tomoengine.cpp tomoengine.hpp
 	-Wl,-rpath,'$$ORIGIN' \
 	-Wl,-rpath,$(shell pwd)
 
+multigpuengine: multigpuengine.cpp multigpuengine.hpp tomoengine.cpp tomoengine.hpp
+	$(CXX) $(CXXFLAGS) $(EIGEN) $(ASTRA) $(CUDA) multigpuengine.cpp tomoengine.cpp container/*.o regularizers/*.o -o $(MULTIGPUCONFIG) \
+	$(ASTRA_LIB) \
+	-Wl,-rpath,'$$ORIGIN' \
+	-Wl,-rpath,$(shell pwd)
+
 clean:
+	cd container && make clean && cd ..
+	cd regularizers && make clean && cd ..
 	rm -rf *.so *.o

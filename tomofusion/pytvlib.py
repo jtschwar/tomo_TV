@@ -50,6 +50,10 @@ def check_cuda():
     except:
         print('Please have ASTRA installed!') 
 
+
+################################ IO #######################################
+
+
 def load_data(vol_size, file_name):
 
     #sk-image loads tilt series as (z,y,x) so the axes need to be
@@ -156,5 +160,3 @@ def save_recon(fname, meta, tomo):
     dset.attrs["Nproj"] = Nproj
 
     h5.close()
-
-

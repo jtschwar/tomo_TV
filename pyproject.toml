@@ -39,6 +39,7 @@ dependencies = [
     "scikit-image",
     "h5py",
     "tqdm",
+    "pycuda"
 ]
 
 [project.optional-dependencies]

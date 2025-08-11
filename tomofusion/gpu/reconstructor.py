@@ -1,16 +1,17 @@
-from tomofusion.gpu.utils import tomoengine, pytvlib
+from tomofusion.gpu.utils import tomoengine, multigpuengine
 import matplotlib.pyplot as plt
+from tomofusion import pytvlib
 from tqdm import tqdm
 import numpy as np
+import tomofusion
 
 import tkinter as tk
 from tkinter import ttk
-import numpy as np
 from PIL import Image, ImageTk
 
 class TomoGPU:
 
-    def __init__(self, tiltAngles: np.ndarray, tiltSeries: np.ndarray = None):
+    def __init__(self, tiltAngles: np.ndarray, tiltSeries: np.ndarray = None, gpu_id:int = -1):
         """ Initialize the Reconstructor with Tilt Angles and Series"""
 
         # Check if GPU Support is Available
@@ -18,7 +19,20 @@ class TomoGPU:
 
         # Initialize the C++ Object..
         self.Nslice, self.Nray, self.Nangles = tiltSeries.shape
-        self.tomo = tomoengine(self.Nslice, self.Nray, np.deg2rad(tiltAngles))
+
+        config = tomofusion.determine_gpu_config(gpu_id)
+        if config == 'singleconfig':
+            print(f"Initializing single-GPU configuration")
+            self.tomo = tomoengine(self.Nslice, self.Nray, np.deg2rad(tiltAngles))
+        elif config == 'multigpu':
+            print(f"Initializing multi-GPU configuration")
+            self.tomo = multigpuengine.multigpuengine(self.Nslice, self.Nray, np.deg2rad(tiltAngles))
+
+        # Check to see if we want to set the GPU ID
+        if gpu_id >= 0 and config == 'singleconfig':
+            self.tomo.set_gpu_id(gpu_id)
+
+        # Set the Tilt Series
         self.set_tilt_series(tiltSeries)
 
         # Null Volume Until Reconstruction is Complete
