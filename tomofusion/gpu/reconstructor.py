@@ -30,7 +30,7 @@ class TomoGPU:
 
         # Check to see if we want to set the GPU ID
         if gpu_id >= 0 and config == 'singleconfig':
-            self.tomo.set_gpu_id(gpu_id)
+            self.tomo.set_gpu(gpu_id)
 
         # Set the Tilt Series
         self.set_tilt_series(tiltSeries)
