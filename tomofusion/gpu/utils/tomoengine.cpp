@@ -118,6 +118,7 @@ void tomoengine::create_projections() {
 
         // Forward Project
         algo_fp->initialize(proj,vol,sino);
+        if (recon.gpuIndex != -1){algo_fp->setGPUIndex(recon.gpuIndex); }
         algo_fp->run();
 
         // Return Sinogram (Measurements) to tomoTV
@@ -218,6 +219,7 @@ void tomoengine::CGLS(int nIter) {
 
         // CGLS Reconstruction
         algo_cgls->initialize(proj, sino, vol);
+        if (recon.gpuIndex != -1){algo_cgls->setGPUIndex(recon.gpuIndex); }
         algo_cgls->run(nIter);
         
         // Return Slice to tomo_TV
@@ -258,6 +260,7 @@ Vec tomoengine::forward_projection(const Vec &inVol) {
 
     // Forward Project
     algo_fp->initialize(proj,vol,sino);
+    if (recon.gpuIndex != -1){algo_fp->setGPUIndex(recon.gpuIndex); }
     algo_fp->run();
 
     memcpy(&outProj(0), sino->getData(), sizeof(float)*Nrow);
@@ -279,6 +282,7 @@ Vec tomoengine::back_projection(const Vec &inProj) {
 
     // Back Project
     algo_bp->initialize(proj,sino,vol);
+    if (recon.gpuIndex != -1){algo_bp->setGPUIndex(recon.gpuIndex); }
     algo_bp->run();
 
     // Return data from Astra
@@ -333,6 +337,7 @@ void tomoengine::FBP(bool apply_positivity) {
 
         // FBF Reconstruction
         algo_fbp->initialize(sino,vol,fbfFilt);
+        if (recon.gpuIndex != -1){algo_fbp->setGPUIndex(recon.gpuIndex); }
         algo_fbp->run();
         
         // Return Slice to tomo_TV
